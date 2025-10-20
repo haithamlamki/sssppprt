@@ -9,9 +9,15 @@ import {
   type InsertAthlete,
   type Gallery,
   type InsertGallery,
-  type Stats
+  type Stats,
+  events,
+  news,
+  results,
+  athletes,
+  gallery
 } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Events
@@ -21,7 +27,7 @@ export interface IStorage {
   
   // News
   getAllNews(): Promise<News[]>;
-  createNews(news: InsertNews): Promise<News>;
+  createNews(newsItem: InsertNews): Promise<News>;
   
   // Results
   getAllResults(): Promise<Result[]>;
@@ -38,31 +44,106 @@ export interface IStorage {
   
   // Stats
   getStats(): Promise<Stats>;
+  
+  // Initialization
+  initializeSampleData(): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private events: Map<string, Event>;
-  private news: Map<string, News>;
-  private results: Map<string, Result>;
-  private athletes: Map<string, Athlete>;
-  private gallery: Map<string, Gallery>;
-
-  constructor() {
-    this.events = new Map();
-    this.news = new Map();
-    this.results = new Map();
-    this.athletes = new Map();
-    this.gallery = new Map();
-    
-    // Initialize with sample data
-    this.initializeSampleData();
+export class DatabaseStorage implements IStorage {
+  // Events
+  async getAllEvents(): Promise<Event[]> {
+    return await db.select().from(events).orderBy(events.date);
   }
 
-  private initializeSampleData() {
+  async getEventById(id: string): Promise<Event | undefined> {
+    const [event] = await db.select().from(events).where(eq(events.id, id));
+    return event;
+  }
+
+  async createEvent(insertEvent: InsertEvent): Promise<Event> {
+    const [event] = await db.insert(events).values(insertEvent).returning();
+    return event;
+  }
+
+  // News
+  async getAllNews(): Promise<News[]> {
+    return await db.select().from(news).orderBy(desc(news.date));
+  }
+
+  async createNews(insertNews: InsertNews): Promise<News> {
+    const [newsItem] = await db.insert(news).values(insertNews).returning();
+    return newsItem;
+  }
+
+  // Results
+  async getAllResults(): Promise<Result[]> {
+    return await db.select().from(results).orderBy(desc(results.date));
+  }
+
+  async createResult(insertResult: InsertResult): Promise<Result> {
+    const [result] = await db.insert(results).values(insertResult).returning();
+    return result;
+  }
+
+  // Athletes
+  async getAllAthletes(): Promise<Athlete[]> {
+    return await db.select().from(athletes);
+  }
+
+  async createAthlete(insertAthlete: InsertAthlete): Promise<Athlete> {
+    const [athlete] = await db.insert(athletes).values(insertAthlete).returning();
+    return athlete;
+  }
+
+  // Gallery
+  async getAllGallery(): Promise<Gallery[]> {
+    return await db.select().from(gallery).orderBy(desc(gallery.eventDate));
+  }
+
+  async getGalleryByCategory(category: string): Promise<Gallery[]> {
+    return await db.select().from(gallery)
+      .where(eq(gallery.category, category))
+      .orderBy(desc(gallery.eventDate));
+  }
+
+  async createGalleryItem(insertGallery: InsertGallery): Promise<Gallery> {
+    const [galleryItem] = await db.insert(gallery).values(insertGallery).returning();
+    return galleryItem;
+  }
+
+  // Stats
+  async getStats(): Promise<Stats> {
+    const [eventsCount] = await db.select({ count: sql<number>`count(*)` }).from(events);
+    const [participantsSum] = await db.select({ 
+      sum: sql<number>`coalesce(sum(${events.currentParticipants}), 0)` 
+    }).from(events);
+    const [achievementsCount] = await db.select({ count: sql<number>`count(*)` }).from(results);
+    const [sportsCount] = await db.select({ 
+      count: sql<number>`count(distinct ${events.category})` 
+    }).from(events);
+
+    return {
+      totalEvents: Number(eventsCount.count),
+      totalParticipants: Number(participantsSum.sum),
+      totalAchievements: Number(achievementsCount.count),
+      activeSports: Number(sportsCount.count),
+    };
+  }
+
+  // Initialize sample data
+  async initializeSampleData(): Promise<void> {
+    // Check if we already have data
+    const existingEvents = await db.select().from(events).limit(1);
+    if (existingEvents.length > 0) {
+      console.log("Sample data already exists, skipping initialization");
+      return;
+    }
+
+    console.log("Initializing sample data...");
+
     // Sample Events
-    const sampleEvents: Event[] = [
+    await db.insert(events).values([
       {
-        id: randomUUID(),
         title: "بطولة كرة القدم السنوية",
         description: "بطولة كرة القدم السنوية للشركة - 16 فريق يتنافسون على كأس البطولة",
         category: "football",
@@ -75,7 +156,6 @@ export class MemStorage implements IStorage {
         requirements: "جميع الموظفين مرحب بهم - يجب التسجيل ضمن فريق",
       },
       {
-        id: randomUUID(),
         title: "اليوم الرياضي العائلي",
         description: "يوم مليء بالأنشطة الترفيهية للموظفين وعائلاتهم مع مسابقات وجوائز",
         category: "family",
@@ -88,7 +168,6 @@ export class MemStorage implements IStorage {
         requirements: "مفتوح لجميع الموظفين وعائلاتهم - التسجيل المسبق مطلوب",
       },
       {
-        id: randomUUID(),
         title: "ماراثون أبراج الخيري",
         description: "ماراثون 10 كم للموظفين بهدف خيري - كل المشاركة تذهب للجمعيات الخيرية",
         category: "marathon",
@@ -101,7 +180,6 @@ export class MemStorage implements IStorage {
         requirements: "مستوى لياقة متوسط - فحص طبي مطلوب",
       },
       {
-        id: randomUUID(),
         title: "دوري كرة السلة الداخلي",
         description: "دوري كرة السلة بنظام المجموعات - 8 فرق يتنافسون",
         category: "basketball",
@@ -113,34 +191,27 @@ export class MemStorage implements IStorage {
         status: "upcoming",
         requirements: "التسجيل مفتوح حتى نفاد الأماكن",
       },
-    ];
-
-    sampleEvents.forEach(event => this.events.set(event.id, event));
+    ]);
 
     // Sample News
-    const sampleNews: News[] = [
+    await db.insert(news).values([
       {
-        id: randomUUID(),
         title: "فريق الهندسة يتوج بطلاً لدوري كرة القدم الداخلي",
         content: "في مباراة نهائية مثيرة، تمكن فريق قسم الهندسة من التتويج بلقب بطولة كرة القدم الداخلية بعد فوزه على فريق المالية بنتيجة 3-2",
         date: new Date(),
         category: "result",
       },
       {
-        id: randomUUID(),
         title: "التسجيل مفتوح الآن لبطولة كرة السلة السنوية",
         content: "يسر اللجنة الرياضية أن تعلن عن فتح باب التسجيل لبطولة كرة السلة السنوية. آخر موعد للتسجيل 10 مارس 2025",
         date: new Date(),
         category: "announcement",
       },
-    ];
-
-    sampleNews.forEach(news => this.news.set(news.id, news));
+    ]);
 
     // Sample Results
-    const sampleResults: Result[] = [
+    await db.insert(results).values([
       {
-        id: randomUUID(),
         eventId: null,
         tournamentName: "بطولة كرة القدم السنوية 2024",
         winner: "فريق الهندسة",
@@ -150,7 +221,6 @@ export class MemStorage implements IStorage {
         category: "football",
       },
       {
-        id: randomUUID(),
         eventId: null,
         tournamentName: "دوري كرة السلة الداخلي 2024",
         winner: "فريق تقنية المعلومات",
@@ -159,14 +229,11 @@ export class MemStorage implements IStorage {
         date: new Date(2024, 10, 20),
         category: "basketball",
       },
-    ];
-
-    sampleResults.forEach(result => this.results.set(result.id, result));
+    ]);
 
     // Sample Athletes
-    const sampleAthletes: Athlete[] = [
+    await db.insert(athletes).values([
       {
-        id: randomUUID(),
         name: "عبدالله الشمري",
         position: "مهندس كهرباء",
         department: "قسم الهندسة",
@@ -175,7 +242,6 @@ export class MemStorage implements IStorage {
         imageUrl: null,
       },
       {
-        id: randomUUID(),
         name: "سارة القحطاني",
         position: "محلل أعمال",
         department: "قسم تقنية المعلومات",
@@ -183,14 +249,11 @@ export class MemStorage implements IStorage {
         sport: "كرة سلة",
         imageUrl: null,
       },
-    ];
-
-    sampleAthletes.forEach(athlete => this.athletes.set(athlete.id, athlete));
+    ]);
 
     // Sample Gallery
-    const sampleGallery: Gallery[] = [
+    await db.insert(gallery).values([
       {
-        id: randomUUID(),
         title: "نهائي بطولة كرة القدم 2024",
         category: "football",
         imageUrl: "/assets/football.png",
@@ -198,115 +261,16 @@ export class MemStorage implements IStorage {
         description: "لحظات التتويج من نهائي بطولة كرة القدم السنوية",
       },
       {
-        id: randomUUID(),
         title: "اليوم العائلي الترفيهي",
         category: "family",
         imageUrl: "/assets/family.png",
         eventDate: new Date(2024, 10, 10),
         description: "أجواء مليئة بالمرح والسعادة مع العائلات",
       },
-    ];
+    ]);
 
-    sampleGallery.forEach(item => this.gallery.set(item.id, item));
-  }
-
-  // Events
-  async getAllEvents(): Promise<Event[]> {
-    return Array.from(this.events.values()).sort((a, b) => 
-      a.date.getTime() - b.date.getTime()
-    );
-  }
-
-  async getEventById(id: string): Promise<Event | undefined> {
-    return this.events.get(id);
-  }
-
-  async createEvent(insertEvent: InsertEvent): Promise<Event> {
-    const id = randomUUID();
-    const event: Event = { 
-      ...insertEvent, 
-      id,
-      currentParticipants: insertEvent.currentParticipants ?? 0,
-      status: insertEvent.status ?? "upcoming"
-    };
-    this.events.set(id, event);
-    return event;
-  }
-
-  // News
-  async getAllNews(): Promise<News[]> {
-    return Array.from(this.news.values()).sort((a, b) => 
-      b.date.getTime() - a.date.getTime()
-    );
-  }
-
-  async createNews(insertNews: InsertNews): Promise<News> {
-    const id = randomUUID();
-    const news: News = { ...insertNews, id };
-    this.news.set(id, news);
-    return news;
-  }
-
-  // Results
-  async getAllResults(): Promise<Result[]> {
-    return Array.from(this.results.values()).sort((a, b) => 
-      b.date.getTime() - a.date.getTime()
-    );
-  }
-
-  async createResult(insertResult: InsertResult): Promise<Result> {
-    const id = randomUUID();
-    const result: Result = { ...insertResult, id };
-    this.results.set(id, result);
-    return result;
-  }
-
-  // Athletes
-  async getAllAthletes(): Promise<Athlete[]> {
-    return Array.from(this.athletes.values());
-  }
-
-  async createAthlete(insertAthlete: InsertAthlete): Promise<Athlete> {
-    const id = randomUUID();
-    const athlete: Athlete = { ...insertAthlete, id };
-    this.athletes.set(id, athlete);
-    return athlete;
-  }
-
-  // Gallery
-  async getAllGallery(): Promise<Gallery[]> {
-    return Array.from(this.gallery.values()).sort((a, b) => 
-      b.eventDate.getTime() - a.eventDate.getTime()
-    );
-  }
-
-  async getGalleryByCategory(category: string): Promise<Gallery[]> {
-    return Array.from(this.gallery.values())
-      .filter(item => item.category === category)
-      .sort((a, b) => b.eventDate.getTime() - a.eventDate.getTime());
-  }
-
-  async createGalleryItem(insertGallery: InsertGallery): Promise<Gallery> {
-    const id = randomUUID();
-    const galleryItem: Gallery = { ...insertGallery, id };
-    this.gallery.set(id, galleryItem);
-    return galleryItem;
-  }
-
-  // Stats
-  async getStats(): Promise<Stats> {
-    return {
-      totalEvents: this.events.size,
-      totalParticipants: Array.from(this.events.values()).reduce(
-        (sum, event) => sum + (event.currentParticipants ?? 0), 
-        0
-      ),
-      totalAchievements: this.results.size,
-      activeSports: new Set(
-        Array.from(this.events.values()).map(e => e.category)
-      ).size,
-    };
+    console.log("Sample data initialized successfully!");
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
