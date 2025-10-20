@@ -1,12 +1,22 @@
 import { Link, useLocation } from "wouter";
-import { Trophy, Menu, X } from "lucide-react";
+import { Trophy, Menu, X, User, LogOut, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Header() {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
 
   const navItems = [
     { href: "/", label: "الرئيسية" },
@@ -50,6 +60,47 @@ export function Header() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           
+          {/* Auth buttons */}
+          {isAuthenticated ? (
+            <div className="hidden md:block">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="gap-2" data-testid="button-user-menu">
+                    <User className="h-4 w-4" />
+                    <span>{user?.fullName}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>حسابي</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="menu-profile">
+                    <User className="ml-2 h-4 w-4" />
+                    الملف الشخصي
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/my-events")} data-testid="menu-my-events">
+                    <Trophy className="ml-2 h-4 w-4" />
+                    فعالياتي
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={logout} data-testid="button-logout">
+                    <LogOut className="ml-2 h-4 w-4" />
+                    تسجيل الخروج
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : (
+            <div className="hidden md:flex gap-2">
+              <Button variant="ghost" onClick={() => navigate("/login")} data-testid="button-login-header">
+                <LogIn className="ml-2 h-4 w-4" />
+                تسجيل الدخول
+              </Button>
+              <Button onClick={() => navigate("/register")} data-testid="button-register-header">
+                إنشاء حساب
+              </Button>
+            </div>
+          )}
+          
           {/* Mobile menu button */}
           <Button
             variant="ghost"
@@ -83,6 +134,78 @@ export function Header() {
                 </Button>
               </Link>
             ))}
+            
+            {/* Mobile auth buttons */}
+            <div className="border-t pt-2 mt-2">
+              {isAuthenticated ? (
+                <>
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    {user?.fullName}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      navigate("/profile");
+                      setMobileMenuOpen(false);
+                    }}
+                    data-testid="mobile-menu-profile"
+                  >
+                    <User className="ml-2 h-4 w-4" />
+                    الملف الشخصي
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      navigate("/my-events");
+                      setMobileMenuOpen(false);
+                    }}
+                    data-testid="mobile-menu-my-events"
+                  >
+                    <Trophy className="ml-2 h-4 w-4" />
+                    فعالياتي
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      logout();
+                      setMobileMenuOpen(false);
+                    }}
+                    data-testid="mobile-button-logout"
+                  >
+                    <LogOut className="ml-2 h-4 w-4" />
+                    تسجيل الخروج
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      navigate("/login");
+                      setMobileMenuOpen(false);
+                    }}
+                    data-testid="mobile-button-login"
+                  >
+                    <LogIn className="ml-2 h-4 w-4" />
+                    تسجيل الدخول
+                  </Button>
+                  <Button
+                    className="w-full justify-start"
+                    onClick={() => {
+                      navigate("/register");
+                      setMobileMenuOpen(false);
+                    }}
+                    data-testid="mobile-button-register"
+                  >
+                    إنشاء حساب
+                  </Button>
+                </>
+              )}
+            </div>
           </nav>
         </div>
       )}

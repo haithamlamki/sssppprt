@@ -10,14 +10,20 @@ import {
   type Gallery,
   type InsertGallery,
   type Stats,
+  type User,
+  type InsertUser,
+  type EventRegistration,
+  type InsertEventRegistration,
   events,
   news,
   results,
   athletes,
-  gallery
+  gallery,
+  users,
+  eventRegistrations
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
 
 export interface IStorage {
   // Events
@@ -44,6 +50,22 @@ export interface IStorage {
   
   // Stats
   getStats(): Promise<Stats>;
+  
+  // Users
+  getUserById(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByEmployeeId(employeeId: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
+  
+  // Event Registrations
+  getEventRegistrations(eventId: string): Promise<EventRegistration[]>;
+  getUserRegistrations(userId: string): Promise<EventRegistration[]>;
+  getRegistration(eventId: string, userId: string): Promise<EventRegistration | undefined>;
+  createEventRegistration(registration: InsertEventRegistration): Promise<EventRegistration>;
+  updateEventRegistration(id: string, updates: Partial<EventRegistration>): Promise<EventRegistration | undefined>;
+  deleteEventRegistration(id: string): Promise<boolean>;
   
   // Initialization
   initializeSampleData(): Promise<void>;
@@ -130,6 +152,117 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  // Users
+  async getUserById(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async getUserByEmployeeId(employeeId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.employeeId, employeeId));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  // Event Registrations
+  async getEventRegistrations(eventId: string): Promise<EventRegistration[]> {
+    return await db
+      .select()
+      .from(eventRegistrations)
+      .where(eq(eventRegistrations.eventId, eventId))
+      .orderBy(desc(eventRegistrations.registrationDate));
+  }
+
+  async getUserRegistrations(userId: string): Promise<EventRegistration[]> {
+    return await db
+      .select()
+      .from(eventRegistrations)
+      .where(eq(eventRegistrations.userId, userId))
+      .orderBy(desc(eventRegistrations.registrationDate));
+  }
+
+  async getRegistration(eventId: string, userId: string): Promise<EventRegistration | undefined> {
+    const [registration] = await db
+      .select()
+      .from(eventRegistrations)
+      .where(
+        and(
+          eq(eventRegistrations.eventId, eventId),
+          eq(eventRegistrations.userId, userId)
+        )
+      );
+    return registration;
+  }
+
+  async createEventRegistration(insertRegistration: InsertEventRegistration): Promise<EventRegistration> {
+    const [registration] = await db
+      .insert(eventRegistrations)
+      .values(insertRegistration)
+      .returning();
+    
+    // Update event participant count
+    await db
+      .update(events)
+      .set({ 
+        currentParticipants: sql`${events.currentParticipants} + 1` 
+      })
+      .where(eq(events.id, insertRegistration.eventId));
+    
+    return registration;
+  }
+
+  async updateEventRegistration(id: string, updates: Partial<EventRegistration>): Promise<EventRegistration | undefined> {
+    const [registration] = await db
+      .update(eventRegistrations)
+      .set(updates)
+      .where(eq(eventRegistrations.id, id))
+      .returning();
+    return registration;
+  }
+
+  async deleteEventRegistration(id: string): Promise<boolean> {
+    const [registration] = await db
+      .select()
+      .from(eventRegistrations)
+      .where(eq(eventRegistrations.id, id));
+    
+    if (!registration) return false;
+    
+    // Decrease event participant count
+    await db
+      .update(events)
+      .set({ 
+        currentParticipants: sql`greatest(0, ${events.currentParticipants} - 1)` 
+      })
+      .where(eq(events.id, registration.eventId));
+    
+    await db.delete(eventRegistrations).where(eq(eventRegistrations.id, id));
+    return true;
+  }
+
   // Initialize sample data
   async initializeSampleData(): Promise<void> {
     // Check if we already have data
@@ -140,6 +273,37 @@ export class DatabaseStorage implements IStorage {
     }
 
     console.log("Initializing sample data...");
+
+    // Sample Users (for testing)
+    const bcrypt = await import("bcrypt");
+    const hashedPassword = await bcrypt.hash("password123", 10);
+    
+    await db.insert(users).values([
+      {
+        username: "ahmed.ali",
+        password: hashedPassword,
+        fullName: "أحمد علي الشمري",
+        email: "ahmed.ali@abraj.com",
+        employeeId: "EMP001",
+        department: "قسم الهندسة",
+        position: "مهندس كهرباء",
+        phoneNumber: "0501234567",
+        shiftPattern: "2weeks_on_2weeks_off",
+        role: "employee",
+      },
+      {
+        username: "admin",
+        password: hashedPassword,
+        fullName: "مدير اللجنة الرياضية",
+        email: "admin@abraj.com",
+        employeeId: "ADM001",
+        department: "اللجنة الرياضية",
+        position: "مدير اللجنة",
+        phoneNumber: "0507654321",
+        shiftPattern: "normal",
+        role: "admin",
+      },
+    ]);
 
     // Sample Events
     await db.insert(events).values([
