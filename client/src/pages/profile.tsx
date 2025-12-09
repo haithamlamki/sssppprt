@@ -1,9 +1,10 @@
-import { User, Mail, Phone, Building, Briefcase, Calendar, Clock, Loader2 } from "lucide-react";
+import { User, Mail, Phone, Building, Briefcase, Calendar, Clock, Loader2, CheckCircle, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
+import { useMemo } from "react";
 
 const shiftLabels: Record<string, string> = {
   "2weeks_on_2weeks_off": "2 أسبوع عمل / 2 أسبوع إجازة",
@@ -17,9 +18,58 @@ const roleLabels: Record<string, string> = {
   committee_member: "عضو لجنة",
 };
 
+function calculateShiftStatus(shiftPattern: string): { isOnShift: boolean; daysRemaining: number; nextChange: Date } {
+  const today = new Date();
+  const referenceDate = new Date("2025-01-01");
+  const daysDiff = Math.floor((today.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (shiftPattern === "2weeks_on_2weeks_off") {
+    const cycleDay = daysDiff % 28;
+    const isOnShift = cycleDay < 14;
+    const daysRemaining = isOnShift ? 14 - cycleDay : 28 - cycleDay;
+    const nextChange = new Date(today);
+    nextChange.setDate(nextChange.getDate() + daysRemaining);
+    return { isOnShift, daysRemaining, nextChange };
+  }
+  
+  return { isOnShift: false, daysRemaining: 0, nextChange: today };
+}
+
+function generateShiftCalendar(shiftPattern: string): { date: Date; isOnShift: boolean }[] {
+  const days: { date: Date; isOnShift: boolean }[] = [];
+  const today = new Date();
+  const referenceDate = new Date("2025-01-01");
+  
+  for (let i = 0; i < 28; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() + i);
+    
+    if (shiftPattern === "2weeks_on_2weeks_off") {
+      const daysDiff = Math.floor((date.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24));
+      const cycleDay = daysDiff % 28;
+      const isOnShift = cycleDay < 14;
+      days.push({ date, isOnShift });
+    } else {
+      days.push({ date, isOnShift: shiftPattern === "normal" });
+    }
+  }
+  
+  return days;
+}
+
 export default function Profile() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [, navigate] = useLocation();
+
+  const shiftStatus = useMemo(() => {
+    if (!user) return null;
+    return calculateShiftStatus(user.shiftPattern);
+  }, [user]);
+
+  const shiftCalendar = useMemo(() => {
+    if (!user) return [];
+    return generateShiftCalendar(user.shiftPattern);
+  }, [user]);
 
   if (isLoading) {
     return (
@@ -138,7 +188,7 @@ export default function Profile() {
                 جدول الدوام
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-muted/50 rounded-lg p-4 text-center">
                   <p className="text-sm text-muted-foreground mb-1">نظام الدوام</p>
@@ -146,18 +196,63 @@ export default function Profile() {
                 </div>
                 <div className="bg-muted/50 rounded-lg p-4 text-center">
                   <p className="text-sm text-muted-foreground mb-1">الحالة الحالية</p>
-                  <Badge className={user.currentShiftStatus === "available" ? "bg-success" : "bg-gold"}>
-                    {user.currentShiftStatus === "available" ? "متاح" : 
-                     user.currentShiftStatus === "on_shift" ? "في الدوام" : "في الإجازة"}
-                  </Badge>
+                  {user.shiftPattern === "2weeks_on_2weeks_off" && shiftStatus ? (
+                    <Badge className={shiftStatus.isOnShift ? "bg-gold" : "bg-success"}>
+                      {shiftStatus.isOnShift ? "في الدوام" : "في الإجازة"}
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-success">متاح</Badge>
+                  )}
                 </div>
                 <div className="bg-muted/50 rounded-lg p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-1">تاريخ التسجيل</p>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    {shiftStatus?.isOnShift ? "تبقى للإجازة" : "تبقى للدوام"}
+                  </p>
                   <p className="font-medium">
-                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString('ar-SA') : "-"}
+                    {user.shiftPattern === "2weeks_on_2weeks_off" && shiftStatus 
+                      ? `${shiftStatus.daysRemaining} يوم`
+                      : "-"
+                    }
                   </p>
                 </div>
               </div>
+
+              {/* Shift Calendar */}
+              {user.shiftPattern === "2weeks_on_2weeks_off" && (
+                <div>
+                  <h4 className="font-medium mb-3">جدول الأسابيع القادمة</h4>
+                  <div className="grid grid-cols-7 gap-1 text-center text-sm">
+                    {["أحد", "إثن", "ثلا", "أرب", "خمي", "جمع", "سبت"].map((day) => (
+                      <div key={day} className="font-medium text-muted-foreground p-2">
+                        {day}
+                      </div>
+                    ))}
+                    {shiftCalendar.map((day, index) => (
+                      <div
+                        key={index}
+                        className={`p-2 rounded text-xs ${
+                          day.isOnShift 
+                            ? "bg-gold/20 text-gold-foreground border border-gold/30" 
+                            : "bg-success/20 text-success-foreground border border-success/30"
+                        }`}
+                        title={day.isOnShift ? "في الدوام" : "إجازة"}
+                      >
+                        {day.date.getDate()}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-center gap-6 mt-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-gold/20 border border-gold/30" />
+                      <span>في الدوام</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-success/20 border border-success/30" />
+                      <span>إجازة</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

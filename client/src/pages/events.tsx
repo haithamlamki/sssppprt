@@ -1,14 +1,15 @@
-import { Calendar, MapPin, Users, Clock, Trophy, Heart, Footprints, Dumbbell, CheckCircle, Loader2 } from "lucide-react";
+import { Calendar, MapPin, Users, Clock, Trophy, Heart, Footprints, Dumbbell, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import type { Event, EventRegistration } from "@shared/schema";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import footballImage from "@assets/generated_images/Football_tournament_event_d6ff718f.png";
 import familyImage from "@assets/generated_images/Family_sports_day_fb7dc0d7.png";
 import marathonImage from "@assets/generated_images/Marathon_running_event_b03a4441.png";
@@ -98,8 +99,19 @@ const categoryLabels: Record<string, string> = {
   basketball: "كرة سلة",
 };
 
+function checkShiftConflict(eventDate: Date, shiftPattern: string): boolean {
+  if (shiftPattern !== "2weeks_on_2weeks_off") return false;
+  
+  const referenceDate = new Date("2025-01-01");
+  const daysDiff = Math.floor((eventDate.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24));
+  const cycleDay = daysDiff % 28;
+  // First 14 days (cycleDay < 14) = on shift (can register)
+  // Last 14 days (cycleDay >= 14) = off shift (conflict - cannot register)
+  return cycleDay >= 14;
+}
+
 export default function Events() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
@@ -194,6 +206,7 @@ export default function Events() {
             const eventDate = new Date(event.date);
             const isFull = event.maxParticipants && event.currentParticipants && 
                           event.currentParticipants >= event.maxParticipants;
+            const hasShiftConflict = user && checkShiftConflict(eventDate, user.shiftPattern);
 
             return (
               <Card key={event.id} className="overflow-hidden hover-elevate active-elevate-2 transition-all group" data-testid={`card-event-${event.id}`}>
@@ -293,6 +306,16 @@ export default function Events() {
                     <p className="text-center text-sm text-muted-foreground mb-4">يبدأ خلال</p>
                     <Countdown targetDate={eventDate} />
                   </div>
+
+                  {/* Shift Conflict Warning */}
+                  {hasShiftConflict && !registered && (
+                    <Alert className="bg-gold/10 border-gold/30">
+                      <AlertTriangle className="h-4 w-4 text-gold" />
+                      <AlertDescription className="text-sm">
+                        تحذير: هذه الفعالية تقع في فترة إجازتك. لا يمكنك التسجيل أثناء الإجازة.
+                      </AlertDescription>
+                    </Alert>
+                  )}
 
                   {/* CTA Button */}
                   {registered ? (

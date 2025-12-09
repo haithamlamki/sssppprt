@@ -163,6 +163,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "الفعالية ممتلئة" });
       }
 
+      // Check shift availability for 2weeks_on_2weeks_off pattern
+      if (user.shiftPattern === "2weeks_on_2weeks_off") {
+        const eventDate = new Date(event.date);
+        const referenceDate = new Date("2025-01-01"); // Reference start date
+        const daysDiff = Math.floor((eventDate.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24));
+        const cycleDay = daysDiff % 28; // 28-day cycle (14 on + 14 off)
+        const isOnShift = cycleDay < 14;
+        
+        if (isOnShift) {
+          return res.status(400).json({ 
+            message: "لا يمكنك التسجيل في هذه الفعالية لأنك ستكون في فترة العمل",
+            shiftConflict: true
+          });
+        }
+      }
+
       // Create registration
       const registrationData = insertEventRegistrationSchema.parse({
         eventId,
@@ -292,6 +308,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
+  // User management endpoints (admin only)
+  app.get("/api/users", isAdmin, async (_req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      // Remove passwords from response
+      const safeUsers = allUsers.map(({ password, ...user }) => user);
+      res.json(safeUsers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/users/:id/role", isAdmin, async (req, res) => {
+    try {
+      const { role } = req.body;
+      if (!["employee", "admin", "committee_member"].includes(role)) {
+        return res.status(400).json({ error: "Invalid role" });
+      }
+      
+      const updatedUser = await storage.updateUser(req.params.id, { role });
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const { password, ...safeUser } = updatedUser;
+      res.json(safeUser);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update user role" });
+    }
+  });
+
+  app.patch("/api/users/:id/status", isAdmin, async (req, res) => {
+    try {
+      const { isActive } = req.body;
+      const updatedUser = await storage.updateUser(req.params.id, { isActive });
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const { password, ...safeUser } = updatedUser;
+      res.json(safeUser);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update user status" });
     }
   });
 

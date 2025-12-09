@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { 
-  Calendar, Users, Trophy, Image, Newspaper, 
+  Calendar, Users, Trophy, ImageIcon, Newspaper, 
   Plus, Pencil, Trash2, Loader2, Shield, BarChart3 
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import type { Event, News, Result, Stats } from "@shared/schema";
+import type { Event, News, Result, Stats, User, Gallery } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -58,6 +58,42 @@ export default function Admin() {
   const { data: results = [] } = useQuery<Result[]>({
     queryKey: ["/api/results"],
     enabled: isAdmin,
+  });
+
+  const { data: allUsers = [] } = useQuery<Omit<User, 'password'>[]>({
+    queryKey: ["/api/users"],
+    enabled: isAdmin,
+  });
+
+  const { data: gallery = [] } = useQuery<Gallery[]>({
+    queryKey: ["/api/gallery"],
+    enabled: isAdmin,
+  });
+
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+      return await apiRequest("PATCH", `/api/users/${userId}/role`, { role });
+    },
+    onSuccess: () => {
+      toast({ title: "تم تحديث الصلاحية" });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: () => {
+      toast({ title: "فشل تحديث الصلاحية", variant: "destructive" });
+    },
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      return await apiRequest("PATCH", `/api/users/${userId}/status`, { isActive });
+    },
+    onSuccess: () => {
+      toast({ title: "تم تحديث حالة المستخدم" });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: () => {
+      toast({ title: "فشل تحديث الحالة", variant: "destructive" });
+    },
   });
 
   if (authLoading) {
@@ -115,7 +151,7 @@ export default function Admin() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="dashboard" data-testid="tab-dashboard">
               <BarChart3 className="h-4 w-4 ml-2" />
               الإحصائيات
@@ -131,6 +167,14 @@ export default function Admin() {
             <TabsTrigger value="results" data-testid="tab-results">
               <Trophy className="h-4 w-4 ml-2" />
               النتائج
+            </TabsTrigger>
+            <TabsTrigger value="users" data-testid="tab-users">
+              <Users className="h-4 w-4 ml-2" />
+              المستخدمين
+            </TabsTrigger>
+            <TabsTrigger value="gallery" data-testid="tab-gallery">
+              <ImageIcon className="h-4 w-4 ml-2" />
+              المعرض
             </TabsTrigger>
           </TabsList>
 
@@ -277,6 +321,89 @@ export default function Admin() {
                         {new Date(result.date).toLocaleDateString('ar-SA')}
                       </p>
                       <Badge variant="outline">{result.category}</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* Gallery Tab */}
+          <TabsContent value="gallery" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold">إدارة المعرض</h2>
+              <AddGalleryDialog />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {gallery.map((item) => (
+                <Card key={item.id} data-testid={`admin-gallery-${item.id}`}>
+                  <div className="h-40 overflow-hidden">
+                    {item.imageUrl && (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+                  <CardContent className="p-4">
+                    <h3 className="font-medium">{item.title}</h3>
+                    <p className="text-sm text-muted-foreground">{item.description}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <Badge variant="outline">{item.category}</Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {item.eventDate ? new Date(item.eventDate).toLocaleDateString('ar-SA') : ''}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* Users Tab */}
+          <TabsContent value="users" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold">إدارة المستخدمين</h2>
+              <Badge variant="outline">{allUsers.length} مستخدم</Badge>
+            </div>
+            <div className="grid gap-4">
+              {allUsers.map((userItem) => (
+                <Card key={userItem.id} data-testid={`admin-user-${userItem.id}`}>
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div className="flex-1">
+                      <h3 className="font-medium">{userItem.fullName}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {userItem.department} - {userItem.position}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {userItem.email} | رقم الموظف: {userItem.employeeId}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={userItem.role}
+                        onValueChange={(role) => updateRoleMutation.mutate({ userId: userItem.id, role })}
+                        disabled={updateRoleMutation.isPending || userItem.id === user?.id}
+                      >
+                        <SelectTrigger className="w-[140px]" data-testid={`select-role-${userItem.id}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="employee">موظف</SelectItem>
+                          <SelectItem value="committee_member">عضو لجنة</SelectItem>
+                          <SelectItem value="admin">مدير</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant={userItem.isActive ? "destructive" : "default"}
+                        size="sm"
+                        onClick={() => updateStatusMutation.mutate({ userId: userItem.id, isActive: !userItem.isActive })}
+                        disabled={updateStatusMutation.isPending || userItem.id === user?.id}
+                        data-testid={`toggle-status-${userItem.id}`}
+                      >
+                        {userItem.isActive ? "تعطيل" : "تفعيل"}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -623,6 +750,112 @@ function AddResultDialog() {
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
               required
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={mutation.isPending}>
+            {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إضافة"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddGalleryDialog() {
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    category: "football",
+    imageUrl: "",
+    eventDate: "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("POST", "/api/gallery", data);
+    },
+    onSuccess: () => {
+      toast({ title: "تمت الإضافة", description: "تم إضافة الصورة بنجاح" });
+      queryClient.invalidateQueries({ queryKey: ["/api/gallery"] });
+      setOpen(false);
+      setFormData({ title: "", description: "", category: "football", imageUrl: "", eventDate: "" });
+    },
+    onError: () => {
+      toast({ title: "فشلت الإضافة", variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({
+      ...formData,
+      eventDate: formData.eventDate ? new Date(formData.eventDate) : new Date(),
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button data-testid="button-add-gallery">
+          <Plus className="h-4 w-4 ml-2" />
+          إضافة صورة
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>إضافة صورة جديدة</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label>العنوان</Label>
+            <Input
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <Label>الوصف</Label>
+            <Textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>رابط الصورة</Label>
+            <Input
+              value={formData.imageUrl}
+              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+              placeholder="https://example.com/image.jpg"
+            />
+          </div>
+          <div>
+            <Label>النوع</Label>
+            <Select
+              value={formData.category}
+              onValueChange={(value) => setFormData({ ...formData, category: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="football">كرة قدم</SelectItem>
+                <SelectItem value="basketball">كرة سلة</SelectItem>
+                <SelectItem value="marathon">ماراثون</SelectItem>
+                <SelectItem value="family">عائلي</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>التاريخ</Label>
+            <Input
+              type="date"
+              value={formData.eventDate}
+              onChange={(e) => setFormData({ ...formData, eventDate: e.target.value })}
             />
           </div>
           <Button type="submit" className="w-full" disabled={mutation.isPending}>

@@ -279,6 +279,20 @@ function CommentsSection({ postId }: { postId: string }) {
     },
   });
 
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId: string) => {
+      return await apiRequest("DELETE", `/api/forum/comments/${commentId}`, {});
+    },
+    onSuccess: () => {
+      toast({ title: "تم حذف التعليق" });
+      queryClient.invalidateQueries({ queryKey: ["/api/forum/posts", postId, "comments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/forum/posts"] });
+    },
+    onError: () => {
+      toast({ title: "فشل حذف التعليق", variant: "destructive" });
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
@@ -301,11 +315,25 @@ function CommentsSection({ postId }: { postId: string }) {
                 <AvatarFallback className="text-xs">{comment.user.fullName.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-sm font-medium">{comment.user.fullName}</p>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(comment.createdAt).toLocaleDateString('ar-SA')}
-                  </span>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium">{comment.user.fullName}</p>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(comment.createdAt).toLocaleDateString('ar-SA')}
+                    </span>
+                  </div>
+                  {user?.id === comment.userId && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      onClick={() => deleteCommentMutation.mutate(comment.id)}
+                      disabled={deleteCommentMutation.isPending}
+                      data-testid={`delete-comment-${comment.id}`}
+                    >
+                      <Trash2 className="h-3 w-3 text-destructive" />
+                    </Button>
+                  )}
                 </div>
                 <p className="text-sm">{comment.content}</p>
               </div>

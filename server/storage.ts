@@ -65,6 +65,7 @@ export interface IStorage {
   getStats(): Promise<Stats>;
   
   // Users
+  getAllUsers(): Promise<User[]>;
   getUserById(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -188,6 +189,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Users
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
   async getUserById(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
