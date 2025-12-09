@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Trophy, Menu, X, User, LogOut, LogIn } from "lucide-react";
+import { Trophy, Menu, X, User, LogOut, LogIn, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/contexts/AuthContext";
@@ -81,6 +81,12 @@ export function Header() {
                     <Trophy className="ml-2 h-4 w-4" />
                     فعالياتي
                   </DropdownMenuItem>
+                  {(user?.role === "admin" || user?.role === "committee_member") && (
+                    <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">
+                      <Shield className="ml-2 h-4 w-4" />
+                      لوحة التحكم
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} data-testid="button-logout">
                     <LogOut className="ml-2 h-4 w-4" />
@@ -166,6 +172,20 @@ export function Header() {
                     <Trophy className="ml-2 h-4 w-4" />
                     فعالياتي
                   </Button>
+                  {(user?.role === "admin" || user?.role === "committee_member") && (
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        navigate("/admin");
+                        setMobileMenuOpen(false);
+                      }}
+                      data-testid="mobile-menu-admin"
+                    >
+                      <Shield className="ml-2 h-4 w-4" />
+                      لوحة التحكم
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     className="w-full justify-start"

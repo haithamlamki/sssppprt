@@ -159,7 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if event is full
-      if (event.maxParticipants && event.currentParticipants >= event.maxParticipants) {
+      if (event.maxParticipants && (event.currentParticipants || 0) >= event.maxParticipants) {
         return res.status(400).json({ message: "الفعالية ممتلئة" });
       }
 

@@ -14,6 +14,9 @@ import Results from "@/pages/results";
 import About from "@/pages/about";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import MyEvents from "@/pages/my-events";
+import Admin from "@/pages/admin";
+import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -26,6 +29,9 @@ function Router() {
       <Route path="/about" component={About} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/my-events" component={MyEvents} />
+      <Route path="/admin" component={Admin} />
+      <Route path="/profile" component={Profile} />
       <Route component={NotFound} />
     </Switch>
   );
