@@ -1,10 +1,11 @@
 import { Link, useLocation } from "wouter";
-import { Trophy, Menu, X, User, LogOut, LogIn, Shield, MessageSquare } from "lucide-react";
+import { Menu, X, User, LogOut, LogIn, Shield, MessageSquare, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
+import logoImage from "@assets/ABRJ.OM_-_Copy_1765276224339.png";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,9 +36,11 @@ export function Header() {
         {/* Logo and Title */}
         <Link href="/" data-testid="link-home">
           <div className="flex items-center gap-3 cursor-pointer hover-elevate rounded-md px-3 py-2 transition-colors">
-            <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary text-primary-foreground">
-              <Trophy className="h-6 w-6" />
-            </div>
+            <img 
+              src={logoImage} 
+              alt="شعار أبراج" 
+              className="h-10 w-10 object-contain"
+            />
             <div className="flex flex-col">
               <h1 className="text-lg font-display font-bold leading-tight">اللجنة الرياضية</h1>
               <p className="text-xs text-muted-foreground">شركة أبراج لخدمات الطاقة</p>
@@ -82,7 +85,7 @@ export function Header() {
                     الملف الشخصي
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/my-events")} data-testid="menu-my-events">
-                    <Trophy className="ml-2 h-4 w-4" />
+                    <Calendar className="ml-2 h-4 w-4" />
                     فعالياتي
                   </DropdownMenuItem>
                   {(user?.role === "admin" || user?.role === "committee_member") && (
@@ -173,7 +176,7 @@ export function Header() {
                     }}
                     data-testid="mobile-menu-my-events"
                   >
-                    <Trophy className="ml-2 h-4 w-4" />
+                    <Calendar className="ml-2 h-4 w-4" />
                     فعالياتي
                   </Button>
                   {(user?.role === "admin" || user?.role === "committee_member") && (
