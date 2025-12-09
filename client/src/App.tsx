@@ -18,6 +18,9 @@ import MyEvents from "@/pages/my-events";
 import Admin from "@/pages/admin";
 import Profile from "@/pages/profile";
 import Forum from "@/pages/forum";
+import Leagues from "@/pages/leagues";
+import LeagueDetail from "@/pages/league-detail";
+import MatchDetail from "@/pages/match-detail";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -34,6 +37,9 @@ function Router() {
       <Route path="/admin" component={Admin} />
       <Route path="/profile" component={Profile} />
       <Route path="/forum" component={Forum} />
+      <Route path="/leagues" component={Leagues} />
+      <Route path="/leagues/:id" component={LeagueDetail} />
+      <Route path="/matches/:id" component={MatchDetail} />
       <Route component={NotFound} />
     </Switch>
   );

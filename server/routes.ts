@@ -3,7 +3,18 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin, hashPassword } from "./auth";
 import passport from "passport";
-import { insertUserSchema, insertEventRegistrationSchema } from "@shared/schema";
+import { 
+  insertUserSchema, 
+  insertEventRegistrationSchema,
+  insertTournamentSchema,
+  insertTeamSchema,
+  insertPlayerSchema,
+  insertMatchSchema,
+  insertMatchEventSchema,
+  insertMatchLineupSchema,
+  insertMatchCommentSchema,
+  insertTeamEvaluationSchema
+} from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
@@ -527,6 +538,402 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ liked });
     } catch (error) {
       res.status(500).json({ error: "Failed to check like status" });
+    }
+  });
+
+  // ========== LEAGUE GENERATOR ENDPOINTS ==========
+
+  // Tournaments
+  app.get("/api/tournaments", async (_req, res) => {
+    try {
+      const tournamentsList = await storage.getAllTournaments();
+      res.json(tournamentsList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch tournaments" });
+    }
+  });
+
+  app.get("/api/tournaments/:id", async (req, res) => {
+    try {
+      const tournament = await storage.getTournamentById(req.params.id);
+      if (!tournament) {
+        return res.status(404).json({ error: "Tournament not found" });
+      }
+      res.json(tournament);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch tournament" });
+    }
+  });
+
+  app.post("/api/tournaments", isAdmin, async (req, res) => {
+    try {
+      const tournamentData = insertTournamentSchema.parse(req.body);
+      const tournament = await storage.createTournament(tournamentData);
+      res.status(201).json(tournament);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create tournament" });
+    }
+  });
+
+  app.patch("/api/tournaments/:id", isAdmin, async (req, res) => {
+    try {
+      const tournament = await storage.updateTournament(req.params.id, req.body);
+      if (!tournament) {
+        return res.status(404).json({ error: "Tournament not found" });
+      }
+      res.json(tournament);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update tournament" });
+    }
+  });
+
+  app.delete("/api/tournaments/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteTournament(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete tournament" });
+    }
+  });
+
+  app.post("/api/tournaments/:id/generate-matches", isAdmin, async (req, res) => {
+    try {
+      const generatedMatches = await storage.generateLeagueMatches(req.params.id);
+      await storage.updateTournament(req.params.id, { status: "ongoing" });
+      res.json({ matches: generatedMatches, count: generatedMatches.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to generate matches" });
+    }
+  });
+
+  // Teams
+  app.get("/api/tournaments/:tournamentId/teams", async (req, res) => {
+    try {
+      const teamsList = await storage.getTeamsByTournament(req.params.tournamentId);
+      res.json(teamsList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch teams" });
+    }
+  });
+
+  app.get("/api/teams/:id", async (req, res) => {
+    try {
+      const team = await storage.getTeamById(req.params.id);
+      if (!team) {
+        return res.status(404).json({ error: "Team not found" });
+      }
+      res.json(team);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch team" });
+    }
+  });
+
+  app.post("/api/tournaments/:tournamentId/teams", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const teamData = insertTeamSchema.parse({
+        ...req.body,
+        tournamentId: req.params.tournamentId,
+        captainId: req.body.captainId || user.id,
+      });
+      const team = await storage.createTeam(teamData);
+      res.status(201).json(team);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create team" });
+    }
+  });
+
+  app.patch("/api/teams/:id", isAuthenticated, async (req, res) => {
+    try {
+      const team = await storage.updateTeam(req.params.id, req.body);
+      if (!team) {
+        return res.status(404).json({ error: "Team not found" });
+      }
+      res.json(team);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update team" });
+    }
+  });
+
+  app.delete("/api/teams/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteTeam(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete team" });
+    }
+  });
+
+  // Players
+  app.get("/api/teams/:teamId/players", async (req, res) => {
+    try {
+      const playersList = await storage.getPlayersByTeam(req.params.teamId);
+      res.json(playersList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch players" });
+    }
+  });
+
+  app.get("/api/players/:id", async (req, res) => {
+    try {
+      const player = await storage.getPlayerById(req.params.id);
+      if (!player) {
+        return res.status(404).json({ error: "Player not found" });
+      }
+      res.json(player);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch player" });
+    }
+  });
+
+  app.post("/api/teams/:teamId/players", isAuthenticated, async (req, res) => {
+    try {
+      const playerData = insertPlayerSchema.parse({
+        ...req.body,
+        teamId: req.params.teamId,
+      });
+      const player = await storage.createPlayer(playerData);
+      res.status(201).json(player);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create player" });
+    }
+  });
+
+  app.patch("/api/players/:id", isAuthenticated, async (req, res) => {
+    try {
+      const player = await storage.updatePlayer(req.params.id, req.body);
+      if (!player) {
+        return res.status(404).json({ error: "Player not found" });
+      }
+      res.json(player);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update player" });
+    }
+  });
+
+  app.delete("/api/players/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deletePlayer(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete player" });
+    }
+  });
+
+  app.get("/api/tournaments/:tournamentId/top-scorers", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const topScorers = await storage.getTopScorers(req.params.tournamentId, limit);
+      res.json(topScorers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch top scorers" });
+    }
+  });
+
+  // Matches
+  app.get("/api/tournaments/:tournamentId/matches", async (req, res) => {
+    try {
+      const matchesList = await storage.getMatchesByTournament(req.params.tournamentId);
+      res.json(matchesList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch matches" });
+    }
+  });
+
+  app.get("/api/matches/:id", async (req, res) => {
+    try {
+      const match = await storage.getMatchById(req.params.id);
+      if (!match) {
+        return res.status(404).json({ error: "Match not found" });
+      }
+      res.json(match);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch match" });
+    }
+  });
+
+  app.post("/api/tournaments/:tournamentId/matches", isAdmin, async (req, res) => {
+    try {
+      const matchData = insertMatchSchema.parse({
+        ...req.body,
+        tournamentId: req.params.tournamentId,
+      });
+      const match = await storage.createMatch(matchData);
+      res.status(201).json(match);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create match" });
+    }
+  });
+
+  app.patch("/api/matches/:id", isAdmin, async (req, res) => {
+    try {
+      const match = await storage.updateMatch(req.params.id, req.body);
+      if (!match) {
+        return res.status(404).json({ error: "Match not found" });
+      }
+      res.json(match);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update match" });
+    }
+  });
+
+  app.delete("/api/matches/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteMatch(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete match" });
+    }
+  });
+
+  // Match Events
+  app.get("/api/matches/:matchId/events", async (req, res) => {
+    try {
+      const eventsList = await storage.getMatchEvents(req.params.matchId);
+      res.json(eventsList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch match events" });
+    }
+  });
+
+  app.post("/api/matches/:matchId/events", isAdmin, async (req, res) => {
+    try {
+      const eventData = insertMatchEventSchema.parse({
+        ...req.body,
+        matchId: req.params.matchId,
+      });
+      const event = await storage.createMatchEvent(eventData);
+      res.status(201).json(event);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create match event" });
+    }
+  });
+
+  app.delete("/api/match-events/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteMatchEvent(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete match event" });
+    }
+  });
+
+  // Match Lineups
+  app.get("/api/matches/:matchId/lineups", async (req, res) => {
+    try {
+      const teamId = req.query.teamId as string | undefined;
+      const lineupsList = await storage.getMatchLineups(req.params.matchId, teamId);
+      res.json(lineupsList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch match lineups" });
+    }
+  });
+
+  app.post("/api/matches/:matchId/lineups", isAuthenticated, async (req, res) => {
+    try {
+      const lineupData = insertMatchLineupSchema.parse({
+        ...req.body,
+        matchId: req.params.matchId,
+      });
+      const lineup = await storage.createMatchLineup(lineupData);
+      res.status(201).json(lineup);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create lineup" });
+    }
+  });
+
+  app.patch("/api/lineups/:id", isAuthenticated, async (req, res) => {
+    try {
+      const lineup = await storage.updateMatchLineup(req.params.id, req.body);
+      if (!lineup) {
+        return res.status(404).json({ error: "Lineup not found" });
+      }
+      res.json(lineup);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update lineup" });
+    }
+  });
+
+  app.delete("/api/lineups/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteMatchLineup(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete lineup" });
+    }
+  });
+
+  // Match Comments
+  app.get("/api/matches/:matchId/comments", async (req, res) => {
+    try {
+      const commentsList = await storage.getMatchComments(req.params.matchId);
+      res.json(commentsList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch match comments" });
+    }
+  });
+
+  app.post("/api/matches/:matchId/comments", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const commentData = insertMatchCommentSchema.parse({
+        ...req.body,
+        matchId: req.params.matchId,
+        userId: user.id,
+      });
+      const comment = await storage.createMatchComment(commentData);
+      res.status(201).json(comment);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create comment" });
+    }
+  });
+
+  app.delete("/api/match-comments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const success = await storage.deleteMatchComment(req.params.id, user.id);
+      if (!success) {
+        return res.status(403).json({ error: "Cannot delete this comment" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete comment" });
+    }
+  });
+
+  // Team Evaluations
+  app.get("/api/teams/:teamId/evaluations", async (req, res) => {
+    try {
+      const evaluations = await storage.getTeamEvaluations(req.params.teamId);
+      res.json(evaluations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch evaluations" });
+    }
+  });
+
+  app.post("/api/teams/:teamId/evaluations", isAdmin, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const evaluationData = insertTeamEvaluationSchema.parse({
+        ...req.body,
+        teamId: req.params.teamId,
+        evaluatorId: user.id,
+      });
+      const evaluation = await storage.createTeamEvaluation(evaluationData);
+      res.status(201).json(evaluation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create evaluation" });
+    }
+  });
+
+  // Standings recalculation endpoint
+  app.post("/api/tournaments/:tournamentId/recalculate-standings", isAdmin, async (req, res) => {
+    try {
+      await storage.updateTeamStandings(req.params.tournamentId);
+      const teamsList = await storage.getTeamsByTournament(req.params.tournamentId);
+      res.json(teamsList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to recalculate standings" });
     }
   });
 

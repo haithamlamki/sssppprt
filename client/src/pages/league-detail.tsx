@@ -1,0 +1,519 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useRoute, Link } from "wouter";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Trophy, 
+  Calendar, 
+  Users, 
+  MapPin,
+  ArrowRight,
+  Target,
+  Award,
+  ChevronLeft,
+  Plus,
+  Clock,
+  Play,
+  CheckCircle2,
+  User
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Tournament, Team, MatchWithTeams, PlayerWithTeam } from "@shared/schema";
+import { format } from "date-fns";
+import { ar } from "date-fns/locale";
+
+const sportLabels: Record<string, string> = {
+  football: "كرة القدم",
+  basketball: "كرة السلة",
+  volleyball: "الكرة الطائرة",
+  tennis: "التنس",
+};
+
+const typeLabels: Record<string, string> = {
+  round_robin: "دوري كامل (ذهاب وإياب)",
+  knockout: "خروج مغلوب",
+  groups: "مجموعات + أدوار إقصائية",
+};
+
+const statusLabels: Record<string, string> = {
+  registration: "التسجيل مفتوح",
+  ongoing: "جارية",
+  completed: "منتهية",
+};
+
+const matchStatusLabels: Record<string, string> = {
+  scheduled: "قادمة",
+  live: "مباشر",
+  completed: "انتهت",
+  postponed: "مؤجلة",
+};
+
+const matchStatusColors: Record<string, string> = {
+  scheduled: "bg-blue-500/10 text-blue-500",
+  live: "bg-red-500 text-white animate-pulse",
+  completed: "bg-gray-500/10 text-gray-500",
+  postponed: "bg-yellow-500/10 text-yellow-500",
+};
+
+export default function LeagueDetail() {
+  const [, params] = useRoute("/leagues/:id");
+  const tournamentId = params?.id;
+  const { toast } = useToast();
+  const { isAuthenticated, user } = useAuth();
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [teamName, setTeamName] = useState("");
+
+  const { data: tournament, isLoading: tournamentLoading } = useQuery<Tournament>({
+    queryKey: ["/api/tournaments", tournamentId],
+    enabled: !!tournamentId,
+  });
+
+  const { data: teams } = useQuery<Team[]>({
+    queryKey: ["/api/tournaments", tournamentId, "teams"],
+    enabled: !!tournamentId,
+  });
+
+  const { data: matches } = useQuery<MatchWithTeams[]>({
+    queryKey: ["/api/tournaments", tournamentId, "matches"],
+    enabled: !!tournamentId,
+  });
+
+  const { data: topScorers } = useQuery<PlayerWithTeam[]>({
+    queryKey: ["/api/tournaments", tournamentId, "top-scorers"],
+    enabled: !!tournamentId,
+  });
+
+  const registerTeamMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const response = await apiRequest("POST", `/api/tournaments/${tournamentId}/teams`, { name });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "teams"] });
+      setIsRegisterOpen(false);
+      setTeamName("");
+      toast({
+        title: "تم التسجيل بنجاح!",
+        description: "تم تسجيل فريقك في البطولة",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "فشل التسجيل",
+        description: "حدث خطأ أثناء التسجيل",
+        variant: "destructive",
+      });
+    },
+  });
+
+  if (tournamentLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (!tournament) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" dir="rtl">
+        <Trophy className="h-16 w-16 text-muted-foreground" />
+        <h2 className="text-xl font-medium">البطولة غير موجودة</h2>
+        <Link href="/leagues">
+          <Button>
+            <ArrowRight className="ml-2 h-4 w-4" />
+            العودة للبطولات
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  const sortedTeams = [...(teams || [])].sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+    return b.goalsFor - a.goalsFor;
+  });
+
+  const upcomingMatches = matches?.filter(m => m.status === "scheduled" || m.status === "live") || [];
+  const completedMatches = matches?.filter(m => m.status === "completed") || [];
+
+  return (
+    <div className="min-h-screen bg-background" dir="rtl">
+      <div className="relative bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-white py-16">
+        <div className="absolute inset-0 bg-black/30" />
+        <div className="relative container mx-auto px-4">
+          <Link href="/leagues">
+            <Button variant="ghost" className="text-white/80 hover:text-white mb-4" data-testid="button-back">
+              <ArrowRight className="ml-2 h-4 w-4" />
+              العودة للبطولات
+            </Button>
+          </Link>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col md:flex-row md:items-center md:justify-between gap-6"
+          >
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <Trophy className="h-10 w-10" />
+                <Badge className={
+                  tournament.status === "registration" ? "bg-emerald-500" :
+                  tournament.status === "ongoing" ? "bg-orange-500" : "bg-gray-500"
+                }>
+                  {statusLabels[tournament.status]}
+                </Badge>
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold mb-2">{tournament.name}</h1>
+              <p className="text-lg opacity-90 max-w-2xl">{tournament.description}</p>
+            </div>
+
+            {tournament.status === "registration" && isAuthenticated && (
+              <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
+                <DialogTrigger asChild>
+                  <Button size="lg" className="bg-white text-primary hover:bg-white/90" data-testid="button-register-team">
+                    <Plus className="ml-2 h-5 w-5" />
+                    سجّل فريقك
+                  </Button>
+                </DialogTrigger>
+                <DialogContent dir="rtl">
+                  <DialogHeader>
+                    <DialogTitle>تسجيل فريق جديد</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="teamName">اسم الفريق</Label>
+                      <Input
+                        id="teamName"
+                        value={teamName}
+                        onChange={(e) => setTeamName(e.target.value)}
+                        placeholder="أدخل اسم الفريق"
+                        data-testid="input-team-name"
+                      />
+                    </div>
+                    <Button 
+                      className="w-full" 
+                      onClick={() => registerTeamMutation.mutate(teamName)}
+                      disabled={!teamName.trim() || registerTeamMutation.isPending}
+                      data-testid="button-submit-team"
+                    >
+                      {registerTeamMutation.isPending ? "جاري التسجيل..." : "تسجيل الفريق"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </motion.div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+            <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
+              <Target className="h-6 w-6 mx-auto mb-2" />
+              <div className="text-2xl font-bold">{sportLabels[tournament.sport]}</div>
+              <div className="text-sm opacity-80">الرياضة</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
+              <Award className="h-6 w-6 mx-auto mb-2" />
+              <div className="text-2xl font-bold">{typeLabels[tournament.type]?.split(" ")[0]}</div>
+              <div className="text-sm opacity-80">نوع البطولة</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
+              <Users className="h-6 w-6 mx-auto mb-2" />
+              <div className="text-2xl font-bold">{teams?.length || 0} / {tournament.maxTeams}</div>
+              <div className="text-sm opacity-80">الفرق المسجلة</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
+              <Calendar className="h-6 w-6 mx-auto mb-2" />
+              <div className="text-2xl font-bold">{matches?.length || 0}</div>
+              <div className="text-sm opacity-80">المباريات</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8">
+        <Tabs defaultValue="standings" className="space-y-6">
+          <TabsList className="grid w-full max-w-lg mx-auto grid-cols-4">
+            <TabsTrigger value="standings" data-testid="tab-standings">الترتيب</TabsTrigger>
+            <TabsTrigger value="matches" data-testid="tab-matches">المباريات</TabsTrigger>
+            <TabsTrigger value="scorers" data-testid="tab-scorers">الهدافين</TabsTrigger>
+            <TabsTrigger value="teams" data-testid="tab-teams">الفرق</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="standings">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-gold" />
+                  جدول الترتيب
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {sortedTeams.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-right w-12">#</TableHead>
+                          <TableHead className="text-right">الفريق</TableHead>
+                          <TableHead className="text-center">لعب</TableHead>
+                          <TableHead className="text-center">فاز</TableHead>
+                          <TableHead className="text-center">تعادل</TableHead>
+                          <TableHead className="text-center">خسر</TableHead>
+                          <TableHead className="text-center">له</TableHead>
+                          <TableHead className="text-center">عليه</TableHead>
+                          <TableHead className="text-center">الفارق</TableHead>
+                          <TableHead className="text-center font-bold">النقاط</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedTeams.map((team, index) => (
+                          <TableRow 
+                            key={team.id} 
+                            className={index < 3 ? "bg-primary/5" : ""}
+                            data-testid={`row-team-${team.id}`}
+                          >
+                            <TableCell className="font-bold">
+                              {index === 0 && <span className="text-gold">🥇</span>}
+                              {index === 1 && <span className="text-gray-400">🥈</span>}
+                              {index === 2 && <span className="text-amber-600">🥉</span>}
+                              {index > 2 && index + 1}
+                            </TableCell>
+                            <TableCell className="font-medium">{team.name}</TableCell>
+                            <TableCell className="text-center">{team.played}</TableCell>
+                            <TableCell className="text-center text-emerald-500">{team.won}</TableCell>
+                            <TableCell className="text-center text-gray-500">{team.drawn}</TableCell>
+                            <TableCell className="text-center text-red-500">{team.lost}</TableCell>
+                            <TableCell className="text-center">{team.goalsFor}</TableCell>
+                            <TableCell className="text-center">{team.goalsAgainst}</TableCell>
+                            <TableCell className="text-center">
+                              <span className={team.goalDifference > 0 ? "text-emerald-500" : team.goalDifference < 0 ? "text-red-500" : ""}>
+                                {team.goalDifference > 0 ? "+" : ""}{team.goalDifference}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center font-bold text-lg">{team.points}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>لم يتم تسجيل أي فرق بعد</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="matches" className="space-y-6">
+            {upcomingMatches.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-blue-500" />
+                    المباريات القادمة
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {upcomingMatches.map((match) => (
+                    <MatchCard key={match.id} match={match} />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {completedMatches.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                    المباريات المنتهية
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {completedMatches.map((match) => (
+                    <MatchCard key={match.id} match={match} />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {(!matches || matches.length === 0) && (
+              <div className="text-center py-12 text-muted-foreground">
+                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>لم يتم إنشاء جدول المباريات بعد</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="scorers">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-orange-500" />
+                  قائمة الهدافين
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {topScorers && topScorers.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-right w-12">#</TableHead>
+                          <TableHead className="text-right">اللاعب</TableHead>
+                          <TableHead className="text-right">الفريق</TableHead>
+                          <TableHead className="text-center">الأهداف</TableHead>
+                          <TableHead className="text-center">التمريرات</TableHead>
+                          <TableHead className="text-center">المباريات</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {topScorers.map((player, index) => (
+                          <TableRow key={player.id} data-testid={`row-scorer-${player.id}`}>
+                            <TableCell className="font-bold">
+                              {index === 0 && "🥇"}
+                              {index === 1 && "🥈"}
+                              {index === 2 && "🥉"}
+                              {index > 2 && index + 1}
+                            </TableCell>
+                            <TableCell className="font-medium flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              {player.name}
+                              <Badge variant="outline" className="text-xs">
+                                #{player.number}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{player.team?.name}</TableCell>
+                            <TableCell className="text-center font-bold text-lg">{player.goals}</TableCell>
+                            <TableCell className="text-center">{player.assists}</TableCell>
+                            <TableCell className="text-center">{player.matchesPlayed}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>لا يوجد هدافون حتى الآن</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="teams">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {teams?.map((team) => (
+                <Card key={team.id} className="hover-elevate" data-testid={`card-team-${team.id}`}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                        <Users className="h-8 w-8 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg">{team.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {team.points} نقطة
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
+                      <div className="bg-emerald-500/10 rounded p-2">
+                        <div className="font-bold text-emerald-500">{team.won}</div>
+                        <div className="text-xs text-muted-foreground">فوز</div>
+                      </div>
+                      <div className="bg-gray-500/10 rounded p-2">
+                        <div className="font-bold text-gray-500">{team.drawn}</div>
+                        <div className="text-xs text-muted-foreground">تعادل</div>
+                      </div>
+                      <div className="bg-red-500/10 rounded p-2">
+                        <div className="font-bold text-red-500">{team.lost}</div>
+                        <div className="text-xs text-muted-foreground">خسارة</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {(!teams || teams.length === 0) && (
+                <div className="col-span-full text-center py-12 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>لم يتم تسجيل أي فرق بعد</p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
+
+function MatchCard({ match }: { match: MatchWithTeams }) {
+  return (
+    <Link href={`/matches/${match.id}`}>
+      <motion.div
+        whileHover={{ scale: 1.01 }}
+        className="bg-card border rounded-lg p-4 cursor-pointer hover-elevate"
+        data-testid={`card-match-${match.id}`}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <Badge className={matchStatusColors[match.status]}>
+            {match.status === "live" && <Play className="h-3 w-3 ml-1" />}
+            {matchStatusLabels[match.status]}
+          </Badge>
+          <div className="text-sm text-muted-foreground flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            {match.matchDate ? format(new Date(match.matchDate), "d MMM - HH:mm", { locale: ar }) : "غير محدد"}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex-1 text-right">
+            <div className="font-bold text-lg">{match.homeTeam?.name}</div>
+          </div>
+          
+          <div className="px-6 py-2">
+            {match.status === "completed" || match.status === "live" ? (
+              <div className="text-2xl font-bold flex items-center gap-2">
+                <span>{match.homeScore ?? 0}</span>
+                <span className="text-muted-foreground">-</span>
+                <span>{match.awayScore ?? 0}</span>
+              </div>
+            ) : (
+              <div className="text-lg font-medium text-muted-foreground">VS</div>
+            )}
+          </div>
+
+          <div className="flex-1 text-left">
+            <div className="font-bold text-lg">{match.awayTeam?.name}</div>
+          </div>
+        </div>
+
+        {match.venue && (
+          <div className="mt-2 text-sm text-muted-foreground flex items-center justify-center gap-2">
+            <MapPin className="h-4 w-4" />
+            {match.venue}
+          </div>
+        )}
+
+        <div className="mt-2 text-center text-xs text-muted-foreground">
+          الجولة {match.round} {match.leg === 2 && "- إياب"}
+        </div>
+      </motion.div>
+    </Link>
+  );
+}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { 
   Calendar, Users, Trophy, ImageIcon, Newspaper, 
-  Plus, Pencil, Trash2, Loader2, Shield, BarChart3 
+  Plus, Pencil, Trash2, Loader2, Shield, BarChart3, Target 
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import type { Event, News, Result, Stats, User, Gallery } from "@shared/schema";
+import type { Event, News, Result, Stats, User, Gallery, Tournament } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -67,6 +67,11 @@ export default function Admin() {
 
   const { data: gallery = [] } = useQuery<Gallery[]>({
     queryKey: ["/api/gallery"],
+    enabled: isAdmin,
+  });
+
+  const { data: tournamentsList = [] } = useQuery<Tournament[]>({
+    queryKey: ["/api/tournaments"],
     enabled: isAdmin,
   });
 
@@ -151,7 +156,7 @@ export default function Admin() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
             <TabsTrigger value="dashboard" data-testid="tab-dashboard">
               <BarChart3 className="h-4 w-4 ml-2" />
               الإحصائيات
@@ -159,6 +164,10 @@ export default function Admin() {
             <TabsTrigger value="events" data-testid="tab-events">
               <Calendar className="h-4 w-4 ml-2" />
               الفعاليات
+            </TabsTrigger>
+            <TabsTrigger value="tournaments" data-testid="tab-tournaments">
+              <Target className="h-4 w-4 ml-2" />
+              البطولات
             </TabsTrigger>
             <TabsTrigger value="news" data-testid="tab-news">
               <Newspaper className="h-4 w-4 ml-2" />
@@ -270,6 +279,77 @@ export default function Admin() {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+
+          {/* Tournaments Tab */}
+          <TabsContent value="tournaments" className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  إدارة البطولات
+                </CardTitle>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button data-testid="button-add-tournament">
+                      <Plus className="h-4 w-4 ml-2" />
+                      إضافة بطولة
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg" dir="rtl">
+                    <DialogHeader>
+                      <DialogTitle>إضافة بطولة جديدة</DialogTitle>
+                    </DialogHeader>
+                    <AddTournamentForm onSuccess={() => queryClient.invalidateQueries({ queryKey: ["/api/tournaments"] })} />
+                  </DialogContent>
+                </Dialog>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {tournamentsList.map((t) => (
+                    <Card key={t.id} className="hover-elevate" data-testid={`card-admin-tournament-${t.id}`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                            <Target className="h-6 w-6 text-primary" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold">{t.name}</h4>
+                            <Badge 
+                              className={
+                                t.status === "registration" ? "bg-emerald-500" :
+                                t.status === "ongoing" ? "bg-orange-500" : "bg-gray-500"
+                              }
+                            >
+                              {t.status === "registration" ? "التسجيل مفتوح" :
+                               t.status === "ongoing" ? "جارية" : "منتهية"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{t.description}</p>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => window.open(`/leagues/${t.id}`, '_blank')}
+                            data-testid={`button-view-${t.id}`}
+                          >
+                            عرض
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {tournamentsList.length === 0 && (
+                    <div className="col-span-full text-center py-8 text-muted-foreground">
+                      <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>لا توجد بطولات بعد</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* News Tab */}
@@ -864,5 +944,157 @@ function AddGalleryDialog() {
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
+  const { toast } = useToast();
+  
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    sport: "football",
+    type: "round_robin",
+    startDate: "",
+    endDate: "",
+    maxTeams: "8",
+    venues: "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("POST", "/api/tournaments", data);
+    },
+    onSuccess: () => {
+      toast({ title: "تمت الإضافة", description: "تم إضافة البطولة بنجاح" });
+      onSuccess();
+      setFormData({
+        name: "",
+        description: "",
+        sport: "football",
+        type: "round_robin",
+        startDate: "",
+        endDate: "",
+        maxTeams: "8",
+        venues: "",
+      });
+    },
+    onError: () => {
+      toast({ title: "فشلت الإضافة", variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({
+      ...formData,
+      startDate: formData.startDate ? new Date(formData.startDate) : null,
+      endDate: formData.endDate ? new Date(formData.endDate) : null,
+      maxTeams: parseInt(formData.maxTeams) || 8,
+      venues: formData.venues ? formData.venues.split("،").map(v => v.trim()) : [],
+      status: "registration",
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label>اسم البطولة</Label>
+        <Input
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          placeholder="دوري كرة القدم 2025"
+          required
+          data-testid="input-tournament-name"
+        />
+      </div>
+      <div>
+        <Label>الوصف</Label>
+        <Textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          placeholder="وصف البطولة وشروط المشاركة"
+          data-testid="input-tournament-description"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>الرياضة</Label>
+          <Select
+            value={formData.sport}
+            onValueChange={(value) => setFormData({ ...formData, sport: value })}
+          >
+            <SelectTrigger data-testid="select-sport">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="football">كرة القدم</SelectItem>
+              <SelectItem value="basketball">كرة السلة</SelectItem>
+              <SelectItem value="volleyball">الكرة الطائرة</SelectItem>
+              <SelectItem value="tennis">التنس</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>نوع البطولة</Label>
+          <Select
+            value={formData.type}
+            onValueChange={(value) => setFormData({ ...formData, type: value })}
+          >
+            <SelectTrigger data-testid="select-type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="round_robin">دوري كامل</SelectItem>
+              <SelectItem value="knockout">خروج مغلوب</SelectItem>
+              <SelectItem value="groups">مجموعات</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>تاريخ البداية</Label>
+          <Input
+            type="date"
+            value={formData.startDate}
+            onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+            data-testid="input-start-date"
+          />
+        </div>
+        <div>
+          <Label>تاريخ النهاية</Label>
+          <Input
+            type="date"
+            value={formData.endDate}
+            onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+            data-testid="input-end-date"
+          />
+        </div>
+      </div>
+      <div>
+        <Label>عدد الفرق</Label>
+        <Input
+          type="number"
+          value={formData.maxTeams}
+          onChange={(e) => setFormData({ ...formData, maxTeams: e.target.value })}
+          min="2"
+          max="64"
+          data-testid="input-max-teams"
+        />
+      </div>
+      <div>
+        <Label>الملاعب (مفصولة بفواصل)</Label>
+        <Input
+          value={formData.venues}
+          onChange={(e) => setFormData({ ...formData, venues: e.target.value })}
+          placeholder="ملعب الشركة، صالة الألعاب"
+          data-testid="input-venues"
+        />
+      </div>
+      <Button type="submit" className="w-full" disabled={mutation.isPending} data-testid="button-submit-tournament">
+        {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إضافة البطولة"}
+      </Button>
+    </form>
   );
 }
