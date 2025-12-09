@@ -295,6 +295,179 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Notifications endpoints
+  app.get("/api/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const notifications = await storage.getUserNotifications(user.id);
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+
+  app.get("/api/notifications/unread-count", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const count = await storage.getUnreadNotificationsCount(user.id);
+      res.json({ count });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch unread count" });
+    }
+  });
+
+  app.post("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      await storage.markNotificationAsRead(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+  });
+
+  app.post("/api/notifications/read-all", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      await storage.markAllNotificationsAsRead(user.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mark all notifications as read" });
+    }
+  });
+
+  // Forum endpoints
+  app.get("/api/forum/posts", async (req, res) => {
+    try {
+      const { category } = req.query;
+      const posts = await storage.getAllPosts(category as string | undefined);
+      res.json(posts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch posts" });
+    }
+  });
+
+  app.get("/api/forum/posts/:id", async (req, res) => {
+    try {
+      const post = await storage.getPostById(req.params.id);
+      if (!post) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+      res.json(post);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch post" });
+    }
+  });
+
+  app.post("/api/forum/posts", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const post = await storage.createPost({
+        ...req.body,
+        userId: user.id,
+      });
+      res.status(201).json(post);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create post" });
+    }
+  });
+
+  app.delete("/api/forum/posts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const success = await storage.deletePost(req.params.id, user.id);
+      if (!success) {
+        return res.status(403).json({ error: "Cannot delete this post" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete post" });
+    }
+  });
+
+  app.get("/api/forum/posts/:postId/comments", async (req, res) => {
+    try {
+      const comments = await storage.getPostComments(req.params.postId);
+      res.json(comments);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch comments" });
+    }
+  });
+
+  app.post("/api/forum/posts/:postId/comments", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const comment = await storage.createComment({
+        postId: req.params.postId,
+        userId: user.id,
+        content: req.body.content,
+      });
+      
+      // Create notification for post owner
+      const post = await storage.getPostById(req.params.postId);
+      if (post && post.userId !== user.id) {
+        await storage.createNotification({
+          userId: post.userId,
+          title: "تعليق جديد",
+          message: `علّق ${user.fullName} على منشورك`,
+          type: "info",
+          isRead: false,
+        });
+      }
+      
+      res.status(201).json(comment);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create comment" });
+    }
+  });
+
+  app.delete("/api/forum/comments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const success = await storage.deleteComment(req.params.id, user.id);
+      if (!success) {
+        return res.status(403).json({ error: "Cannot delete this comment" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete comment" });
+    }
+  });
+
+  app.post("/api/forum/posts/:postId/like", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const liked = await storage.toggleLike(req.params.postId, user.id);
+      
+      // Create notification for post owner if liked
+      if (liked) {
+        const post = await storage.getPostById(req.params.postId);
+        if (post && post.userId !== user.id) {
+          await storage.createNotification({
+            userId: post.userId,
+            title: "إعجاب جديد",
+            message: `أعجب ${user.fullName} بمنشورك`,
+            type: "info",
+            isRead: false,
+          });
+        }
+      }
+      
+      res.json({ liked });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to toggle like" });
+    }
+  });
+
+  app.get("/api/forum/posts/:postId/liked", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const liked = await storage.isPostLikedByUser(req.params.postId, user.id);
+      res.json({ liked });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check like status" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

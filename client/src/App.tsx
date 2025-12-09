@@ -17,6 +17,7 @@ import Register from "@/pages/register";
 import MyEvents from "@/pages/my-events";
 import Admin from "@/pages/admin";
 import Profile from "@/pages/profile";
+import Forum from "@/pages/forum";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/my-events" component={MyEvents} />
       <Route path="/admin" component={Admin} />
       <Route path="/profile" component={Profile} />
+      <Route path="/forum" component={Forum} />
       <Route component={NotFound} />
     </Switch>
   );

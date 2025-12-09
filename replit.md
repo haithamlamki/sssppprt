@@ -1,7 +1,7 @@
 # اللجنة الرياضية - شركة أبراج لخدمات الطاقة
 
 ## نظرة عامة
-منصة ويب شاملة للجنة الرياضية بشركة أبراج لخدمات الطاقة. التطبيق مصمم لعرض وإدارة الأنشطة الرياضية والترفيهية للموظفين وأسرهم.
+منصة ويب شاملة للجنة الرياضية بشركة أبراج لخدمات الطاقة. التطبيق مصمم لعرض وإدارة الأنشطة الرياضية والترفيهية للموظفين وأسرهم مع دعم كامل للمصادقة والتسجيل في الفعاليات والمنتدى التفاعلي.
 
 ## التقنيات المستخدمة
 
@@ -14,9 +14,10 @@
 - **Framer Motion** للحركات والانتقالات
 
 ### Backend
-- **Express.js** 
-- **In-Memory Storage** لتخزين البيانات
-- **TypeScript** للأمان النوعي
+- **Express.js** مع **TypeScript**
+- **PostgreSQL** مع **Drizzle ORM**
+- **Passport.js** للمصادقة مع Sessions
+- **bcrypt** لتشفير كلمات المرور
 
 ### التصميم
 - تصميم عربي (RTL) بالكامل
@@ -35,44 +36,95 @@
 - الرؤية والرسالة
 
 ### 2. صفحة الفعاليات (`/events`)
-- عرض جميع الفعاليات القادمة
+- عرض جميع الفعاليات من قاعدة البيانات
 - عداد تنازلي لكل فعالية
 - تفاصيل كاملة (التاريخ، المكان، المشاركون، الشروط)
 - شريط تقدم للمقاعد المتاحة
-- زر تسجيل لكل فعالية
+- زر تسجيل مع تكامل المصادقة
+- عرض حالة التسجيل للمستخدم
 
-### 3. المعرض (`/gallery`)
+### 3. المنتدى التفاعلي (`/forum`) - جديد!
+- حائط اجتماعي للموظفين
+- نشر منشورات نصية
+- نظام التعليقات
+- نظام الإعجابات
+- تصفية حسب الفئة (كرة قدم، كرة سلة، جري، عائلي، عام)
+
+### 4. المعرض (`/gallery`)
 - معرض صور للفعاليات السابقة
 - تصفية حسب نوع النشاط
 - تأثيرات Hover جذابة
 - عرض التاريخ والوصف لكل صورة
 
-### 4. النتائج والإنجازات (`/results`)
+### 5. النتائج والإنجازات (`/results`)
 - نتائج البطولات السابقة
 - لوحة الصدارة للأقسام
 - اللاعبون المميزون
 - عرض المراكز الثلاثة الأولى بتصميم مميز
 
-### 5. من نحن (`/about`)
+### 6. من نحن (`/about`)
 - نبذة عن اللجنة
 - الرؤية والرسالة
 - القيم والأهداف
 - الإنجازات بالأرقام
 
-## المكونات الرئيسية
+### 7. صفحات المصادقة
+- **تسجيل الدخول** (`/login`) - نموذج تسجيل دخول مع تحقق
+- **إنشاء حساب** (`/register`) - تسجيل موظف جديد مع معلومات العمل
+- **الملف الشخصي** (`/profile`) - عرض معلومات المستخدم وجدول الدوام
+- **فعالياتي** (`/my-events`) - الفعاليات المسجل فيها المستخدم
 
-### Header
-- شعار اللجنة
-- قائمة التنقل (Desktop و Mobile)
-- زر تبديل الوضع الليلي
+### 8. لوحة التحكم الإدارية (`/admin`)
+- للمديرين وأعضاء اللجنة فقط
+- إحصائيات شاملة
+- إدارة الفعاليات (إضافة/عرض)
+- إدارة الأخبار (إضافة/عرض)
+- إدارة النتائج (إضافة/عرض)
 
-### Footer
-- معلومات الاتصال
-- روابط سريعة
-- أيقونات وسائل التواصل الاجتماعي
-- حقوق النشر
+## نظام المصادقة
 
-## نموذج البيانات
+### الميزات
+- تسجيل موظفين جدد مع رقم الموظف
+- تسجيل دخول آمن مع bcrypt
+- جلسات مستمرة مع connect-pg-simple
+- صلاحيات متعددة (موظف، مدير، عضو لجنة)
+- جدول الورديات (2 أسبوع عمل / 2 أسبوع إجازة)
+
+### حسابات الاختبار
+```
+اسم المستخدم: ahmed.ali | كلمة المرور: password123 (موظف)
+اسم المستخدم: admin | كلمة المرور: password123 (مدير)
+```
+
+## نظام الإشعارات
+
+### الميزات
+- إشعارات داخل التطبيق
+- عداد للإشعارات غير المقروءة
+- أيقونة الجرس في الـ Header
+- إشعارات للتعليقات والإعجابات
+- تعليم الكل كمقروء
+
+## نموذج البيانات (PostgreSQL)
+
+### User (المستخدم)
+```typescript
+{
+  id: string
+  username: string
+  password: string (hashed)
+  fullName: string
+  email: string
+  employeeId: string
+  department: string
+  position: string
+  phoneNumber: string
+  shiftPattern: string // 2weeks_on_2weeks_off, normal, flexible
+  currentShiftStatus: string // available, on_shift, off_shift
+  role: string // employee, admin, committee_member
+  isActive: boolean
+}
+```
 
 ### Event (الفعالية)
 ```typescript
@@ -80,7 +132,7 @@
   id: string
   title: string
   description: string
-  category: string
+  category: string // football, basketball, marathon, family
   date: Date
   location: string
   maxParticipants: number
@@ -91,65 +143,92 @@
 }
 ```
 
-### News (الأخبار)
+### EventRegistration (التسجيل في الفعاليات)
 ```typescript
 {
   id: string
+  eventId: string
+  userId: string
+  registrationDate: Date
+  status: string // confirmed, waitlist, cancelled, attended
+  teamName: string
+}
+```
+
+### Notification (الإشعارات)
+```typescript
+{
+  id: string
+  userId: string
   title: string
+  message: string
+  type: string // info, success, warning, event, registration
+  isRead: boolean
+  createdAt: Date
+}
+```
+
+### ForumPost (منشور المنتدى)
+```typescript
+{
+  id: string
+  userId: string
   content: string
-  date: Date
   category: string
+  likesCount: number
+  commentsCount: number
+  createdAt: Date
 }
 ```
 
-### Result (النتيجة)
+### ForumComment (تعليق)
 ```typescript
 {
   id: string
-  tournamentName: string
-  winner: string
-  runnerUp: string
-  thirdPlace: string
-  date: Date
-  category: string
-}
-```
-
-### Athlete (الرياضي المميز)
-```typescript
-{
-  id: string
-  name: string
-  position: string
-  department: string
-  achievements: string
-  sport: string
-}
-```
-
-### Gallery (معرض الصور)
-```typescript
-{
-  id: string
-  title: string
-  category: string
-  imageUrl: string
-  eventDate: Date
-  description: string
+  postId: string
+  userId: string
+  content: string
+  createdAt: Date
 }
 ```
 
 ## API Endpoints
 
+### المصادقة
+- `POST /api/auth/register` - تسجيل مستخدم جديد
+- `POST /api/auth/login` - تسجيل الدخول
+- `POST /api/auth/logout` - تسجيل الخروج
+- `GET /api/auth/me` - معلومات المستخدم الحالي
+
+### الفعاليات
 - `GET /api/events` - جلب جميع الفعاليات
 - `GET /api/events/:id` - جلب فعالية محددة
-- `POST /api/events` - إنشاء فعالية جديدة
-- `GET /api/news` - جلب جميع الأخبار
-- `GET /api/results` - جلب جميع النتائج
-- `GET /api/athletes` - جلب الرياضيين المميزين
-- `GET /api/gallery` - جلب معرض الصور
-- `GET /api/gallery?category=football` - تصفية حسب الفئة
-- `GET /api/stats` - جلب الإحصائيات العامة
+- `POST /api/events` - إنشاء فعالية (admin)
+- `POST /api/events/:id/register` - التسجيل في فعالية
+- `GET /api/my-registrations` - فعاليات المستخدم
+- `DELETE /api/registrations/:id` - إلغاء التسجيل
+
+### الإشعارات
+- `GET /api/notifications` - جلب الإشعارات
+- `GET /api/notifications/unread-count` - عدد غير المقروءة
+- `POST /api/notifications/:id/read` - تعليم كمقروء
+- `POST /api/notifications/read-all` - قراءة الكل
+
+### المنتدى
+- `GET /api/forum/posts` - جلب المنشورات
+- `POST /api/forum/posts` - إنشاء منشور
+- `DELETE /api/forum/posts/:id` - حذف منشور
+- `GET /api/forum/posts/:id/comments` - تعليقات المنشور
+- `POST /api/forum/posts/:id/comments` - إضافة تعليق
+- `POST /api/forum/posts/:id/like` - إعجاب/إلغاء إعجاب
+
+### أخرى
+- `GET /api/news` - جلب الأخبار
+- `POST /api/news` - إضافة خبر (admin)
+- `GET /api/results` - جلب النتائج
+- `POST /api/results` - إضافة نتيجة (admin)
+- `GET /api/gallery` - جلب المعرض
+- `GET /api/stats` - الإحصائيات
 
 ## الميزات الخاصة
 
@@ -174,28 +253,28 @@
 - قائمة Mobile منفصلة
 - Grid مرن للبطاقات
 
-## التطوير المستقبلي
-
-### المرحلة القادمة
-1. نظام تسجيل الدخول للموظفين
-2. التسجيل في الفعاليات
-3. لوحة تحكم إدارية
-4. نظام إشعارات
-5. منتدى للتفاعل
-6. قاعدة بيانات PostgreSQL
-
 ## الإعدادات
 
 ### Environment Variables
-- `SESSION_SECRET` - مفتاح الجلسات (موجود)
+- `DATABASE_URL` - رابط قاعدة البيانات PostgreSQL
+- `SESSION_SECRET` - مفتاح الجلسات
 
 ### Scripts
 - `npm run dev` - تشغيل التطبيق في وضع التطوير
 - `npm run build` - بناء التطبيق للإنتاج
+- `npm run db:push` - تحديث قاعدة البيانات
 
 ## آخر التحديثات
 
-**يناير 2025**
+**ديسمبر 2024 - Phase 2**
+- نظام المصادقة الكامل مع Passport.js
+- التسجيل في الفعاليات
+- لوحة التحكم الإدارية
+- نظام الإشعارات داخل التطبيق
+- المنتدى التفاعلي مع التعليقات والإعجابات
+- ترحيل قاعدة البيانات إلى PostgreSQL
+
+**يناير 2025 - Phase 1**
 - إطلاق النسخة الأولى (MVP)
 - 5 صفحات رئيسية
 - تصميم عربي كامل مع Dark Mode

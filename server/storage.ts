@@ -14,13 +14,26 @@ import {
   type InsertUser,
   type EventRegistration,
   type InsertEventRegistration,
+  type Notification,
+  type InsertNotification,
+  type ForumPost,
+  type InsertForumPost,
+  type ForumComment,
+  type InsertForumComment,
+  type ForumLike,
+  type InsertForumLike,
+  type ForumPostWithUser,
   events,
   news,
   results,
   athletes,
   gallery,
   users,
-  eventRegistrations
+  eventRegistrations,
+  notifications,
+  forumPosts,
+  forumComments,
+  forumLikes
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and } from "drizzle-orm";
@@ -66,6 +79,28 @@ export interface IStorage {
   createEventRegistration(registration: InsertEventRegistration): Promise<EventRegistration>;
   updateEventRegistration(id: string, updates: Partial<EventRegistration>): Promise<EventRegistration | undefined>;
   deleteEventRegistration(id: string): Promise<boolean>;
+  
+  // Notifications
+  getUserNotifications(userId: string): Promise<Notification[]>;
+  getUnreadNotificationsCount(userId: string): Promise<number>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: string): Promise<boolean>;
+  markAllNotificationsAsRead(userId: string): Promise<boolean>;
+  
+  // Forum Posts
+  getAllPosts(category?: string): Promise<ForumPostWithUser[]>;
+  getPostById(id: string): Promise<ForumPostWithUser | undefined>;
+  createPost(post: InsertForumPost): Promise<ForumPost>;
+  deletePost(id: string, userId: string): Promise<boolean>;
+  
+  // Forum Comments
+  getPostComments(postId: string): Promise<(ForumComment & { user: { fullName: string; department: string } })[]>;
+  createComment(comment: InsertForumComment): Promise<ForumComment>;
+  deleteComment(id: string, userId: string): Promise<boolean>;
+  
+  // Forum Likes
+  toggleLike(postId: string, userId: string): Promise<boolean>;
+  isPostLikedByUser(postId: string, userId: string): Promise<boolean>;
   
   // Initialization
   initializeSampleData(): Promise<void>;
@@ -261,6 +296,180 @@ export class DatabaseStorage implements IStorage {
     
     await db.delete(eventRegistrations).where(eq(eventRegistrations.id, id));
     return true;
+  }
+
+  // Notifications
+  async getUserNotifications(userId: string): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(50);
+  }
+
+  async getUnreadNotificationsCount(userId: string): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+    return Number(result.count);
+  }
+
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const [notification] = await db
+      .insert(notifications)
+      .values(insertNotification)
+      .returning();
+    return notification;
+  }
+
+  async markNotificationAsRead(id: string): Promise<boolean> {
+    const result = await db
+      .update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, id));
+    return true;
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<boolean> {
+    await db
+      .update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.userId, userId));
+    return true;
+  }
+
+  // Forum Posts
+  async getAllPosts(category?: string): Promise<ForumPostWithUser[]> {
+    const postsData = category
+      ? await db
+          .select()
+          .from(forumPosts)
+          .where(eq(forumPosts.category, category))
+          .orderBy(desc(forumPosts.createdAt))
+      : await db.select().from(forumPosts).orderBy(desc(forumPosts.createdAt));
+
+    const postsWithUsers: ForumPostWithUser[] = [];
+    for (const post of postsData) {
+      const [user] = await db.select({
+        id: users.id,
+        fullName: users.fullName,
+        department: users.department,
+      }).from(users).where(eq(users.id, post.userId));
+      
+      if (user) {
+        postsWithUsers.push({ ...post, user });
+      }
+    }
+    return postsWithUsers;
+  }
+
+  async getPostById(id: string): Promise<ForumPostWithUser | undefined> {
+    const [post] = await db.select().from(forumPosts).where(eq(forumPosts.id, id));
+    if (!post) return undefined;
+
+    const [user] = await db.select({
+      id: users.id,
+      fullName: users.fullName,
+      department: users.department,
+    }).from(users).where(eq(users.id, post.userId));
+
+    if (!user) return undefined;
+    return { ...post, user };
+  }
+
+  async createPost(insertPost: InsertForumPost): Promise<ForumPost> {
+    const [post] = await db.insert(forumPosts).values(insertPost).returning();
+    return post;
+  }
+
+  async deletePost(id: string, userId: string): Promise<boolean> {
+    const [post] = await db.select().from(forumPosts).where(eq(forumPosts.id, id));
+    if (!post || post.userId !== userId) return false;
+    await db.delete(forumPosts).where(eq(forumPosts.id, id));
+    return true;
+  }
+
+  // Forum Comments
+  async getPostComments(postId: string): Promise<(ForumComment & { user: { fullName: string; department: string } })[]> {
+    const commentsData = await db
+      .select()
+      .from(forumComments)
+      .where(eq(forumComments.postId, postId))
+      .orderBy(forumComments.createdAt);
+
+    const commentsWithUsers: (ForumComment & { user: { fullName: string; department: string } })[] = [];
+    for (const comment of commentsData) {
+      const [user] = await db.select({
+        fullName: users.fullName,
+        department: users.department,
+      }).from(users).where(eq(users.id, comment.userId));
+      
+      if (user) {
+        commentsWithUsers.push({ ...comment, user });
+      }
+    }
+    return commentsWithUsers;
+  }
+
+  async createComment(insertComment: InsertForumComment): Promise<ForumComment> {
+    const [comment] = await db.insert(forumComments).values(insertComment).returning();
+    
+    // Update post comment count
+    await db
+      .update(forumPosts)
+      .set({ commentsCount: sql`${forumPosts.commentsCount} + 1` })
+      .where(eq(forumPosts.id, insertComment.postId));
+    
+    return comment;
+  }
+
+  async deleteComment(id: string, userId: string): Promise<boolean> {
+    const [comment] = await db.select().from(forumComments).where(eq(forumComments.id, id));
+    if (!comment || comment.userId !== userId) return false;
+    
+    await db.delete(forumComments).where(eq(forumComments.id, id));
+    
+    // Update post comment count
+    await db
+      .update(forumPosts)
+      .set({ commentsCount: sql`greatest(0, ${forumPosts.commentsCount} - 1)` })
+      .where(eq(forumPosts.id, comment.postId));
+    
+    return true;
+  }
+
+  // Forum Likes
+  async toggleLike(postId: string, userId: string): Promise<boolean> {
+    const [existingLike] = await db
+      .select()
+      .from(forumLikes)
+      .where(and(eq(forumLikes.postId, postId), eq(forumLikes.userId, userId)));
+
+    if (existingLike) {
+      await db.delete(forumLikes).where(eq(forumLikes.id, existingLike.id));
+      await db
+        .update(forumPosts)
+        .set({ likesCount: sql`greatest(0, ${forumPosts.likesCount} - 1)` })
+        .where(eq(forumPosts.id, postId));
+      return false; // unliked
+    } else {
+      await db.insert(forumLikes).values({ postId, userId });
+      await db
+        .update(forumPosts)
+        .set({ likesCount: sql`${forumPosts.likesCount} + 1` })
+        .where(eq(forumPosts.id, postId));
+      return true; // liked
+    }
+  }
+
+  async isPostLikedByUser(postId: string, userId: string): Promise<boolean> {
+    const [like] = await db
+      .select()
+      .from(forumLikes)
+      .where(and(eq(forumLikes.postId, postId), eq(forumLikes.userId, userId)));
+    return !!like;
   }
 
   // Initialize sample data

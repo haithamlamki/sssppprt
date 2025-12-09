@@ -1,7 +1,8 @@
 import { Link, useLocation } from "wouter";
-import { Trophy, Menu, X, User, LogOut, LogIn, Shield } from "lucide-react";
+import { Trophy, Menu, X, User, LogOut, LogIn, Shield, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import {
@@ -21,6 +22,7 @@ export function Header() {
   const navItems = [
     { href: "/", label: "الرئيسية" },
     { href: "/events", label: "الفعاليات" },
+    { href: "/forum", label: "المنتدى" },
     { href: "/gallery", label: "المعرض" },
     { href: "/results", label: "النتائج" },
     { href: "/about", label: "من نحن" },
@@ -59,6 +61,7 @@ export function Header() {
         {/* Right side actions */}
         <div className="flex items-center gap-2">
           <ThemeToggle />
+          <NotificationsDropdown />
           
           {/* Auth buttons */}
           {isAuthenticated ? (

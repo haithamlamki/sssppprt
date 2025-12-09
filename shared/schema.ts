@@ -164,10 +164,141 @@ export const resultsRelations = relations(results, ({ one }) => ({
   }),
 }));
 
+// Notifications Schema
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type").notNull().default("info"), // info, success, warning, event, registration
+  relatedEventId: varchar("related_event_id").references(() => events.id, { onDelete: "set null" }),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
+
+// Forum Posts Schema
+export const forumPosts = pgTable("forum_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  imageUrl: text("image_url"),
+  category: text("category").notNull().default("general"), // general, football, basketball, marathon, family
+  relatedEventId: varchar("related_event_id").references(() => events.id, { onDelete: "set null" }),
+  likesCount: integer("likes_count").notNull().default(0),
+  commentsCount: integer("comments_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertForumPostSchema = createInsertSchema(forumPosts).omit({ 
+  id: true, 
+  likesCount: true,
+  commentsCount: true,
+  createdAt: true, 
+  updatedAt: true 
+});
+export type InsertForumPost = z.infer<typeof insertForumPostSchema>;
+export type ForumPost = typeof forumPosts.$inferSelect;
+
+// Forum Comments Schema
+export const forumComments = pgTable("forum_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").notNull().references(() => forumPosts.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertForumCommentSchema = createInsertSchema(forumComments).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertForumComment = z.infer<typeof insertForumCommentSchema>;
+export type ForumComment = typeof forumComments.$inferSelect;
+
+// Forum Likes Schema
+export const forumLikes = pgTable("forum_likes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").notNull().references(() => forumPosts.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertForumLikeSchema = createInsertSchema(forumLikes).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertForumLike = z.infer<typeof insertForumLikeSchema>;
+export type ForumLike = typeof forumLikes.$inferSelect;
+
+// Forum Relations
+export const forumPostsRelations = relations(forumPosts, ({ one, many }) => ({
+  user: one(users, {
+    fields: [forumPosts.userId],
+    references: [users.id],
+  }),
+  event: one(events, {
+    fields: [forumPosts.relatedEventId],
+    references: [events.id],
+  }),
+  comments: many(forumComments),
+  likes: many(forumLikes),
+}));
+
+export const forumCommentsRelations = relations(forumComments, ({ one }) => ({
+  post: one(forumPosts, {
+    fields: [forumComments.postId],
+    references: [forumPosts.id],
+  }),
+  user: one(users, {
+    fields: [forumComments.userId],
+    references: [users.id],
+  }),
+}));
+
+export const forumLikesRelations = relations(forumLikes, ({ one }) => ({
+  post: one(forumPosts, {
+    fields: [forumLikes.postId],
+    references: [forumPosts.id],
+  }),
+  user: one(users, {
+    fields: [forumLikes.userId],
+    references: [users.id],
+  }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+  event: one(events, {
+    fields: [notifications.relatedEventId],
+    references: [events.id],
+  }),
+}));
+
 // Stats Schema (for homepage statistics)
 export interface Stats {
   totalEvents: number;
   totalParticipants: number;
   totalAchievements: number;
   activeSports: number;
+}
+
+// Extended types for forum with user info
+export interface ForumPostWithUser extends ForumPost {
+  user: {
+    id: string;
+    fullName: string;
+    department: string;
+  };
+  isLiked?: boolean;
 }
