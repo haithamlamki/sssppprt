@@ -986,14 +986,26 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    mutation.mutate({
-      ...formData,
-      startDate: formData.startDate ? new Date(formData.startDate) : null,
-      endDate: formData.endDate ? new Date(formData.endDate) : null,
+    const submitData: any = {
+      name: formData.name,
+      description: formData.description || undefined,
+      sport: formData.sport,
+      type: formData.type,
       maxTeams: parseInt(formData.maxTeams) || 8,
-      venues: formData.venues ? formData.venues.split("،").map(v => v.trim()) : [],
       status: "registration",
-    });
+    };
+    
+    if (formData.startDate) {
+      submitData.startDate = new Date(formData.startDate).toISOString();
+    }
+    if (formData.endDate) {
+      submitData.endDate = new Date(formData.endDate).toISOString();
+    }
+    if (formData.venues) {
+      submitData.venues = formData.venues.split("،").map((v: string) => v.trim()).filter((v: string) => v);
+    }
+    
+    mutation.mutate(submitData);
   };
 
   return (

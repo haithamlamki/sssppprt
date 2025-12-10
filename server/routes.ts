@@ -567,11 +567,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/tournaments", isAdmin, async (req, res) => {
     try {
-      const tournamentData = insertTournamentSchema.parse(req.body);
+      const body = { ...req.body };
+      
+      // Convert date strings to Date objects
+      if (body.startDate && typeof body.startDate === 'string') {
+        body.startDate = new Date(body.startDate);
+      }
+      if (body.endDate && typeof body.endDate === 'string') {
+        body.endDate = new Date(body.endDate);
+      }
+      if (body.registrationStart && typeof body.registrationStart === 'string') {
+        body.registrationStart = new Date(body.registrationStart);
+      }
+      if (body.registrationEnd && typeof body.registrationEnd === 'string') {
+        body.registrationEnd = new Date(body.registrationEnd);
+      }
+      
+      const tournamentData = insertTournamentSchema.parse(body);
       const tournament = await storage.createTournament(tournamentData);
       res.status(201).json(tournament);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create tournament" });
+    } catch (error: any) {
+      console.error("Tournament creation error:", error);
+      res.status(500).json({ error: error.message || "Failed to create tournament" });
     }
   });
 
