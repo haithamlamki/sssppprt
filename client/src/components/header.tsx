@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Menu, X, User, LogOut, LogIn, Shield, MessageSquare, Calendar } from "lucide-react";
+import { Menu, X, User, LogOut, LogIn, Shield, MessageSquare, Calendar, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
@@ -89,10 +89,16 @@ export function Header() {
                     فعالياتي
                   </DropdownMenuItem>
                   {(user?.role === "admin" || user?.role === "committee_member") && (
-                    <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">
-                      <Shield className="ml-2 h-4 w-4" />
-                      لوحة التحكم
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">
+                        <Shield className="ml-2 h-4 w-4" />
+                        لوحة التحكم
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate("/team-wizard")} data-testid="menu-team-wizard">
+                        <Users className="ml-2 h-4 w-4" />
+                        معالج الفرق
+                      </DropdownMenuItem>
+                    </>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} data-testid="button-logout">

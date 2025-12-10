@@ -140,6 +140,7 @@ export interface IStorage {
   deleteTournament(id: string): Promise<boolean>;
   
   // Teams
+  getAllTeams(): Promise<Team[]>;
   getTeamsByTournament(tournamentId: string): Promise<Team[]>;
   getTeamById(id: string): Promise<Team | undefined>;
   createTeam(team: InsertTeam): Promise<Team>;
@@ -147,6 +148,7 @@ export interface IStorage {
   deleteTeam(id: string): Promise<boolean>;
   
   // Players
+  getAllPlayers(): Promise<Player[]>;
   getPlayersByTeam(teamId: string): Promise<Player[]>;
   getPlayerById(id: string): Promise<Player | undefined>;
   createPlayer(player: InsertPlayer): Promise<Player>;
@@ -764,6 +766,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Teams
+  async getAllTeams(): Promise<Team[]> {
+    return await db.select().from(teams).orderBy(desc(teams.createdAt));
+  }
+
   async getTeamsByTournament(tournamentId: string): Promise<Team[]> {
     return await db
       .select()
@@ -793,6 +799,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Players
+  async getAllPlayers(): Promise<Player[]> {
+    return await db.select().from(players).orderBy(desc(players.createdAt));
+  }
+
   async getPlayersByTeam(teamId: string): Promise<Player[]> {
     return await db
       .select()

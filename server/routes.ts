@@ -624,6 +624,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Teams
+  app.get("/api/teams", async (_req, res) => {
+    try {
+      const teamsList = await storage.getAllTeams();
+      res.json(teamsList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch teams" });
+    }
+  });
+
+  app.post("/api/teams", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const teamData = insertTeamSchema.parse({
+        ...req.body,
+        captainId: req.body.captainId || user.id,
+      });
+      const team = await storage.createTeam(teamData);
+      res.status(201).json(team);
+    } catch (error: any) {
+      console.error("Team creation error:", error);
+      res.status(500).json({ error: error.message || "Failed to create team" });
+    }
+  });
+
   app.get("/api/tournaments/:tournamentId/teams", async (req, res) => {
     try {
       const teamsList = await storage.getTeamsByTournament(req.params.tournamentId);
@@ -682,6 +706,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Players
+  app.get("/api/players", async (_req, res) => {
+    try {
+      const playersList = await storage.getAllPlayers();
+      res.json(playersList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch players" });
+    }
+  });
+
+  app.post("/api/players", isAuthenticated, async (req, res) => {
+    try {
+      const playerData = insertPlayerSchema.parse(req.body);
+      const player = await storage.createPlayer(playerData);
+      res.status(201).json(player);
+    } catch (error: any) {
+      console.error("Player creation error:", error);
+      res.status(500).json({ error: error.message || "Failed to create player" });
+    }
+  });
+
   app.get("/api/teams/:teamId/players", async (req, res) => {
     try {
       const playersList = await storage.getPlayersByTeam(req.params.teamId);

@@ -334,15 +334,28 @@ export type Tournament = typeof tournaments.$inferSelect;
 // Teams Schema
 export const teams = pgTable("teams", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id, { onDelete: "cascade" }),
+  tournamentId: varchar("tournament_id").references(() => tournaments.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   logoUrl: text("logo_url"),
   captainId: varchar("captain_id").references(() => users.id),
   groupNumber: integer("group_number"), // For group stage tournaments
   
+  // Team level and info (from myleague.vn)
+  level: text("level"), // beginner, intermediate, advanced, professional
+  averageAge: text("average_age"), // 18-25, 25-30, 30-35, 35+
+  representativeName: text("representative_name"), // الممثل
+  description: text("description"), // مقدمة الفريق
+  
+  // Jersey/Kit colors
+  primaryJersey: text("primary_jersey"), // قميص 1 (اللون أو رابط الصورة)
+  secondaryJersey: text("secondary_jersey"), // قميص 2
+  thirdJersey: text("third_jersey"), // قميص 3
+  
   // Contact info
   contactPhone: varchar("contact_phone", { length: 20 }),
   contactEmail: varchar("contact_email", { length: 255 }),
+  activationZone: text("activation_zone"), // منطقة التفعيل
+  activationPeriod: text("activation_period"), // الفترة الزمنية للتفعيل
   
   // Stats (computed/cached)
   played: integer("played").notNull().default(0),
@@ -375,19 +388,29 @@ export type Team = typeof teams.$inferSelect;
 // Players Schema
 export const players = pgTable("players", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  teamId: varchar("team_id").references(() => teams.id, { onDelete: "cascade" }),
   userId: varchar("user_id").references(() => users.id), // Optional link to user account
   name: text("name").notNull(),
-  number: integer("number").notNull(),
-  position: text("position").notNull(), // goalkeeper, defender, midfielder, forward
+  number: integer("number"),
+  position: text("position"), // goalkeeper, defender, midfielder, forward
   photoUrl: text("photo_url"),
   
-  // Player info
+  // Player info (from myleague.vn)
+  level: text("level"), // beginner, intermediate, advanced, professional
+  averageAge: text("average_age"), // 18-25, 25-30, 30-35, 35+
   dateOfBirth: timestamp("date_of_birth"),
   healthStatus: text("health_status").default("fit"), // fit, injured, recovering
   healthNotes: text("health_notes"),
   email: varchar("email", { length: 255 }),
   phone: varchar("phone", { length: 20 }),
+  representativeName: text("representative_name"), // الممثل
+  activationZone: text("activation_zone"), // منطقة التفعيل
+  activationPeriod: text("activation_period"), // الفترة الزمنية للتفعيل
+  
+  // Jersey/Kit for player
+  primaryJersey: text("primary_jersey"), // قميص 1
+  secondaryJersey: text("secondary_jersey"), // قميص 2
+  thirdJersey: text("third_jersey"), // قميص 3
   
   // Stats
   goals: integer("goals").notNull().default(0),

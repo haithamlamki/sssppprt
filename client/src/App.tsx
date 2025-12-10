@@ -21,6 +21,7 @@ import Forum from "@/pages/forum";
 import Leagues from "@/pages/leagues";
 import LeagueDetail from "@/pages/league-detail";
 import MatchDetail from "@/pages/match-detail";
+import TeamWizard from "@/pages/team-wizard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/leagues" component={Leagues} />
       <Route path="/leagues/:id" component={LeagueDetail} />
       <Route path="/matches/:id" component={MatchDetail} />
+      <Route path="/team-wizard" component={TeamWizard} />
       <Route component={NotFound} />
     </Switch>
   );
