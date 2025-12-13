@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { 
   Calendar, Users, Trophy, ImageIcon, Newspaper, 
-  Plus, Pencil, Trash2, Loader2, Shield, BarChart3, Target 
+  Plus, Pencil, Trash2, Loader2, Shield, BarChart3, Target, Upload, Phone, MapPin 
 } from "lucide-react";
 import { 
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 export default function Admin() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -438,7 +439,7 @@ export default function Admin() {
                       إضافة بطولة
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-lg" dir="rtl">
+                  <DialogContent className="max-w-2xl" dir="rtl">
                     <DialogHeader>
                       <DialogTitle>إضافة بطولة جديدة</DialogTitle>
                     </DialogHeader>
@@ -1091,17 +1092,61 @@ function AddGalleryDialog() {
 
 function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     sport: "football",
-    type: "round_robin",
+    type: "groups",
     startDate: "",
     endDate: "",
     maxTeams: "8",
+    numberOfGroups: "2",
     venues: "",
+    imageUrl: "",
+    phoneNumber: "",
+    address: "",
+    policy: "public",
+    pointsForWin: "3",
+    pointsForDraw: "1",
+    pointsForLoss: "0",
+    numberOfRounds: "1",
+    isOpenForRegistration: true,
   });
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    setIsUploading(true);
+    const uploadFormData = new FormData();
+    uploadFormData.append("file", file);
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: uploadFormData,
+      });
+      const data = await response.json();
+      if (data.url) {
+        setFormData((prev) => ({ ...prev, imageUrl: data.url }));
+        toast({ title: "تم رفع الصورة بنجاح" });
+      }
+    } catch {
+      toast({ title: "فشل رفع الصورة", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
@@ -1114,12 +1159,23 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
         name: "",
         description: "",
         sport: "football",
-        type: "round_robin",
+        type: "groups",
         startDate: "",
         endDate: "",
         maxTeams: "8",
+        numberOfGroups: "2",
         venues: "",
+        imageUrl: "",
+        phoneNumber: "",
+        address: "",
+        policy: "public",
+        pointsForWin: "3",
+        pointsForDraw: "1",
+        pointsForLoss: "0",
+        numberOfRounds: "1",
+        isOpenForRegistration: true,
       });
+      setImagePreview(null);
     },
     onError: () => {
       toast({ title: "فشلت الإضافة", variant: "destructive" });
@@ -1134,7 +1190,18 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
       sport: formData.sport,
       type: formData.type,
       maxTeams: parseInt(formData.maxTeams) || 8,
+      numberOfGroups: parseInt(formData.numberOfGroups) || 2,
       status: "registration",
+      imageUrl: formData.imageUrl || undefined,
+      phoneNumber: formData.phoneNumber || undefined,
+      address: formData.address || undefined,
+      policy: formData.policy,
+      pointsForWin: parseInt(formData.pointsForWin) || 3,
+      pointsForDraw: parseInt(formData.pointsForDraw) || 1,
+      pointsForLoss: parseInt(formData.pointsForLoss) || 0,
+      numberOfRounds: parseInt(formData.numberOfRounds) || 1,
+      isOpenForRegistration: formData.isOpenForRegistration,
+      hasGroupStage: formData.type === "groups",
     };
     
     if (formData.startDate) {
@@ -1151,7 +1218,44 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+      {/* صورة الدوري */}
+      <div>
+        <Label className="flex items-center gap-2 mb-2">
+          <ImageIcon className="h-4 w-4" />
+          صورة الدوري
+        </Label>
+        <div 
+          className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {imagePreview ? (
+            <div className="relative">
+              <img src={imagePreview} alt="معاينة" className="w-full h-32 object-cover rounded-md" />
+              {isUploading && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-md">
+                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="py-4">
+              <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">اضغط لرفع صورة</p>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageUpload}
+            data-testid="input-tournament-image"
+          />
+        </div>
+      </div>
+
+      {/* اسم البطولة */}
       <div>
         <Label>اسم البطولة</Label>
         <Input
@@ -1162,6 +1266,53 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
           data-testid="input-tournament-name"
         />
       </div>
+
+      {/* معلومات الاتصال */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label className="flex items-center gap-2">
+            <Phone className="h-4 w-4" />
+            رقم الهاتف
+          </Label>
+          <Input
+            value={formData.phoneNumber}
+            onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+            placeholder="05xxxxxxxx"
+            data-testid="input-phone-number"
+          />
+        </div>
+        <div>
+          <Label>السياسة</Label>
+          <Select
+            value={formData.policy}
+            onValueChange={(value) => setFormData({ ...formData, policy: value })}
+          >
+            <SelectTrigger data-testid="select-policy">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="public">عام</SelectItem>
+              <SelectItem value="private">خاص</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* العنوان */}
+      <div>
+        <Label className="flex items-center gap-2">
+          <MapPin className="h-4 w-4" />
+          العنوان
+        </Label>
+        <Input
+          value={formData.address}
+          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          placeholder="مدينة/حي/شارع"
+          data-testid="input-address"
+        />
+      </div>
+
+      {/* الوصف */}
       <div>
         <Label>الوصف</Label>
         <Textarea
@@ -1171,6 +1322,8 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
           data-testid="input-tournament-description"
         />
       </div>
+
+      {/* الرياضة ونوع البطولة */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label>الرياضة</Label>
@@ -1206,6 +1359,89 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
           </Select>
         </div>
       </div>
+
+      {/* عدد الفرق والمجموعات */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>عدد المتنافسين</Label>
+          <Input
+            type="number"
+            value={formData.maxTeams}
+            onChange={(e) => setFormData({ ...formData, maxTeams: e.target.value })}
+            min="4"
+            max="128"
+            data-testid="input-max-teams"
+          />
+        </div>
+        {formData.type === "groups" && (
+          <div>
+            <Label>عدد المجموعات</Label>
+            <Input
+              type="number"
+              value={formData.numberOfGroups}
+              onChange={(e) => setFormData({ ...formData, numberOfGroups: e.target.value })}
+              min="2"
+              max="16"
+              data-testid="input-number-of-groups"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* نظام النقاط */}
+      <div className="bg-muted/50 rounded-lg p-4">
+        <Label className="text-base font-semibold mb-3 block">نظام النقاط</Label>
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <Label className="text-sm">نقاط الفوز</Label>
+            <Input
+              type="number"
+              value={formData.pointsForWin}
+              onChange={(e) => setFormData({ ...formData, pointsForWin: e.target.value })}
+              min="0"
+              max="10"
+              data-testid="input-points-win"
+            />
+          </div>
+          <div>
+            <Label className="text-sm">نقاط التعادل</Label>
+            <Input
+              type="number"
+              value={formData.pointsForDraw}
+              onChange={(e) => setFormData({ ...formData, pointsForDraw: e.target.value })}
+              min="0"
+              max="10"
+              data-testid="input-points-draw"
+            />
+          </div>
+          <div>
+            <Label className="text-sm">نقاط الخسارة</Label>
+            <Input
+              type="number"
+              value={formData.pointsForLoss}
+              onChange={(e) => setFormData({ ...formData, pointsForLoss: e.target.value })}
+              min="0"
+              max="10"
+              data-testid="input-points-loss"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* عدد الجولات */}
+      <div>
+        <Label>عدد الجولات</Label>
+        <Input
+          type="number"
+          value={formData.numberOfRounds}
+          onChange={(e) => setFormData({ ...formData, numberOfRounds: e.target.value })}
+          min="1"
+          max="10"
+          data-testid="input-number-of-rounds"
+        />
+      </div>
+
+      {/* التواريخ */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label>تاريخ البداية</Label>
@@ -1226,17 +1462,8 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
           />
         </div>
       </div>
-      <div>
-        <Label>عدد الفرق</Label>
-        <Input
-          type="number"
-          value={formData.maxTeams}
-          onChange={(e) => setFormData({ ...formData, maxTeams: e.target.value })}
-          min="2"
-          max="64"
-          data-testid="input-max-teams"
-        />
-      </div>
+
+      {/* الملاعب */}
       <div>
         <Label>الملاعب (مفصولة بفواصل)</Label>
         <Input
@@ -1246,7 +1473,21 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
           data-testid="input-venues"
         />
       </div>
-      <Button type="submit" className="w-full" disabled={mutation.isPending} data-testid="button-submit-tournament">
+
+      {/* مفتوح للتسجيل */}
+      <div className="flex items-center justify-between bg-muted/50 rounded-lg p-4">
+        <div>
+          <Label className="text-base font-semibold">مفتوح للتسجيل</Label>
+          <p className="text-sm text-muted-foreground">السماح للفرق بالتسجيل في البطولة</p>
+        </div>
+        <Switch
+          checked={formData.isOpenForRegistration}
+          onCheckedChange={(checked) => setFormData({ ...formData, isOpenForRegistration: checked })}
+          data-testid="switch-open-registration"
+        />
+      </div>
+
+      <Button type="submit" className="w-full" disabled={mutation.isPending || isUploading} data-testid="button-submit-tournament">
         {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إضافة البطولة"}
       </Button>
     </form>

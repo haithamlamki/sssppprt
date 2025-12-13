@@ -319,6 +319,22 @@ export const tournaments = pgTable("tournaments", {
   // Media
   imageUrl: text("image_url"),
   
+  // Contact info (from myleague.vn form)
+  phoneNumber: varchar("phone_number", { length: 20 }),
+  address: text("address"),
+  policy: text("policy").notNull().default("public"), // public, private
+  
+  // Points system
+  pointsForWin: integer("points_for_win").notNull().default(3),
+  pointsForDraw: integer("points_for_draw").notNull().default(1),
+  pointsForLoss: integer("points_for_loss").notNull().default(0),
+  
+  // Round settings
+  numberOfRounds: integer("number_of_rounds").default(1),
+  
+  // Registration
+  isOpenForRegistration: boolean("is_open_for_registration").notNull().default(true),
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
