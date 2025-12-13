@@ -80,28 +80,22 @@ const groupLabels: Record<number, string> = {
   8: "المجموعة ح",
 };
 
-function GroupStandings({ teams, numberOfGroups }: { teams: Team[]; numberOfGroups: number }) {
-  const groupedTeams = teams.reduce((acc, team) => {
-    const groupNum = team.groupNumber || 0;
-    if (!acc[groupNum]) acc[groupNum] = [];
-    acc[groupNum].push(team);
-    return acc;
-  }, {} as Record<number, Team[]>);
+interface GroupStandingsData {
+  groupNumber: number;
+  teams: Team[];
+}
 
-  const sortTeams = (teamsToSort: Team[]) => {
-    return [...teamsToSort].sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-      return b.goalsFor - a.goalsFor;
-    });
-  };
+function GroupStandings({ standings, isLoading }: { standings: GroupStandingsData[]; isLoading?: boolean }) {
+  if (isLoading) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+        <p>جاري تحميل ترتيب المجموعات...</p>
+      </div>
+    );
+  }
 
-  const groups = Object.keys(groupedTeams)
-    .map(Number)
-    .filter(g => g > 0)
-    .sort((a, b) => a - b);
-
-  if (groups.length === 0) {
+  if (!standings || standings.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -112,17 +106,15 @@ function GroupStandings({ teams, numberOfGroups }: { teams: Team[]; numberOfGrou
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {groups.map((groupNum) => {
-        const groupTeams = sortTeams(groupedTeams[groupNum] || []);
-        
+      {standings.map(({ groupNumber, teams: groupTeams }) => {
         return (
-          <Card key={groupNum} data-testid={`group-${groupNum}`}>
+          <Card key={groupNumber} data-testid={`group-${groupNumber}`}>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-primary font-bold text-sm">{groupNum}</span>
+                  <span className="text-primary font-bold text-sm">{groupNumber}</span>
                 </div>
-                {groupLabels[groupNum] || `المجموعة ${groupNum}`}
+                {groupLabels[groupNumber] || `المجموعة ${groupNumber}`}
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
@@ -208,6 +200,11 @@ export default function LeagueDetail() {
   const { data: topScorers } = useQuery<PlayerWithTeam[]>({
     queryKey: ["/api/tournaments", tournamentId, "top-scorers"],
     enabled: !!tournamentId,
+  });
+
+  const { data: groupStandings = [], isLoading: standingsLoading } = useQuery<GroupStandingsData[]>({
+    queryKey: ["/api/tournaments", tournamentId, "group-standings"],
+    enabled: !!tournamentId && tournament?.hasGroupStage === true,
   });
 
   const registerTeamMutation = useMutation({
@@ -376,8 +373,8 @@ export default function LeagueDetail() {
           </TabsList>
 
           <TabsContent value="standings">
-            {tournament.hasGroupStage && teams && teams.some(t => t.groupNumber != null) ? (
-              <GroupStandings teams={teams} numberOfGroups={tournament.numberOfGroups || 2} />
+            {tournament.hasGroupStage ? (
+              <GroupStandings standings={groupStandings} isLoading={standingsLoading} />
             ) : (
               <Card>
                 <CardHeader>
