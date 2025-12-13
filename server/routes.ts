@@ -755,6 +755,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== GROUP STAGE MANAGEMENT ==========
+  
+  app.post("/api/tournaments/:id/assign-groups", isAdmin, async (req, res) => {
+    try {
+      const { assignments } = req.body;
+      const updatedTeams = await storage.assignTeamsToGroups(req.params.id, assignments);
+      res.json({ teams: updatedTeams, message: "تم توزيع الفرق على المجموعات بنجاح" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "فشل في توزيع الفرق على المجموعات" });
+    }
+  });
+
+  app.get("/api/tournaments/:id/group-standings", async (req, res) => {
+    try {
+      const standings = await storage.getGroupStandings(req.params.id);
+      res.json(standings);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "فشل في جلب ترتيب المجموعات" });
+    }
+  });
+
+  app.post("/api/tournaments/:id/generate-group-matches", isAdmin, async (req, res) => {
+    try {
+      const { matchesPerDay, dailyStartTime } = req.body;
+      const options = { 
+        matchesPerDay: matchesPerDay ? parseInt(matchesPerDay) : undefined,
+        dailyStartTime: dailyStartTime || undefined
+      };
+      const generatedMatches = await storage.generateGroupStageMatches(req.params.id, options);
+      await storage.updateTournament(req.params.id, { status: "ongoing", currentStage: "group_stage" });
+      res.json({ matches: generatedMatches, count: generatedMatches.length, message: "تم إنشاء مباريات المجموعات بنجاح" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "فشل في إنشاء مباريات المجموعات" });
+    }
+  });
+
+  app.post("/api/tournaments/:id/complete-group-stage", isAdmin, async (req, res) => {
+    try {
+      const result = await storage.completeGroupStage(req.params.id);
+      res.json({ 
+        tournament: result.tournament, 
+        qualifiedTeams: result.qualifiedTeams,
+        message: "تم إنهاء مرحلة المجموعات بنجاح" 
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "فشل في إنهاء مرحلة المجموعات" });
+    }
+  });
+
   // Teams
   app.get("/api/teams", async (_req, res) => {
     try {

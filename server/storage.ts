@@ -176,6 +176,12 @@ export interface IStorage {
   generateLeagueMatches(tournamentId: string, options?: { matchesPerDay?: number; dailyStartTime?: string }): Promise<Match[]>;
   generateKnockoutMatchesFromGroups(tournamentId: string): Promise<Match[]>;
   
+  // Group Stage Management
+  assignTeamsToGroups(tournamentId: string, assignments?: { teamId: string; groupNumber: number }[]): Promise<Team[]>;
+  getGroupStandings(tournamentId: string): Promise<{ groupNumber: number; teams: Team[] }[]>;
+  generateGroupStageMatches(tournamentId: string, options?: { matchesPerDay?: number; dailyStartTime?: string }): Promise<Match[]>;
+  completeGroupStage(tournamentId: string): Promise<{ tournament: Tournament; qualifiedTeams: Team[] }>;
+  
   // Match Events
   getMatchEvents(matchId: string): Promise<MatchEvent[]>;
   createMatchEvent(event: InsertMatchEvent): Promise<MatchEvent>;
@@ -1313,6 +1319,204 @@ export class DatabaseStorage implements IStorage {
     }
 
     return generatedMatches;
+  }
+
+  // ========== GROUP STAGE MANAGEMENT ==========
+  
+  async assignTeamsToGroups(tournamentId: string, assignments?: { teamId: string; groupNumber: number }[]): Promise<Team[]> {
+    const tournament = await this.getTournamentById(tournamentId);
+    if (!tournament) throw new Error("Tournament not found");
+    
+    const tournamentTeams = await this.getTeamsByTournament(tournamentId);
+    if (tournamentTeams.length === 0) throw new Error("No teams in tournament");
+    
+    const numberOfGroups = tournament.numberOfGroups || 2;
+    
+    if (assignments && assignments.length > 0) {
+      // Manual assignment
+      for (const assignment of assignments) {
+        await db.update(teams)
+          .set({ groupNumber: assignment.groupNumber })
+          .where(eq(teams.id, assignment.teamId));
+      }
+    } else {
+      // Auto-distribute teams evenly across groups
+      const shuffled = [...tournamentTeams].sort(() => Math.random() - 0.5);
+      for (let i = 0; i < shuffled.length; i++) {
+        const groupNumber = (i % numberOfGroups) + 1;
+        await db.update(teams)
+          .set({ groupNumber })
+          .where(eq(teams.id, shuffled[i].id));
+      }
+    }
+    
+    // Update tournament stage
+    await db.update(tournaments)
+      .set({ currentStage: 'group_stage' })
+      .where(eq(tournaments.id, tournamentId));
+    
+    return await this.getTeamsByTournament(tournamentId);
+  }
+  
+  async getGroupStandings(tournamentId: string): Promise<{ groupNumber: number; teams: Team[] }[]> {
+    const tournamentTeams = await this.getTeamsByTournament(tournamentId);
+    
+    // Group teams by groupNumber
+    const groupedTeams: Record<number, Team[]> = {};
+    for (const team of tournamentTeams) {
+      const groupNum = team.groupNumber || 0;
+      if (groupNum > 0) {
+        if (!groupedTeams[groupNum]) groupedTeams[groupNum] = [];
+        groupedTeams[groupNum].push(team);
+      }
+    }
+    
+    // Sort each group by points, goal difference, goals for
+    const result: { groupNumber: number; teams: Team[] }[] = [];
+    const groups = Object.keys(groupedTeams).map(Number).sort((a, b) => a - b);
+    
+    for (const groupNum of groups) {
+      const sortedTeams = groupedTeams[groupNum].sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+        return b.goalsFor - a.goalsFor;
+      });
+      result.push({ groupNumber: groupNum, teams: sortedTeams });
+    }
+    
+    return result;
+  }
+  
+  async generateGroupStageMatches(tournamentId: string, options?: { matchesPerDay?: number; dailyStartTime?: string }): Promise<Match[]> {
+    const tournament = await this.getTournamentById(tournamentId);
+    if (!tournament) throw new Error("Tournament not found");
+    if (!tournament.hasGroupStage) throw new Error("Tournament doesn't have group stage");
+    
+    const tournamentTeams = await this.getTeamsByTournament(tournamentId);
+    
+    // Group teams by groupNumber
+    const groupedTeams: Record<number, Team[]> = {};
+    for (const team of tournamentTeams) {
+      const groupNum = team.groupNumber || 0;
+      if (groupNum > 0) {
+        if (!groupedTeams[groupNum]) groupedTeams[groupNum] = [];
+        groupedTeams[groupNum].push(team);
+      }
+    }
+    
+    // Delete existing group stage matches
+    await db.delete(matches)
+      .where(
+        and(
+          eq(matches.tournamentId, tournamentId),
+          eq(matches.stage, 'group')
+        )
+      );
+    
+    const generatedMatches: Match[] = [];
+    const matchesPerDay = options?.matchesPerDay || 4;
+    const hasSecondLeg = tournament.hasSecondLeg ?? true;
+    
+    // Schedule settings
+    let startDate = tournament.startDate ? new Date(tournament.startDate) : new Date();
+    const endDate = tournament.endDate ? new Date(tournament.endDate) : null;
+    let currentDate = new Date(startDate);
+    let matchesScheduledToday = 0;
+    
+    // Generate round-robin matches for each group
+    const groups = Object.keys(groupedTeams).map(Number).sort((a, b) => a - b);
+    
+    for (const groupNum of groups) {
+      const groupTeams = groupedTeams[groupNum];
+      if (groupTeams.length < 2) continue;
+      
+      // Generate round-robin pairs
+      const matchPairs: { home: Team; away: Team; round: number; leg: number }[] = [];
+      
+      for (let i = 0; i < groupTeams.length; i++) {
+        for (let j = i + 1; j < groupTeams.length; j++) {
+          matchPairs.push({ 
+            home: groupTeams[i], 
+            away: groupTeams[j], 
+            round: matchPairs.length + 1, 
+            leg: 1 
+          });
+          
+          if (hasSecondLeg) {
+            matchPairs.push({ 
+              home: groupTeams[j], 
+              away: groupTeams[i], 
+              round: matchPairs.length + 1, 
+              leg: 2 
+            });
+          }
+        }
+      }
+      
+      // Create matches for this group
+      for (const matchPair of matchPairs) {
+        const matchDate = new Date(currentDate);
+        
+        const [match] = await db.insert(matches).values({
+          tournamentId,
+          homeTeamId: matchPair.home.id,
+          awayTeamId: matchPair.away.id,
+          round: matchPair.round,
+          leg: matchPair.leg,
+          stage: 'group',
+          groupNumber: groupNum,
+          matchDate,
+          venue: tournament.venues && tournament.venues.length > 0 
+            ? tournament.venues[generatedMatches.length % tournament.venues.length] 
+            : null,
+          status: 'scheduled',
+        }).returning();
+        
+        generatedMatches.push(match);
+        matchesScheduledToday++;
+        
+        // Move to next day if needed
+        if (matchesScheduledToday >= matchesPerDay) {
+          currentDate.setDate(currentDate.getDate() + 1);
+          matchesScheduledToday = 0;
+          
+          // Check if we exceeded end date
+          if (endDate && currentDate > endDate) {
+            currentDate = new Date(startDate);
+          }
+        }
+      }
+    }
+    
+    return generatedMatches;
+  }
+  
+  async completeGroupStage(tournamentId: string): Promise<{ tournament: Tournament; qualifiedTeams: Team[] }> {
+    const tournament = await this.getTournamentById(tournamentId);
+    if (!tournament) throw new Error("Tournament not found");
+    if (!tournament.hasGroupStage) throw new Error("Tournament doesn't have group stage");
+    
+    // Get group standings
+    const standings = await this.getGroupStandings(tournamentId);
+    const teamsAdvancing = tournament.teamsAdvancingPerGroup || 2;
+    
+    // Get qualified teams from each group
+    const qualifiedTeams: Team[] = [];
+    for (const group of standings) {
+      const advancing = group.teams.slice(0, teamsAdvancing);
+      qualifiedTeams.push(...advancing);
+    }
+    
+    // Update tournament to mark group stage as complete
+    const [updatedTournament] = await db.update(tournaments)
+      .set({ 
+        groupStageComplete: true,
+        currentStage: 'knockout_stage'
+      })
+      .where(eq(tournaments.id, tournamentId))
+      .returning();
+    
+    return { tournament: updatedTournament, qualifiedTeams };
   }
 
   // Match Events
