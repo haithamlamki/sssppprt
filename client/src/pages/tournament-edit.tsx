@@ -21,7 +21,10 @@ import {
   Layers,
   GitBranch,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  Palette,
+  Image,
+  Upload
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -215,10 +218,14 @@ export default function TournamentEdit() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-3xl">
             <TabsTrigger value="info" data-testid="tab-info">
               <Target className="h-4 w-4 ml-2" />
               المعلومات
+            </TabsTrigger>
+            <TabsTrigger value="theme" data-testid="tab-theme">
+              <Palette className="h-4 w-4 ml-2" />
+              الثيم
             </TabsTrigger>
             <TabsTrigger value="teams" data-testid="tab-teams">
               <Users className="h-4 w-4 ml-2" />
@@ -240,6 +247,10 @@ export default function TournamentEdit() {
 
           <TabsContent value="info">
             <TournamentInfoTab tournament={tournament} />
+          </TabsContent>
+
+          <TabsContent value="theme">
+            <ThemeTab tournament={tournament} />
           </TabsContent>
 
           <TabsContent value="teams">
@@ -573,6 +584,356 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+interface ThemeConfig {
+  primaryColor: string;
+  secondaryColor: string;
+  useUnifiedImage: boolean;
+}
+
+const defaultThemeColors = [
+  { name: "أزرق", primary: "#2563eb", secondary: "#3b82f6" },
+  { name: "أخضر", primary: "#16a34a", secondary: "#22c55e" },
+  { name: "أحمر", primary: "#dc2626", secondary: "#ef4444" },
+  { name: "برتقالي", primary: "#ea580c", secondary: "#f97316" },
+  { name: "بنفسجي", primary: "#9333ea", secondary: "#a855f7" },
+  { name: "ذهبي", primary: "#ca8a04", secondary: "#eab308" },
+  { name: "وردي", primary: "#db2777", secondary: "#ec4899" },
+  { name: "سماوي", primary: "#0891b2", secondary: "#06b6d4" },
+];
+
+function safeParseThemeConfig(config: string | null | undefined): ThemeConfig {
+  const defaultTheme: ThemeConfig = { primaryColor: "#2563eb", secondaryColor: "#3b82f6", useUnifiedImage: true };
+  if (!config) return defaultTheme;
+  try {
+    const parsed = JSON.parse(config);
+    return {
+      primaryColor: parsed.primaryColor || defaultTheme.primaryColor,
+      secondaryColor: parsed.secondaryColor || defaultTheme.secondaryColor,
+      useUnifiedImage: parsed.useUnifiedImage ?? defaultTheme.useUnifiedImage,
+    };
+  } catch {
+    return defaultTheme;
+  }
+}
+
+function ThemeTab({ tournament }: { tournament: Tournament }) {
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState<string | null>(null);
+  
+  const existingTheme = safeParseThemeConfig(tournament.themeConfig);
+  
+  const [themeData, setThemeData] = useState({
+    primaryColor: existingTheme.primaryColor,
+    secondaryColor: existingTheme.secondaryColor,
+    useUnifiedImage: existingTheme.useUnifiedImage,
+    heroImageUrl: tournament.heroImageUrl || "",
+    standingsImageUrl: tournament.standingsImageUrl || "",
+    matchesImageUrl: tournament.matchesImageUrl || "",
+    teamsImageUrl: tournament.teamsImageUrl || "",
+    scorersImageUrl: tournament.scorersImageUrl || "",
+  });
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, imageType: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploading(imageType);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("image", file);
+      
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formDataUpload,
+        credentials: "include",
+      });
+      
+      if (!response.ok) throw new Error("فشل رفع الصورة");
+      
+      const data = await response.json();
+      setThemeData({ ...themeData, [imageType]: data.url });
+      toast({ title: "تم رفع الصورة بنجاح" });
+    } catch (error) {
+      toast({ title: "فشل رفع الصورة", variant: "destructive" });
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      const themeConfig = JSON.stringify({
+        primaryColor: themeData.primaryColor,
+        secondaryColor: themeData.secondaryColor,
+        useUnifiedImage: themeData.useUnifiedImage,
+      });
+      return await apiRequest("PATCH", `/api/tournaments/${tournament.id}`, {
+        themeConfig,
+        heroImageUrl: themeData.heroImageUrl || null,
+        standingsImageUrl: themeData.useUnifiedImage ? null : themeData.standingsImageUrl || null,
+        matchesImageUrl: themeData.useUnifiedImage ? null : themeData.matchesImageUrl || null,
+        teamsImageUrl: themeData.useUnifiedImage ? null : themeData.teamsImageUrl || null,
+        scorersImageUrl: themeData.useUnifiedImage ? null : themeData.scorersImageUrl || null,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "تم حفظ ثيم البطولة بنجاح" });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournament.id] });
+    },
+    onError: () => {
+      toast({ title: "فشل حفظ الثيم", variant: "destructive" });
+    },
+  });
+
+  const applyPresetTheme = (primary: string, secondary: string) => {
+    setThemeData({ ...themeData, primaryColor: primary, secondaryColor: secondary });
+  };
+
+  const pageImages = [
+    { key: "heroImageUrl", label: "صورة البانر الرئيسية", icon: Image },
+    { key: "standingsImageUrl", label: "صورة صفحة الترتيب", icon: Trophy },
+    { key: "matchesImageUrl", label: "صورة صفحة المباريات", icon: Calendar },
+    { key: "teamsImageUrl", label: "صورة صفحة الفرق", icon: Users },
+    { key: "scorersImageUrl", label: "صورة صفحة الهدافين", icon: Target },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5" />
+            ألوان البطولة
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <Label className="mb-3 block">ثيمات جاهزة</Label>
+            <div className="flex flex-wrap gap-3">
+              {defaultThemeColors.map((theme) => (
+                <button
+                  key={theme.name}
+                  onClick={() => applyPresetTheme(theme.primary, theme.secondary)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border hover-elevate transition-all"
+                  style={{ borderColor: theme.primary }}
+                  data-testid={`button-theme-${theme.name}`}
+                >
+                  <div 
+                    className="w-6 h-6 rounded-full" 
+                    style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})` }}
+                  />
+                  <span className="text-sm">{theme.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label>اللون الرئيسي</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="color"
+                  value={themeData.primaryColor}
+                  onChange={(e) => setThemeData({ ...themeData, primaryColor: e.target.value })}
+                  className="w-16 h-10 p-1 cursor-pointer"
+                  data-testid="input-primary-color"
+                />
+                <Input
+                  value={themeData.primaryColor}
+                  onChange={(e) => setThemeData({ ...themeData, primaryColor: e.target.value })}
+                  className="flex-1"
+                  placeholder="#2563eb"
+                  data-testid="input-primary-color-text"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>اللون الثانوي</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="color"
+                  value={themeData.secondaryColor}
+                  onChange={(e) => setThemeData({ ...themeData, secondaryColor: e.target.value })}
+                  className="w-16 h-10 p-1 cursor-pointer"
+                  data-testid="input-secondary-color"
+                />
+                <Input
+                  value={themeData.secondaryColor}
+                  onChange={(e) => setThemeData({ ...themeData, secondaryColor: e.target.value })}
+                  className="flex-1"
+                  placeholder="#3b82f6"
+                  data-testid="input-secondary-color-text"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div 
+            className="h-24 rounded-lg flex items-center justify-center text-white font-bold text-lg"
+            style={{ background: `linear-gradient(135deg, ${themeData.primaryColor}, ${themeData.secondaryColor})` }}
+          >
+            معاينة ألوان البطولة
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Image className="h-5 w-5" />
+            صور صفحات البطولة
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+            <input
+              type="checkbox"
+              id="unified-image"
+              checked={themeData.useUnifiedImage}
+              onChange={(e) => setThemeData({ ...themeData, useUnifiedImage: e.target.checked })}
+              className="w-5 h-5"
+              data-testid="checkbox-unified-image"
+            />
+            <Label htmlFor="unified-image" className="cursor-pointer">
+              استخدام صورة واحدة لجميع الصفحات
+            </Label>
+          </div>
+
+          {themeData.useUnifiedImage ? (
+            <div className="space-y-3">
+              <Label>الصورة الموحدة لجميع الصفحات</Label>
+              <div className="flex items-start gap-4">
+                {themeData.heroImageUrl && (
+                  <div className="relative">
+                    <img 
+                      src={themeData.heroImageUrl} 
+                      alt="صورة البطولة" 
+                      className="w-40 h-24 object-cover rounded-lg border"
+                    />
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -left-2 h-6 w-6"
+                      onClick={() => setThemeData({ ...themeData, heroImageUrl: "" })}
+                      data-testid="button-remove-hero-image"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageUpload(e, "heroImageUrl")}
+                    disabled={uploading === "heroImageUrl"}
+                    className="hidden"
+                    id="hero-upload"
+                    data-testid="input-hero-upload"
+                  />
+                  <label htmlFor="hero-upload">
+                    <Button variant="outline" asChild disabled={uploading === "heroImageUrl"}>
+                      <span className="cursor-pointer">
+                        {uploading === "heroImageUrl" ? (
+                          <>
+                            <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                            جاري الرفع...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 ml-2" />
+                            {themeData.heroImageUrl ? "تغيير الصورة" : "رفع صورة"}
+                          </>
+                        )}
+                      </span>
+                    </Button>
+                  </label>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {pageImages.map((page) => (
+                <div key={page.key} className="space-y-3 p-4 border rounded-lg">
+                  <Label className="flex items-center gap-2">
+                    <page.icon className="h-4 w-4" />
+                    {page.label}
+                  </Label>
+                  <div className="flex items-start gap-3">
+                    {themeData[page.key as keyof typeof themeData] && (
+                      <div className="relative">
+                        <img 
+                          src={themeData[page.key as keyof typeof themeData] as string} 
+                          alt={page.label} 
+                          className="w-24 h-16 object-cover rounded border"
+                        />
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -left-2 h-5 w-5"
+                          onClick={() => setThemeData({ ...themeData, [page.key]: "" })}
+                          data-testid={`button-remove-${page.key}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleImageUpload(e, page.key)}
+                        disabled={uploading === page.key}
+                        className="hidden"
+                        id={`${page.key}-upload`}
+                        data-testid={`input-${page.key}-upload`}
+                      />
+                      <label htmlFor={`${page.key}-upload`}>
+                        <Button variant="outline" size="sm" asChild disabled={uploading === page.key}>
+                          <span className="cursor-pointer">
+                            {uploading === page.key ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Upload className="h-4 w-4" />
+                            )}
+                          </span>
+                        </Button>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button 
+          onClick={() => updateMutation.mutate()}
+          disabled={updateMutation.isPending}
+          size="lg"
+          data-testid="button-save-theme"
+        >
+          {updateMutation.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+              جاري الحفظ...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 ml-2" />
+              حفظ ثيم البطولة
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
   );
 }
 

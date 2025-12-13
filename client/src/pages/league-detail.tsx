@@ -344,10 +344,39 @@ export default function LeagueDetail() {
   const upcomingMatches = matches?.filter(m => m.status === "scheduled" || m.status === "live") || [];
   const completedMatches = matches?.filter(m => m.status === "completed") || [];
 
+  const themeConfig = (() => {
+    if (!tournament.themeConfig) return { primaryColor: null, secondaryColor: null };
+    try {
+      const parsed = JSON.parse(tournament.themeConfig);
+      return {
+        primaryColor: parsed.primaryColor || null,
+        secondaryColor: parsed.secondaryColor || null,
+      };
+    } catch {
+      return { primaryColor: null, secondaryColor: null };
+    }
+  })();
+  
+  const heroImage = tournament.heroImageUrl || tournament.imageUrl;
+  const hasCustomTheme = themeConfig.primaryColor && themeConfig.secondaryColor;
+  
+  const heroStyle = hasCustomTheme 
+    ? { background: `linear-gradient(135deg, ${themeConfig.primaryColor}, ${themeConfig.secondaryColor})` }
+    : {};
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
-      <div className="relative bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-white py-16">
-        <div className="absolute inset-0 bg-black/30" />
+      <div 
+        className={`relative text-white py-16 ${!hasCustomTheme ? 'bg-gradient-to-br from-primary via-primary/90 to-primary/80' : ''}`}
+        style={heroStyle}
+      >
+        {heroImage && (
+          <div 
+            className="absolute inset-0 bg-cover bg-center" 
+            style={{ backgroundImage: `url(${heroImage})` }}
+          />
+        )}
+        <div className="absolute inset-0 bg-black/40" />
         <div className="relative container mx-auto px-4">
           <Link href="/leagues">
             <Button variant="ghost" className="text-white/80 hover:text-white mb-4" data-testid="button-back">

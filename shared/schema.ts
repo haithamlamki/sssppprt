@@ -339,6 +339,14 @@ export const tournaments = pgTable("tournaments", {
   imageUrl: text("image_url"),
   trophyImageUrl: text("trophy_image_url"), // صورة الكأس للعرض في شجرة خروج المغلوب
   
+  // Theme customization - ثيم البطولة
+  themeConfig: text("theme_config"), // JSON: { primaryColor, secondaryColor, useUnifiedImage }
+  heroImageUrl: text("hero_image_url"), // صورة البانر الرئيسية
+  standingsImageUrl: text("standings_image_url"), // صورة صفحة الترتيب
+  matchesImageUrl: text("matches_image_url"), // صورة صفحة المباريات
+  teamsImageUrl: text("teams_image_url"), // صورة صفحة الفرق
+  scorersImageUrl: text("scorers_image_url"), // صورة صفحة الهدافين
+  
   // Contact info (from myleague.vn form)
   phoneNumber: varchar("phone_number", { length: 20 }),
   address: text("address"),
