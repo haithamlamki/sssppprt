@@ -54,9 +54,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
   // Auth endpoints
-  app.post("/api/auth/register", async (req, res) => {
+  const registerUpload = upload.fields([
+    { name: 'profileImage', maxCount: 1 },
+    { name: 'employeeCardImage', maxCount: 1 },
+    { name: 'nationalIdImage', maxCount: 1 }
+  ]);
+
+  app.post("/api/auth/register", registerUpload, async (req, res) => {
     try {
-      const { username, password, email, employeeId } = req.body;
+      const { username, password, email, employeeId, accountType } = req.body;
 
       // Check if username already exists
       const existingUser = await storage.getUserByUsername(username);
@@ -79,10 +85,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash password
       const hashedPassword = await hashPassword(password);
 
-      // Create user
+      // Handle uploaded files
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+      const profileImageUrl = files?.profileImage?.[0] ? `/uploads/${files.profileImage[0].filename}` : undefined;
+      const employeeCardImageUrl = files?.employeeCardImage?.[0] ? `/uploads/${files.employeeCardImage[0].filename}` : undefined;
+      const nationalIdImageUrl = files?.nationalIdImage?.[0] ? `/uploads/${files.nationalIdImage[0].filename}` : undefined;
+
+      // Determine role based on account type
+      let role = "employee";
+      if (accountType === "committee") {
+        role = "committee_member";
+      }
+
+      // Parse dates if provided
+      const workStartDate = req.body.workStartDate ? new Date(req.body.workStartDate) : undefined;
+      const workEndDate = req.body.workEndDate ? new Date(req.body.workEndDate) : undefined;
+
+      // Create user data
       const userData = insertUserSchema.parse({
         ...req.body,
         password: hashedPassword,
+        role,
+        profileImageUrl,
+        employeeCardImageUrl,
+        nationalIdImageUrl,
+        workStartDate,
+        workEndDate,
       });
 
       const user = await storage.createUser(userData);
