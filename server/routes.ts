@@ -828,6 +828,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get players with user and team details
+  app.get("/api/players/with-details", async (_req, res) => {
+    try {
+      const playersList = await storage.getAllPlayers();
+      const allUsers = await storage.getAllUsers();
+      const allTeams = await storage.getAllTeams();
+      
+      const playersWithDetails = playersList.map(player => {
+        const user = player.userId ? allUsers.find(u => u.id === player.userId) : null;
+        const team = player.teamId ? allTeams.find(t => t.id === player.teamId) : null;
+        
+        return {
+          ...player,
+          user: user ? { fullName: user.fullName, employeeId: user.employeeId } : null,
+          team: team ? { name: team.name, logoUrl: team.logoUrl } : null,
+        };
+      });
+      
+      res.json(playersWithDetails);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch players with details" });
+    }
+  });
+
   app.post("/api/players", isAuthenticated, async (req, res) => {
     try {
       const playerData = insertPlayerSchema.parse(req.body);

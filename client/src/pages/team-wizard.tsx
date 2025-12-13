@@ -1514,6 +1514,270 @@ function CreateLeagueWizard() {
   );
 }
 
+// ========== TEAMS LIST VIEW ==========
+function TeamsListView() {
+  const { data: teams, isLoading: teamsLoading } = useQuery<Team[]>({
+    queryKey: ["/api/teams"],
+  });
+
+  const { data: tournaments } = useQuery<Tournament[]>({
+    queryKey: ["/api/tournaments"],
+  });
+
+  const getTournamentName = (tournamentId: string | null) => {
+    if (!tournamentId || !tournaments) return "غير مرتبط";
+    const tournament = tournaments.find(t => t.id === tournamentId);
+    return tournament?.name || "غير معروف";
+  };
+
+  const getLevelLabel = (level: string | null) => {
+    const levels: Record<string, string> = {
+      beginner: "مبتدئ",
+      intermediate: "متوسط",
+      advanced: "متقدم",
+      professional: "محترف",
+    };
+    return levels[level || ""] || "غير محدد";
+  };
+
+  if (teamsLoading) {
+    return (
+      <Card className="border-0 shadow-lg">
+        <CardContent className="p-8 text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">جاري تحميل الفرق...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-0 shadow-lg">
+      <CardHeader className="bg-gradient-to-l from-primary/10 to-transparent rounded-t-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
+            <Shield className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <CardTitle className="text-xl">قائمة الفرق</CardTitle>
+            <CardDescription>عرض جميع الفرق المسجلة مع تفاصيلها</CardDescription>
+          </div>
+          <Badge className="mr-auto">{teams?.length || 0} فريق</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="p-6">
+        {!teams || teams.length === 0 ? (
+          <div className="text-center py-12">
+            <Shield className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
+            <p className="text-muted-foreground">لا توجد فرق مسجلة حتى الآن</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {teams.map((team) => (
+              <Card key={team.id} className="hover-elevate transition-all" data-testid={`team-card-${team.id}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-4">
+                    {team.logoUrl ? (
+                      <img 
+                        src={team.logoUrl} 
+                        alt={team.name} 
+                        className="w-16 h-16 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white font-bold text-lg">
+                        {team.name.slice(0, 2)}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-lg truncate" data-testid={`text-team-name-${team.id}`}>{team.name}</h3>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        <Badge variant="secondary" className="text-xs">{getLevelLabel(team.level)}</Badge>
+                        {team.tournamentId && (
+                          <Badge variant="outline" className="text-xs">
+                            <Trophy className="w-3 h-3 ml-1" />
+                            {getTournamentName(team.tournamentId)}
+                          </Badge>
+                        )}
+                      </div>
+                      {team.representativeName && (
+                        <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          {team.representativeName}
+                        </p>
+                      )}
+                      {team.contactPhone && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          {team.contactPhone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ========== PLAYERS LIST VIEW ==========
+interface PlayerWithUser extends Player {
+  user?: { fullName: string; employeeId: string } | null;
+  team?: { name: string; logoUrl: string | null } | null;
+}
+
+function PlayersListView() {
+  const { data: players, isLoading: playersLoading } = useQuery<PlayerWithUser[]>({
+    queryKey: ["/api/players/with-details"],
+  });
+
+  const { data: allPlayers } = useQuery<Player[]>({
+    queryKey: ["/api/players"],
+  });
+
+  const { data: teams } = useQuery<Team[]>({
+    queryKey: ["/api/teams"],
+  });
+
+  const getPositionLabel = (position: string | null) => {
+    const positions: Record<string, string> = {
+      goalkeeper: "حارس مرمى",
+      defender: "مدافع",
+      midfielder: "وسط",
+      forward: "مهاجم",
+    };
+    return positions[position || ""] || "غير محدد";
+  };
+
+  const getLevelLabel = (level: string | null) => {
+    const levels: Record<string, string> = {
+      beginner: "مبتدئ",
+      intermediate: "متوسط",
+      advanced: "متقدم",
+      professional: "محترف",
+    };
+    return levels[level || ""] || "غير محدد";
+  };
+
+  const getTeamName = (teamId: string | null) => {
+    if (!teamId || !teams) return null;
+    const team = teams.find(t => t.id === teamId);
+    return team?.name || null;
+  };
+
+  const displayPlayers = players || allPlayers;
+
+  if (playersLoading) {
+    return (
+      <Card className="border-0 shadow-lg">
+        <CardContent className="p-8 text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">جاري تحميل اللاعبين...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-0 shadow-lg">
+      <CardHeader className="bg-gradient-to-l from-primary/10 to-transparent rounded-t-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center">
+            <Users className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <CardTitle className="text-xl">قائمة اللاعبين</CardTitle>
+            <CardDescription>عرض جميع اللاعبين مع تفاصيلهم وربطهم بالموظفين</CardDescription>
+          </div>
+          <Badge className="mr-auto">{displayPlayers?.length || 0} لاعب</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="p-6">
+        {!displayPlayers || displayPlayers.length === 0 ? (
+          <div className="text-center py-12">
+            <User className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
+            <p className="text-muted-foreground">لا يوجد لاعبين مسجلين حتى الآن</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-right py-3 px-2">الصورة</th>
+                  <th className="text-right py-3 px-2">الاسم</th>
+                  <th className="text-right py-3 px-2">الرقم</th>
+                  <th className="text-right py-3 px-2">المركز</th>
+                  <th className="text-right py-3 px-2">المستوى</th>
+                  <th className="text-right py-3 px-2">الفريق</th>
+                  <th className="text-right py-3 px-2">الموظف المرتبط</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayPlayers.map((player) => (
+                  <tr key={player.id} className="border-b hover:bg-muted/50" data-testid={`player-row-${player.id}`}>
+                    <td className="py-3 px-2">
+                      {player.imageUrl ? (
+                        <img 
+                          src={player.imageUrl} 
+                          alt={player.name} 
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
+                          <User className="w-5 h-5 text-white" />
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-3 px-2 font-medium" data-testid={`text-player-name-${player.id}`}>
+                      {player.name}
+                    </td>
+                    <td className="py-3 px-2">
+                      {player.number ? (
+                        <Badge variant="secondary">{player.number}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-2">
+                      <Badge variant="outline">{getPositionLabel(player.position)}</Badge>
+                    </td>
+                    <td className="py-3 px-2">
+                      <span className="text-sm">{getLevelLabel(player.level)}</span>
+                    </td>
+                    <td className="py-3 px-2">
+                      {player.teamId ? (
+                        <Badge className="bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                          <Shield className="w-3 h-3 ml-1" />
+                          {(player as PlayerWithUser).team?.name || getTeamName(player.teamId) || "فريق"}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">غير مرتبط</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-2">
+                      {player.userId ? (
+                        <Badge className="bg-green-500/20 text-green-600 dark:text-green-400">
+                          <User className="w-3 h-3 ml-1" />
+                          {(player as PlayerWithUser).user?.fullName || "موظف مرتبط"}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">غير مرتبط</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ========== MAIN WIZARD PAGE ==========
 export default function TeamWizard() {
   const [activeTab, setActiveTab] = useState("player");
@@ -1531,7 +1795,7 @@ export default function TeamWizard() {
       {/* Tabs */}
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-6 h-auto p-1">
             <TabsTrigger value="player" className="flex items-center gap-2 py-3" data-testid="tab-player">
               <UserPlus className="w-4 h-4" />
               <span className="hidden sm:inline">إنشاء لاعب</span>
@@ -1547,6 +1811,14 @@ export default function TeamWizard() {
             <TabsTrigger value="league" className="flex items-center gap-2 py-3" data-testid="tab-league">
               <Trophy className="w-4 h-4" />
               <span className="hidden sm:inline">إنشاء دوري</span>
+            </TabsTrigger>
+            <TabsTrigger value="teams-list" className="flex items-center gap-2 py-3" data-testid="tab-teams-list">
+              <Shield className="w-4 h-4" />
+              <span className="hidden sm:inline">قائمة الفرق</span>
+            </TabsTrigger>
+            <TabsTrigger value="players-list" className="flex items-center gap-2 py-3" data-testid="tab-players-list">
+              <Users className="w-4 h-4" />
+              <span className="hidden sm:inline">قائمة اللاعبين</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1564,6 +1836,14 @@ export default function TeamWizard() {
 
           <TabsContent value="league">
             <CreateLeagueWizard />
+          </TabsContent>
+
+          <TabsContent value="teams-list">
+            <TeamsListView />
+          </TabsContent>
+
+          <TabsContent value="players-list">
+            <PlayersListView />
           </TabsContent>
         </Tabs>
       </div>
