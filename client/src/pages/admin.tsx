@@ -511,6 +511,16 @@ export default function Admin() {
                           >
                             عرض
                           </Button>
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => navigate(`/admin/tournaments/${t.id}/edit`)}
+                            data-testid={`button-edit-tournament-${t.id}`}
+                          >
+                            <Pencil className="h-4 w-4 ml-1" />
+                            تعديل
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>

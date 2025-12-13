@@ -23,6 +23,7 @@ import LeagueDetail from "@/pages/league-detail";
 import MatchDetail from "@/pages/match-detail";
 import TeamWizard from "@/pages/team-wizard";
 import Bracket from "@/pages/bracket";
+import TournamentEdit from "@/pages/tournament-edit";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/register" component={Register} />
       <Route path="/my-events" component={MyEvents} />
       <Route path="/admin" component={Admin} />
+      <Route path="/admin/tournaments/:id/edit" component={TournamentEdit} />
       <Route path="/profile" component={Profile} />
       <Route path="/forum" component={Forum} />
       <Route path="/leagues" component={Leagues} />
