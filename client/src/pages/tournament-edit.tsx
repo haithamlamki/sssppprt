@@ -17,7 +17,11 @@ import {
   Phone,
   Mail,
   User,
-  MapPin
+  MapPin,
+  Layers,
+  GitBranch,
+  CheckCircle2,
+  RefreshCw
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -182,7 +186,7 @@ export default function TournamentEdit() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-xl">
+          <TabsList className="grid w-full grid-cols-5 max-w-2xl">
             <TabsTrigger value="info" data-testid="tab-info">
               <Target className="h-4 w-4 ml-2" />
               المعلومات
@@ -198,6 +202,10 @@ export default function TournamentEdit() {
             <TabsTrigger value="matches" data-testid="tab-matches">
               <Trophy className="h-4 w-4 ml-2" />
               المباريات
+            </TabsTrigger>
+            <TabsTrigger value="stages" data-testid="tab-stages">
+              <Layers className="h-4 w-4 ml-2" />
+              المراحل
             </TabsTrigger>
           </TabsList>
 
@@ -215,6 +223,10 @@ export default function TournamentEdit() {
 
           <TabsContent value="matches">
             <MatchesTab tournamentId={tournamentId!} matches={matches} teams={teams} />
+          </TabsContent>
+
+          <TabsContent value="stages">
+            <StagesTab tournamentId={tournamentId!} tournament={tournament} teams={teams} />
           </TabsContent>
         </Tabs>
       </div>
@@ -1731,5 +1743,294 @@ function EditMatchDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface GroupStanding {
+  teamId: string;
+  teamName: string;
+  groupName: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
+}
+
+function StagesTab({ 
+  tournamentId, 
+  tournament, 
+  teams 
+}: { 
+  tournamentId: string; 
+  tournament: Tournament; 
+  teams: Team[];
+}) {
+  const { toast } = useToast();
+  const isGroupsTournament = tournament.type === "groups";
+  const isKnockoutTournament = tournament.type === "knockout";
+
+  const { data: groupStandings = [], isLoading: standingsLoading, refetch: refetchStandings } = useQuery<GroupStanding[]>({
+    queryKey: ["/api/tournaments", tournamentId, "group-standings"],
+    enabled: isGroupsTournament,
+  });
+
+  const assignGroupsMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/tournaments/${tournamentId}/assign-groups`, {
+        autoDistribute: true,
+        groupsCount: Math.ceil(teams.length / 4)
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "تم توزيع الفرق على المجموعات" });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "teams"] });
+      refetchStandings();
+    },
+    onError: () => {
+      toast({ title: "فشل توزيع الفرق", variant: "destructive" });
+    },
+  });
+
+  const generateGroupMatchesMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/tournaments/${tournamentId}/generate-group-matches`);
+    },
+    onSuccess: () => {
+      toast({ title: "تم توليد مباريات المجموعات" });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "matches"] });
+    },
+    onError: () => {
+      toast({ title: "فشل توليد المباريات", variant: "destructive" });
+    },
+  });
+
+  const completeGroupStageMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/tournaments/${tournamentId}/complete-group-stage`, {
+        qualifyingTeamsPerGroup: 2
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "تم إكمال مرحلة المجموعات" });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId] });
+    },
+    onError: () => {
+      toast({ title: "فشل إكمال المرحلة", variant: "destructive" });
+    },
+  });
+
+  const generateKnockoutMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/tournaments/${tournamentId}/generate-knockout`);
+    },
+    onSuccess: () => {
+      toast({ title: "تم توليد مباريات خروج المغلوب" });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "matches"] });
+    },
+    onError: () => {
+      toast({ title: "فشل توليد مباريات الإقصاء", variant: "destructive" });
+    },
+  });
+
+  const groupedStandings = groupStandings.reduce((acc, standing) => {
+    if (!acc[standing.groupName]) {
+      acc[standing.groupName] = [];
+    }
+    acc[standing.groupName].push(standing);
+    return acc;
+  }, {} as Record<string, GroupStanding[]>);
+
+  const teamsWithGroups = teams.filter(t => t.groupName);
+  const teamsWithoutGroups = teams.filter(t => !t.groupName);
+
+  if (!isGroupsTournament && !isKnockoutTournament) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Layers className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">إدارة المراحل</h3>
+          <p className="text-muted-foreground">
+            إدارة المراحل متاحة فقط لبطولات المجموعات وخروج المغلوب
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {isGroupsTournament && (
+        <>
+          <Card data-testid="card-group-stage">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Layers className="h-5 w-5" />
+                مرحلة المجموعات
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={() => assignGroupsMutation.mutate()}
+                  disabled={assignGroupsMutation.isPending || teams.length < 4}
+                  data-testid="button-assign-groups"
+                >
+                  <RefreshCw className={`h-4 w-4 ml-2 ${assignGroupsMutation.isPending ? 'animate-spin' : ''}`} />
+                  {assignGroupsMutation.isPending ? "جاري التوزيع..." : "توزيع الفرق تلقائياً"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => generateGroupMatchesMutation.mutate()}
+                  disabled={generateGroupMatchesMutation.isPending || teamsWithGroups.length < 4}
+                  data-testid="button-generate-group-matches"
+                >
+                  <Calendar className="h-4 w-4 ml-2" />
+                  {generateGroupMatchesMutation.isPending ? "جاري التوليد..." : "توليد مباريات المجموعات"}
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={() => completeGroupStageMutation.mutate()}
+                  disabled={completeGroupStageMutation.isPending || groupStandings.length === 0}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  data-testid="button-complete-group-stage"
+                >
+                  <CheckCircle2 className="h-4 w-4 ml-2" />
+                  {completeGroupStageMutation.isPending ? "جاري الإكمال..." : "إكمال مرحلة المجموعات"}
+                </Button>
+              </div>
+
+              {teams.length < 4 && (
+                <p className="text-sm text-muted-foreground">
+                  يجب إضافة 4 فرق على الأقل لتوزيعها على المجموعات
+                </p>
+              )}
+
+              {teamsWithoutGroups.length > 0 && teamsWithGroups.length > 0 && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <p className="text-amber-700 dark:text-amber-300 text-sm">
+                    {teamsWithoutGroups.length} فريق لم يتم توزيعهم بعد على المجموعات
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {standingsLoading ? (
+            <Card>
+              <CardContent className="py-8 flex justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </CardContent>
+            </Card>
+          ) : Object.keys(groupedStandings).length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Object.entries(groupedStandings).sort().map(([groupName, standings]) => (
+                <Card key={groupName} data-testid={`card-group-${groupName.replace(/\s+/g, '-')}`}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-primary" />
+                      {groupName}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table data-testid={`table-standings-${groupName.replace(/\s+/g, '-')}`}>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-right">#</TableHead>
+                          <TableHead className="text-right">الفريق</TableHead>
+                          <TableHead className="text-center">لعب</TableHead>
+                          <TableHead className="text-center">ف</TableHead>
+                          <TableHead className="text-center">ت</TableHead>
+                          <TableHead className="text-center">خ</TableHead>
+                          <TableHead className="text-center">له</TableHead>
+                          <TableHead className="text-center">عليه</TableHead>
+                          <TableHead className="text-center">+/-</TableHead>
+                          <TableHead className="text-center font-bold">نقاط</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {standings.map((team, index) => (
+                          <TableRow 
+                            key={team.teamId}
+                            className={index < 2 ? "bg-emerald-50 dark:bg-emerald-950/30" : ""}
+                            data-testid={`row-standing-${team.teamId}`}
+                          >
+                            <TableCell className="font-medium">{index + 1}</TableCell>
+                            <TableCell className="font-medium" data-testid={`text-team-name-${team.teamId}`}>{team.teamName}</TableCell>
+                            <TableCell className="text-center" data-testid={`text-played-${team.teamId}`}>{team.played}</TableCell>
+                            <TableCell className="text-center text-emerald-600" data-testid={`text-won-${team.teamId}`}>{team.won}</TableCell>
+                            <TableCell className="text-center text-amber-600" data-testid={`text-drawn-${team.teamId}`}>{team.drawn}</TableCell>
+                            <TableCell className="text-center text-red-600" data-testid={`text-lost-${team.teamId}`}>{team.lost}</TableCell>
+                            <TableCell className="text-center" data-testid={`text-goals-for-${team.teamId}`}>{team.goalsFor}</TableCell>
+                            <TableCell className="text-center" data-testid={`text-goals-against-${team.teamId}`}>{team.goalsAgainst}</TableCell>
+                            <TableCell className="text-center font-medium" data-testid={`text-goal-diff-${team.teamId}`}>
+                              {team.goalDifference > 0 ? `+${team.goalDifference}` : team.goalDifference}
+                            </TableCell>
+                            <TableCell className="text-center font-bold text-primary" data-testid={`text-points-${team.teamId}`}>{team.points}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {(isKnockoutTournament || (isGroupsTournament && tournament.groupStageComplete)) && (
+        <Card data-testid="card-knockout-stage">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <GitBranch className="h-5 w-5" />
+              مرحلة خروج المغلوب
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isKnockoutTournament && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
+                <p className="text-blue-700 dark:text-blue-300 text-sm" data-testid="text-knockout-info">
+                  بطولة خروج المغلوب - {teams.length} فريق مسجل
+                </p>
+              </div>
+            )}
+
+            <Button
+              onClick={() => generateKnockoutMutation.mutate()}
+              disabled={generateKnockoutMutation.isPending || (isGroupsTournament && !tournament.groupStageComplete) || teams.length < 2}
+              data-testid="button-generate-knockout"
+            >
+              <GitBranch className={`h-4 w-4 ml-2 ${generateKnockoutMutation.isPending ? 'animate-spin' : ''}`} />
+              {generateKnockoutMutation.isPending ? "جاري التوليد..." : "توليد شجرة خروج المغلوب"}
+            </Button>
+
+            {isKnockoutTournament && teams.length < 2 && (
+              <p className="text-sm text-muted-foreground" data-testid="text-knockout-teams-warning">
+                يجب إضافة فريقين على الأقل لتوليد شجرة خروج المغلوب
+              </p>
+            )}
+
+            {isGroupsTournament && !tournament.groupStageComplete && (
+              <p className="text-sm text-muted-foreground" data-testid="text-group-stage-required">
+                يجب إكمال مرحلة المجموعات أولاً قبل توليد مباريات خروج المغلوب
+              </p>
+            )}
+
+            {tournament.knockoutBracket && (
+              <div className="mt-4 p-4 bg-muted/50 rounded-lg" data-testid="container-knockout-bracket">
+                <p className="text-sm text-muted-foreground mb-2">شجرة الأدوار الإقصائية:</p>
+                <pre className="text-xs overflow-x-auto" dir="ltr" data-testid="text-bracket-data">
+                  {JSON.stringify(tournament.knockoutBracket, null, 2)}
+                </pre>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
