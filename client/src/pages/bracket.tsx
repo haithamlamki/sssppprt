@@ -230,7 +230,11 @@ function TournamentWinner({ matches }: { matches: MatchWithTeams[] }) {
         <div className="inline-flex items-center justify-center w-20 h-20 bg-yellow-400 rounded-full mb-4">
           <Trophy className="w-10 h-10 text-yellow-900" />
         </div>
-        <h2 className="text-2xl font-bold mb-2">🏆 البطل 🏆</h2>
+        <h2 className="text-2xl font-bold mb-2 flex items-center justify-center gap-2">
+          <Trophy className="w-6 h-6 text-yellow-600" />
+          البطل
+          <Trophy className="w-6 h-6 text-yellow-600" />
+        </h2>
         <p className="text-3xl font-display font-bold text-yellow-700 dark:text-yellow-400">
           {winner.name}
         </p>
@@ -247,13 +251,7 @@ export default function Bracket() {
   });
 
   const { data: matches = [], isLoading: matchesLoading } = useQuery<MatchWithTeams[]>({
-    queryKey: ["/api/tournaments", selectedTournamentId, "matches"],
-    queryFn: async () => {
-      if (!selectedTournamentId) return [];
-      const response = await fetch(`/api/tournaments/${selectedTournamentId}/matches`);
-      if (!response.ok) throw new Error("Failed to fetch matches");
-      return response.json();
-    },
+    queryKey: [`/api/tournaments/${selectedTournamentId}/matches`],
     enabled: !!selectedTournamentId,
   });
 
