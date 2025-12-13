@@ -522,42 +522,77 @@ export default function LeagueDetail() {
           </TabsContent>
 
           <TabsContent value="matches" className="space-y-6">
+            <div className="flex items-center justify-between mb-4" data-testid="matches-summary">
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                  <span data-testid="text-upcoming-count">قادمة: {upcomingMatches.length}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                  <span data-testid="text-completed-count">منتهية: {completedMatches.length}</span>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-muted-foreground" data-testid="badge-total-matches">
+                إجمالي: {matches?.length || 0} مباراة
+              </Badge>
+            </div>
+
             {upcomingMatches.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-blue-500" />
+              <Card className="border-blue-500/20">
+                <CardHeader className="bg-blue-500/5 border-b border-blue-500/10">
+                  <CardTitle className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                    <Clock className="h-5 w-5" />
                     المباريات القادمة
+                    <Badge variant="secondary" className="mr-auto text-xs">
+                      {upcomingMatches.length}
+                    </Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {upcomingMatches.map((match) => (
-                    <MatchCard key={match.id} match={match} />
-                  ))}
+                <CardContent className="p-4 space-y-3">
+                  {upcomingMatches
+                    .sort((a, b) => {
+                      const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
+                      const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
+                      return dateA - dateB;
+                    })
+                    .map((match) => (
+                      <MatchCard key={match.id} match={match} />
+                    ))}
                 </CardContent>
               </Card>
             )}
 
             {completedMatches.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              <Card className="border-emerald-500/20">
+                <CardHeader className="bg-emerald-500/5 border-b border-emerald-500/10">
+                  <CardTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-5 w-5" />
                     المباريات المنتهية
+                    <Badge variant="secondary" className="mr-auto text-xs">
+                      {completedMatches.length}
+                    </Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {completedMatches.map((match) => (
-                    <MatchCard key={match.id} match={match} />
-                  ))}
+                <CardContent className="p-4 space-y-3">
+                  {completedMatches
+                    .sort((a, b) => {
+                      const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
+                      const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
+                      return dateB - dateA;
+                    })
+                    .map((match) => (
+                      <CompletedMatchCard key={match.id} match={match} />
+                    ))}
                 </CardContent>
               </Card>
             )}
 
             {(!matches || matches.length === 0) && (
-              <div className="text-center py-12 text-muted-foreground">
-                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>لم يتم إنشاء جدول المباريات بعد</p>
+              <div className="text-center py-16 text-muted-foreground">
+                <Calendar className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                <h3 className="text-lg font-medium mb-2">لم يتم إنشاء جدول المباريات بعد</h3>
+                <p className="text-sm">سيتم عرض جدول المباريات هنا بمجرد إنشائه من لوحة التحكم</p>
               </div>
             )}
           </TabsContent>
@@ -920,56 +955,121 @@ export default function LeagueDetail() {
   );
 }
 
+function CompletedMatchCard({ match }: { match: MatchWithTeams }) {
+  const homeScore = match.homeScore ?? 0;
+  const awayScore = match.awayScore ?? 0;
+  const homeWon = homeScore > awayScore;
+  const awayWon = awayScore > homeScore;
+  const isDraw = homeScore === awayScore;
+
+  return (
+    <Link href={`/matches/${match.id}`}>
+      <motion.div
+        whileHover={{ x: -2 }}
+        className="bg-muted/30 border rounded-lg p-3 cursor-pointer hover-elevate"
+        data-testid={`card-completed-match-${match.id}`}
+      >
+        <div className="flex items-center gap-4">
+          <div className={`flex-1 flex items-center gap-3 justify-end ${homeWon ? "font-bold" : ""}`} data-testid={`completed-match-home-${match.id}`}>
+            <span className={homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}>{match.homeTeam?.name}</span>
+            {homeWon && <Trophy className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
+          </div>
+          
+          <div className="flex items-center gap-3 px-4 py-1 bg-background rounded-full border" data-testid={`completed-match-score-${match.id}`}>
+            <span className={`text-xl font-bold min-w-[24px] text-center ${homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+              {homeScore}
+            </span>
+            <span className="text-muted-foreground">-</span>
+            <span className={`text-xl font-bold min-w-[24px] text-center ${awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+              {awayScore}
+            </span>
+          </div>
+
+          <div className={`flex-1 flex items-center gap-3 ${awayWon ? "font-bold" : ""}`} data-testid={`completed-match-away-${match.id}`}>
+            {awayWon && <Trophy className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
+            <span className={awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}>{match.awayTeam?.name}</span>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-3 w-3" />
+            {match.matchDate ? format(new Date(match.matchDate), "d MMM yyyy", { locale: ar }) : "غير محدد"}
+          </div>
+          {isDraw && <Badge variant="outline" className="text-xs">تعادل</Badge>}
+          <div className="flex items-center gap-2">
+            {match.venue && (
+              <>
+                <MapPin className="h-3 w-3" />
+                <span>{match.venue}</span>
+              </>
+            )}
+            <span className="text-xs">الجولة {match.round}</span>
+          </div>
+        </div>
+      </motion.div>
+    </Link>
+  );
+}
+
 function MatchCard({ match }: { match: MatchWithTeams }) {
+  const isLive = match.status === "live";
+  
   return (
     <Link href={`/matches/${match.id}`}>
       <motion.div
         whileHover={{ scale: 1.01 }}
-        className="bg-card border rounded-lg p-4 cursor-pointer hover-elevate"
+        className={`bg-card border rounded-lg p-4 cursor-pointer hover-elevate ${isLive ? "ring-2 ring-red-500 ring-offset-2" : ""}`}
         data-testid={`card-match-${match.id}`}
       >
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-3">
           <Badge className={matchStatusColors[match.status]}>
-            {match.status === "live" && <Play className="h-3 w-3 ml-1" />}
+            {isLive && <Play className="h-3 w-3 ml-1" />}
             {matchStatusLabels[match.status]}
           </Badge>
           <div className="text-sm text-muted-foreground flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            {match.matchDate ? format(new Date(match.matchDate), "d MMM - HH:mm", { locale: ar }) : "غير محدد"}
+            {match.matchDate ? format(new Date(match.matchDate), "EEEE d MMM - HH:mm", { locale: ar }) : "غير محدد"}
           </div>
         </div>
 
         <div className="flex items-center justify-between">
           <div className="flex-1 text-right">
             <div className="font-bold text-lg">{match.homeTeam?.name}</div>
+            <div className="text-xs text-muted-foreground">الفريق المضيف</div>
           </div>
           
-          <div className="px-6 py-2">
-            {match.status === "completed" || match.status === "live" ? (
-              <div className="text-2xl font-bold flex items-center gap-2">
-                <span>{match.homeScore ?? 0}</span>
+          <div className="px-6 py-3">
+            {isLive ? (
+              <div className="text-2xl font-bold flex items-center gap-2 animate-pulse">
+                <span className="text-red-500">{match.homeScore ?? 0}</span>
                 <span className="text-muted-foreground">-</span>
-                <span>{match.awayScore ?? 0}</span>
+                <span className="text-red-500">{match.awayScore ?? 0}</span>
               </div>
             ) : (
-              <div className="text-lg font-medium text-muted-foreground">VS</div>
+              <div className="text-xl font-bold text-muted-foreground bg-muted px-4 py-2 rounded-lg">VS</div>
             )}
           </div>
 
           <div className="flex-1 text-left">
             <div className="font-bold text-lg">{match.awayTeam?.name}</div>
+            <div className="text-xs text-muted-foreground">الفريق الضيف</div>
           </div>
         </div>
 
         {match.venue && (
-          <div className="mt-2 text-sm text-muted-foreground flex items-center justify-center gap-2">
+          <div className="mt-3 text-sm text-muted-foreground flex items-center justify-center gap-2">
             <MapPin className="h-4 w-4" />
             {match.venue}
           </div>
         )}
 
-        <div className="mt-2 text-center text-xs text-muted-foreground">
-          الجولة {match.round} {match.leg === 2 && "- إياب"}
+        <div className="mt-2 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+          <span>الجولة {match.round}</span>
+          {match.leg === 2 && <Badge variant="outline" className="text-xs">إياب</Badge>}
+          {match.stage === "group" && match.groupNumber && (
+            <Badge variant="outline" className="text-xs">{groupLabels[match.groupNumber]}</Badge>
+          )}
         </div>
       </motion.div>
     </Link>
