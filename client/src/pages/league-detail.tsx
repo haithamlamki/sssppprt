@@ -555,79 +555,7 @@ export default function LeagueDetail() {
           </TabsContent>
 
           <TabsContent value="matches" className="space-y-6">
-            <div className="flex items-center justify-between mb-4" data-testid="matches-summary">
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500" />
-                  <span data-testid="text-upcoming-count">قادمة: {upcomingMatches.length}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span data-testid="text-completed-count">منتهية: {completedMatches.length}</span>
-                </div>
-              </div>
-              <Badge variant="outline" className="text-muted-foreground" data-testid="badge-total-matches">
-                إجمالي: {matches?.length || 0} مباراة
-              </Badge>
-            </div>
-
-            {upcomingMatches.length > 0 && (
-              <Card className="border-blue-500/20">
-                <CardHeader className="bg-blue-500/5 border-b border-blue-500/10">
-                  <CardTitle className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                    <Clock className="h-5 w-5" />
-                    المباريات القادمة
-                    <Badge variant="secondary" className="mr-auto text-xs">
-                      {upcomingMatches.length}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 space-y-3">
-                  {upcomingMatches
-                    .sort((a, b) => {
-                      const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
-                      const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
-                      return dateA - dateB;
-                    })
-                    .map((match) => (
-                      <MatchCard key={match.id} match={match} />
-                    ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {completedMatches.length > 0 && (
-              <Card className="border-emerald-500/20">
-                <CardHeader className="bg-emerald-500/5 border-b border-emerald-500/10">
-                  <CardTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="h-5 w-5" />
-                    المباريات المنتهية
-                    <Badge variant="secondary" className="mr-auto text-xs">
-                      {completedMatches.length}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 space-y-3">
-                  {completedMatches
-                    .sort((a, b) => {
-                      const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
-                      const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
-                      return dateB - dateA;
-                    })
-                    .map((match) => (
-                      <CompletedMatchCard key={match.id} match={match} />
-                    ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {(!matches || matches.length === 0) && (
-              <div className="text-center py-16 text-muted-foreground">
-                <Calendar className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                <h3 className="text-lg font-medium mb-2">لم يتم إنشاء جدول المباريات بعد</h3>
-                <p className="text-sm">سيتم عرض جدول المباريات هنا بمجرد إنشائه من لوحة التحكم</p>
-              </div>
-            )}
+            <MatchesView matches={matches || []} />
           </TabsContent>
 
           <TabsContent value="knockout">
@@ -988,6 +916,173 @@ export default function LeagueDetail() {
           </TabsContent>
         </Tabs>
       </div>
+    </div>
+  );
+}
+
+function MatchesView({ matches }: { matches: MatchWithTeams[] }) {
+  const [viewMode, setViewMode] = useState<"status" | "round">("round");
+  
+  const upcomingMatches = matches.filter(m => m.status === "scheduled" || m.status === "live");
+  const completedMatches = matches.filter(m => m.status === "completed");
+  
+  // Group matches by round
+  const matchesByRound = matches.reduce((acc, match) => {
+    const round = match.round || 1;
+    if (!acc[round]) {
+      acc[round] = [];
+    }
+    acc[round].push(match);
+    return acc;
+  }, {} as Record<number, MatchWithTeams[]>);
+  
+  const roundNumbers = Object.keys(matchesByRound).map(Number).sort((a, b) => a - b);
+  
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-4" data-testid="matches-summary">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-blue-500" />
+            <span data-testid="text-upcoming-count">قادمة: {upcomingMatches.length}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-emerald-500" />
+            <span data-testid="text-completed-count">منتهية: {completedMatches.length}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-muted-foreground" data-testid="badge-total-matches">
+            إجمالي: {matches.length} مباراة
+          </Badge>
+          <div className="flex border rounded-lg overflow-hidden">
+            <Button 
+              variant={viewMode === "round" ? "default" : "ghost"} 
+              size="sm"
+              onClick={() => setViewMode("round")}
+              className="rounded-none"
+              data-testid="button-view-by-round"
+            >
+              حسب الجولة
+            </Button>
+            <Button 
+              variant={viewMode === "status" ? "default" : "ghost"} 
+              size="sm"
+              onClick={() => setViewMode("status")}
+              className="rounded-none"
+              data-testid="button-view-by-status"
+            >
+              حسب الحالة
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {viewMode === "round" ? (
+        <div className="space-y-6">
+          {roundNumbers.map((roundNum) => {
+            const roundMatches = matchesByRound[roundNum];
+            const completedCount = roundMatches.filter(m => m.status === "completed").length;
+            const totalCount = roundMatches.length;
+            
+            return (
+              <Card key={roundNum} data-testid={`card-round-${roundNum}`}>
+                <CardHeader className="bg-primary/5 border-b">
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-primary font-bold">{roundNum}</span>
+                      </div>
+                      <span>الجولة {roundNum}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {completedCount}/{totalCount} مباريات
+                      </Badge>
+                      {completedCount === totalCount && (
+                        <Badge className="bg-emerald-500 text-xs">مكتملة</Badge>
+                      )}
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  {roundMatches
+                    .sort((a, b) => {
+                      const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
+                      const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
+                      return dateA - dateB;
+                    })
+                    .map((match) => (
+                      match.status === "completed" ? 
+                        <CompletedMatchCard key={match.id} match={match} /> :
+                        <MatchCard key={match.id} match={match} />
+                    ))}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {upcomingMatches.length > 0 && (
+            <Card className="border-blue-500/20">
+              <CardHeader className="bg-blue-500/5 border-b border-blue-500/10">
+                <CardTitle className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                  <Clock className="h-5 w-5" />
+                  المباريات القادمة
+                  <Badge variant="secondary" className="mr-auto text-xs">
+                    {upcomingMatches.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                {upcomingMatches
+                  .sort((a, b) => {
+                    const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
+                    const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
+                    return dateA - dateB;
+                  })
+                  .map((match) => (
+                    <MatchCard key={match.id} match={match} />
+                  ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {completedMatches.length > 0 && (
+            <Card className="border-emerald-500/20">
+              <CardHeader className="bg-emerald-500/5 border-b border-emerald-500/10">
+                <CardTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="h-5 w-5" />
+                  المباريات المنتهية
+                  <Badge variant="secondary" className="mr-auto text-xs">
+                    {completedMatches.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                {completedMatches
+                  .sort((a, b) => {
+                    const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
+                    const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
+                    return dateB - dateA;
+                  })
+                  .map((match) => (
+                    <CompletedMatchCard key={match.id} match={match} />
+                  ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {matches.length === 0 && (
+        <div className="text-center py-16 text-muted-foreground">
+          <Calendar className="h-16 w-16 mx-auto mb-4 opacity-30" />
+          <h3 className="text-lg font-medium mb-2">لم يتم إنشاء جدول المباريات بعد</h3>
+          <p className="text-sm">سيتم عرض جدول المباريات هنا بمجرد إنشائه من لوحة التحكم</p>
+        </div>
+      )}
     </div>
   );
 }
