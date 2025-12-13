@@ -190,6 +190,7 @@ export interface IStorage {
   
   // Initialization
   initializeSampleData(): Promise<void>;
+  seedTeamsAndPlayers(): Promise<{ teamsCreated: number; playersCreated: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -733,6 +734,123 @@ export class DatabaseStorage implements IStorage {
     ]);
 
     console.log("Sample data initialized successfully!");
+  }
+
+  // Seed sample teams and players
+  async seedTeamsAndPlayers(): Promise<{ teamsCreated: number; playersCreated: number }> {
+    console.log("Seeding teams and players...");
+
+    // Sample Teams
+    const sampleTeams = [
+      {
+        name: "فريق الهندسة",
+        level: "advanced",
+        averageAge: "25-30",
+        representativeName: "محمد الشمري",
+        contactPhone: "0501234567",
+        contactEmail: "engineering.team@abraj.com",
+        description: "فريق قسم الهندسة - بطل الموسم السابق",
+        primaryJersey: "أزرق",
+        secondaryJersey: "أبيض",
+      },
+      {
+        name: "فريق المالية",
+        level: "intermediate",
+        averageAge: "30-35",
+        representativeName: "خالد العتيبي",
+        contactPhone: "0502345678",
+        contactEmail: "finance.team@abraj.com",
+        description: "فريق قسم المالية والمحاسبة",
+        primaryJersey: "أخضر",
+        secondaryJersey: "أسود",
+      },
+      {
+        name: "فريق التشغيل",
+        level: "advanced",
+        averageAge: "25-30",
+        representativeName: "سعود الحربي",
+        contactPhone: "0503456789",
+        contactEmail: "operations.team@abraj.com",
+        description: "فريق قسم التشغيل والصيانة",
+        primaryJersey: "أحمر",
+        secondaryJersey: "أبيض",
+      },
+      {
+        name: "فريق تقنية المعلومات",
+        level: "professional",
+        averageAge: "25-30",
+        representativeName: "فهد القحطاني",
+        contactPhone: "0504567890",
+        contactEmail: "it.team@abraj.com",
+        description: "فريق قسم تقنية المعلومات",
+        primaryJersey: "أسود",
+        secondaryJersey: "برتقالي",
+      },
+      {
+        name: "فريق الموارد البشرية",
+        level: "beginner",
+        averageAge: "30-35",
+        representativeName: "عبدالرحمن السبيعي",
+        contactPhone: "0505678901",
+        contactEmail: "hr.team@abraj.com",
+        description: "فريق قسم الموارد البشرية",
+        primaryJersey: "بنفسجي",
+        secondaryJersey: "رمادي",
+      },
+      {
+        name: "فريق المشتريات",
+        level: "intermediate",
+        averageAge: "25-30",
+        representativeName: "ناصر الدوسري",
+        contactPhone: "0506789012",
+        contactEmail: "procurement.team@abraj.com",
+        description: "فريق قسم المشتريات واللوجستيات",
+        primaryJersey: "ذهبي",
+        secondaryJersey: "كحلي",
+      },
+    ];
+
+    const createdTeams = await db.insert(teams).values(sampleTeams).returning();
+
+    // Sample Players for each team
+    const playerPositions = ["goalkeeper", "defender", "midfielder", "forward"];
+    const playerLevels = ["beginner", "intermediate", "advanced", "professional"];
+    const arabicNames = [
+      "عبدالله الشمري", "محمد القحطاني", "أحمد العتيبي", "خالد الحربي",
+      "سعد السبيعي", "فهد الدوسري", "ناصر المطيري", "سلطان الغامدي",
+      "عمر الزهراني", "يوسف البيشي", "إبراهيم العسيري", "حسن الشهري",
+      "علي القرني", "صالح الأسمري", "ماجد الرشيدي", "بندر العنزي",
+      "تركي السهلي", "راشد الوادعي", "مشاري الجهني", "عادل الخالدي",
+      "هاني المالكي", "زياد الحازمي", "رامي الثقفي", "باسم الزيلعي",
+    ];
+
+    const allPlayers: any[] = [];
+    let playerIndex = 0;
+
+    for (const team of createdTeams) {
+      // Create 4 players per team
+      for (let i = 0; i < 4; i++) {
+        if (playerIndex >= arabicNames.length) break;
+        
+        allPlayers.push({
+          teamId: team.id,
+          name: arabicNames[playerIndex],
+          number: (i + 1) * 10 + Math.floor(Math.random() * 9),
+          position: playerPositions[i % 4],
+          level: playerLevels[Math.floor(Math.random() * 4)],
+          averageAge: ["18-25", "25-30", "30-35"][Math.floor(Math.random() * 3)],
+          phone: `050${Math.floor(1000000 + Math.random() * 9000000)}`,
+          email: `${arabicNames[playerIndex].split(" ")[0].toLowerCase()}@abraj.com`,
+          healthStatus: "fit",
+        });
+        playerIndex++;
+      }
+    }
+
+    await db.insert(players).values(allPlayers);
+
+    console.log(`Seeded ${createdTeams.length} teams and ${allPlayers.length} players!`);
+    return { teamsCreated: createdTeams.length, playersCreated: allPlayers.length };
   }
 
   // ========== LEAGUE GENERATOR IMPLEMENTATIONS ==========

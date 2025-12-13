@@ -399,6 +399,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Seed teams and players
+  app.post("/api/seed/teams-players", isAdmin, async (_req, res) => {
+    try {
+      const result = await storage.seedTeamsAndPlayers();
+      res.json({ 
+        success: true, 
+        message: `تم إنشاء ${result.teamsCreated} فريق و ${result.playersCreated} لاعب`,
+        ...result 
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to seed teams and players" });
+    }
+  });
+
   // User management endpoints (admin only)
   app.get("/api/users", isAdmin, async (_req, res) => {
     try {
