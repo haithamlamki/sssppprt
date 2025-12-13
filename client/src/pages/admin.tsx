@@ -3,6 +3,10 @@ import {
   Calendar, Users, Trophy, ImageIcon, Newspaper, 
   Plus, Pencil, Trash2, Loader2, Shield, BarChart3, Target 
 } from "lucide-react";
+import { 
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
+  CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -189,41 +193,176 @@ export default function Admin() {
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
+            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <Card data-testid="stat-events">
+                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
                   <CardTitle className="text-sm font-medium">إجمالي الفعاليات</CardTitle>
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stats?.totalEvents || 0}</div>
+                  <p className="text-xs text-muted-foreground">فعالية نشطة</p>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <Card data-testid="stat-participants">
+                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
                   <CardTitle className="text-sm font-medium">المشاركون</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stats?.totalParticipants || 0}</div>
+                  <p className="text-xs text-muted-foreground">مشارك مسجل</p>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <Card data-testid="stat-achievements">
+                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
                   <CardTitle className="text-sm font-medium">الإنجازات</CardTitle>
                   <Trophy className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stats?.totalAchievements || 0}</div>
+                  <p className="text-xs text-muted-foreground">إنجاز محقق</p>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <Card data-testid="stat-sports">
+                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
                   <CardTitle className="text-sm font-medium">الأنشطة</CardTitle>
                   <BarChart3 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stats?.activeSports || 0}</div>
+                  <p className="text-xs text-muted-foreground">نشاط رياضي</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Events by Category Pie Chart */}
+              <Card data-testid="chart-events-category">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    توزيع الفعاليات حسب النوع
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'كرة قدم', value: events.filter(e => e.category === 'football').length, color: '#3B82F6' },
+                            { name: 'كرة سلة', value: events.filter(e => e.category === 'basketball').length, color: '#F97316' },
+                            { name: 'ماراثون', value: events.filter(e => e.category === 'marathon').length, color: '#22C55E' },
+                            { name: 'عائلي', value: events.filter(e => e.category === 'family').length, color: '#A855F7' },
+                          ].filter(d => d.value > 0)}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={100}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {[
+                            { name: 'كرة قدم', value: events.filter(e => e.category === 'football').length, color: '#3B82F6' },
+                            { name: 'كرة سلة', value: events.filter(e => e.category === 'basketball').length, color: '#F97316' },
+                            { name: 'ماراثون', value: events.filter(e => e.category === 'marathon').length, color: '#22C55E' },
+                            { name: 'عائلي', value: events.filter(e => e.category === 'family').length, color: '#A855F7' },
+                          ].filter(d => d.value > 0).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Overview Bar Chart */}
+              <Card data-testid="chart-overview">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    نظرة عامة على النظام
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={[
+                          { name: 'الفعاليات', value: events.length, fill: '#3B82F6' },
+                          { name: 'البطولات', value: tournamentsList.length, fill: '#F97316' },
+                          { name: 'المستخدمين', value: allUsers.length, fill: '#22C55E' },
+                          { name: 'الأخبار', value: news.length, fill: '#A855F7' },
+                        ]}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                          {[
+                            { name: 'الفعاليات', value: events.length, fill: '#3B82F6' },
+                            { name: 'البطولات', value: tournamentsList.length, fill: '#F97316' },
+                            { name: 'المستخدمين', value: allUsers.length, fill: '#22C55E' },
+                            { name: 'الأخبار', value: news.length, fill: '#A855F7' },
+                          ].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Quick Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card data-testid="stat-tournaments">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+                      <Target className="h-6 w-6 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">البطولات النشطة</p>
+                      <p className="text-2xl font-bold">{tournamentsList.filter(t => t.status === 'ongoing' || t.status === 'registration').length}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card data-testid="stat-users">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                      <Users className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">إجمالي المستخدمين</p>
+                      <p className="text-2xl font-bold">{allUsers.length}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card data-testid="stat-news">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                      <Newspaper className="h-6 w-6 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">الأخبار المنشورة</p>
+                      <p className="text-2xl font-bold">{news.length}</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -248,6 +387,9 @@ export default function Admin() {
                       </Badge>
                     </div>
                   ))}
+                  {events.length === 0 && (
+                    <p className="text-center text-muted-foreground py-4">لا توجد فعاليات بعد</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
