@@ -1253,6 +1253,8 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
     pointsForLoss: "0",
     numberOfRounds: "1",
     isOpenForRegistration: true,
+    dailyStartTime: "16:00",
+    matchesPerDayPerVenue: "3",
   });
 
   const groupCountOptions = [2, 3, 4, 5, 6, 8, 10, 12, 16];
@@ -1335,6 +1337,8 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
         pointsForLoss: "0",
         numberOfRounds: "1",
         isOpenForRegistration: true,
+        dailyStartTime: "16:00",
+        matchesPerDayPerVenue: "3",
       });
       setImagePreview(null);
     },
@@ -1366,6 +1370,10 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
       numberOfRounds: parseInt(formData.numberOfRounds) || 1,
       isOpenForRegistration: formData.isOpenForRegistration,
       hasGroupStage: formData.type === "groups" || formData.type === "groups_knockout",
+      scheduleConfig: JSON.stringify({
+        dailyStartTime: formData.dailyStartTime,
+        matchesPerDayPerVenue: parseInt(formData.matchesPerDayPerVenue) || 3
+      }),
     };
     
     if (formData.startDate) {
@@ -1596,6 +1604,33 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
             min="1"
             max="20"
             data-testid="input-number-of-venues"
+          />
+        </div>
+      </div>
+
+      {/* إعدادات الجدولة */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            توقيت البداية اليومي
+          </Label>
+          <Input
+            type="time"
+            value={formData.dailyStartTime}
+            onChange={(e) => setFormData({ ...formData, dailyStartTime: e.target.value })}
+            data-testid="input-daily-start-time"
+          />
+        </div>
+        <div>
+          <Label>عدد المباريات/ملعب/يوم</Label>
+          <Input
+            type="number"
+            value={formData.matchesPerDayPerVenue}
+            onChange={(e) => setFormData({ ...formData, matchesPerDayPerVenue: e.target.value })}
+            min="1"
+            max="10"
+            data-testid="input-matches-per-venue"
           />
         </div>
       </div>
