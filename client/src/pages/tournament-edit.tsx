@@ -67,6 +67,33 @@ const levelLabels: Record<string, string> = {
   fifa: "دولي (FIFA)",
 };
 
+// Group letter mapping: number -> Arabic letter
+const groupLetterMap: Record<number, string> = {
+  1: "أ",
+  2: "ب",
+  3: "ج",
+  4: "د",
+  5: "هـ",
+  6: "و",
+  7: "ز",
+  8: "ح",
+};
+
+// Reverse mapping: Arabic letter -> number
+const letterToNumberMap: Record<string, number> = {
+  "أ": 1,
+  "ب": 2,
+  "ج": 3,
+  "د": 4,
+  "هـ": 5,
+  "و": 6,
+  "ز": 7,
+  "ح": 8,
+};
+
+// Available group letters for selection
+const availableGroupLetters = ["أ", "ب", "ج", "د", "هـ", "و", "ز", "ح"];
+
 const specializationLabels: Record<string, string> = {
   main: "حكم رئيسي",
   assistant: "حكم مساعد",
@@ -459,6 +486,7 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
     contactPhone: "",
     contactEmail: "",
     description: "",
+    groupNumber: undefined as number | undefined,
   });
 
   const { data: allTeams = [], isLoading: teamsLoading } = useQuery<Team[]>({
@@ -477,7 +505,7 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
       queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "teams"] });
       queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
       setIsAddOpen(false);
-      setNewTeam({ name: "", level: "intermediate", representativeName: "", contactPhone: "", contactEmail: "", description: "" });
+      setNewTeam({ name: "", level: "intermediate", representativeName: "", contactPhone: "", contactEmail: "", description: "", groupNumber: undefined });
     },
     onError: () => {
       toast({ title: "فشل إضافة الفريق", variant: "destructive" });
@@ -659,6 +687,25 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
                       data-testid="input-team-representative"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label>المجموعة (اختياري)</Label>
+                    <Select
+                      value={newTeam.groupNumber ? groupLetterMap[newTeam.groupNumber] : "none"}
+                      onValueChange={(value) => setNewTeam({ ...newTeam, groupNumber: value === "none" ? undefined : letterToNumberMap[value] })}
+                    >
+                      <SelectTrigger data-testid="select-team-group">
+                        <SelectValue placeholder="اختر المجموعة" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none" data-testid="option-team-group-none">بدون مجموعة</SelectItem>
+                        {availableGroupLetters.map((letter) => (
+                          <SelectItem key={letter} value={letter} data-testid={`option-team-group-${letter}`}>
+                            المجموعة {letter}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>رقم الهاتف</Label>
@@ -705,6 +752,7 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
               <TableRow>
                 <TableHead className="text-right">#</TableHead>
                 <TableHead className="text-right">الفريق</TableHead>
+                <TableHead className="text-center">المجموعة</TableHead>
                 <TableHead className="text-right">المستوى</TableHead>
                 <TableHead className="text-right">الممثل</TableHead>
                 <TableHead className="text-center">لعب</TableHead>
@@ -718,6 +766,27 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
                 <TableRow key={team.id} data-testid={`row-team-${team.id}`}>
                   <TableCell>{index + 1}</TableCell>
                   <TableCell className="font-medium">{team.name}</TableCell>
+                  <TableCell className="text-center">
+                    <Select
+                      value={team.groupNumber ? groupLetterMap[team.groupNumber] : "none"}
+                      onValueChange={(value) => {
+                        const groupNumber = value === "none" ? 0 : letterToNumberMap[value];
+                        updateTeamMutation.mutate({ id: team.id, data: { groupNumber } });
+                      }}
+                    >
+                      <SelectTrigger className="w-24 h-8" data-testid={`select-team-group-inline-${team.id}`}>
+                        <SelectValue placeholder="-" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">-</SelectItem>
+                        {availableGroupLetters.map((letter) => (
+                          <SelectItem key={letter} value={letter}>
+                            {letter}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline">
                       {levelLabels[team.level || "intermediate"] || team.level}
@@ -825,14 +894,23 @@ function EditTeamDialog({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>رقم المجموعة</Label>
-            <Input
-              type="number"
-              value={formData.groupNumber || ""}
-              onChange={(e) => setFormData({ ...formData, groupNumber: e.target.value ? parseInt(e.target.value) : undefined })}
-              placeholder="رقم المجموعة (اختياري)"
-              data-testid="input-edit-team-group"
-            />
+            <Label>المجموعة</Label>
+            <Select
+              value={formData.groupNumber ? groupLetterMap[formData.groupNumber] : "none"}
+              onValueChange={(value) => setFormData({ ...formData, groupNumber: value === "none" ? 0 : letterToNumberMap[value] })}
+            >
+              <SelectTrigger data-testid="select-edit-team-group">
+                <SelectValue placeholder="اختر المجموعة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">بدون مجموعة</SelectItem>
+                {availableGroupLetters.map((letter) => (
+                  <SelectItem key={letter} value={letter}>
+                    المجموعة {letter}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>الممثل</Label>
