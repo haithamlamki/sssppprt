@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,6 +56,7 @@ type RegisterFormData = z.infer<typeof registerFormSchema>;
 export default function Register() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [employeeCardImage, setEmployeeCardImage] = useState<File | null>(null);
   const [nationalIdImage, setNationalIdImage] = useState<File | null>(null);
@@ -144,6 +145,9 @@ export default function Register() {
         const errorData = await response.json();
         throw new Error(errorData.message || "فشل إنشاء الحساب");
       }
+
+      // Invalidate auth query to update user state
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
 
       toast({
         title: "تم إنشاء الحساب بنجاح",

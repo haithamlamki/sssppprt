@@ -101,17 +101,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const workStartDate = req.body.workStartDate ? new Date(req.body.workStartDate) : undefined;
       const workEndDate = req.body.workEndDate ? new Date(req.body.workEndDate) : undefined;
 
-      // Create user data
-      const userData = insertUserSchema.parse({
-        ...req.body,
+      // Parse playerInfo if provided (it comes as JSON string from form)
+      const playerInfo = req.body.playerInfo ? req.body.playerInfo : undefined;
+
+      // Build user data object explicitly to avoid Zod issues with form data
+      const userDataRaw = {
+        username: req.body.username,
         password: hashedPassword,
+        fullName: req.body.fullName,
+        email: req.body.email,
+        employeeId: req.body.employeeId,
+        department: req.body.department,
+        position: req.body.position,
+        phoneNumber: req.body.phoneNumber || undefined,
+        shiftPattern: req.body.shiftPattern || "2weeks_on_2weeks_off",
         role,
+        accountType: req.body.accountType || "standard",
+        committeeTitle: req.body.committeeTitle || undefined,
         profileImageUrl,
         employeeCardImageUrl,
         nationalIdImageUrl,
+        playerInfo,
         workStartDate,
         workEndDate,
-      });
+      };
+
+      // Create user data
+      const userData = insertUserSchema.parse(userDataRaw);
 
       const user = await storage.createUser(userData);
 
