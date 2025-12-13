@@ -25,7 +25,9 @@ import {
   Palette,
   Image,
   Upload,
-  Clock
+  Clock,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { TeamColorPicker } from "@/components/TeamBox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2304,7 +2306,8 @@ function MatchesTab({
   teams: Team[];
 }) {
   const { toast } = useToast();
-  const [editingMatch, setEditingMatch] = useState<MatchWithTeams | null>(null);
+  const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
+  const [editingDataMap, setEditingDataMap] = useState<Record<string, Record<string, any>>>({});
   const [isAddMatchOpen, setIsAddMatchOpen] = useState(false);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [scheduleConfig, setScheduleConfig] = useState({
@@ -2319,20 +2322,82 @@ function MatchesTab({
     venue: "",
   });
 
+  const getMatchEditingData = (matchId: string) => editingDataMap[matchId] || {};
+  
+  const setMatchEditingData = (matchId: string, data: Record<string, any>) => {
+    setEditingDataMap(prev => ({ ...prev, [matchId]: data }));
+  };
+  
+  const updateMatchField = (matchId: string, field: string, value: any) => {
+    setEditingDataMap(prev => ({
+      ...prev,
+      [matchId]: { ...prev[matchId], [field]: value }
+    }));
+  };
+
+  const toggleMatchExpand = (match: MatchWithTeams) => {
+    if (expandedMatchId === match.id) {
+      setExpandedMatchId(null);
+    } else {
+      setExpandedMatchId(match.id);
+      if (!editingDataMap[match.id]) {
+        const isoDate = match.matchDate ? match.matchDate : null;
+        let dateStr = "";
+        let timeStr = "";
+        if (isoDate) {
+          const parts = isoDate.split('T');
+          dateStr = parts[0];
+          timeStr = parts[1] ? parts[1].slice(0, 5) : "";
+        }
+        setMatchEditingData(match.id, {
+          homeTeamId: match.homeTeamId || "",
+          awayTeamId: match.awayTeamId || "",
+          matchDate: dateStr,
+          matchTime: timeStr,
+          homeScore: match.homeScore ?? 0,
+          awayScore: match.awayScore ?? 0,
+          status: match.status,
+          venue: match.venue || "",
+          referee: match.referee || "",
+          round: match.round || 1,
+        });
+      }
+    }
+  };
+
   const updateMatchMutation = useMutation({
     mutationFn: async ({ matchId, data }: { matchId: string; data: any }) => {
       return await apiRequest("PATCH", `/api/matches/${matchId}`, data);
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast({ title: "تم تحديث نتيجة المباراة" });
       queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "matches"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "teams"] });
-      setEditingMatch(null);
+      setExpandedMatchId(null);
+      setEditingDataMap(prev => {
+        const next = { ...prev };
+        delete next[variables.matchId];
+        return next;
+      });
     },
     onError: () => {
       toast({ title: "فشل تحديث النتيجة", variant: "destructive" });
     },
   });
+
+  const handleSaveMatch = (matchId: string) => {
+    const data = getMatchEditingData(matchId);
+    let matchDateISO: string | null = null;
+    if (data.matchDate) {
+      const dateStr = data.matchDate;
+      const timeStr = data.matchTime || "00:00";
+      matchDateISO = `${dateStr}T${timeStr}:00.000Z`;
+    }
+    updateMatchMutation.mutate({ 
+      matchId, 
+      data: { ...data, matchDate: matchDateISO }
+    });
+  };
 
   const generateMatchesMutation = useMutation({
     mutationFn: async (config: typeof scheduleConfig) => {
@@ -2602,45 +2667,121 @@ function MatchesTab({
         <CardContent>
           {scheduledMatches.length > 0 ? (
             <div className="space-y-3">
-              {scheduledMatches.map((match) => (
-                <div 
-                  key={match.id} 
-                  className="flex items-center justify-between p-4 border rounded-lg hover-elevate"
-                  data-testid={`match-row-${match.id}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <Badge variant="outline">الجولة {match.round}</Badge>
-                    <span className="font-medium">{match.homeTeam?.name || "TBD"}</span>
-                    <span className="text-muted-foreground">vs</span>
-                    <span className="font-medium">{match.awayTeam?.name || "TBD"}</span>
+              {scheduledMatches.map((match) => {
+                const matchData = getMatchEditingData(match.id);
+                const isExpanded = expandedMatchId === match.id;
+                return (
+                <div key={match.id} className={`border rounded-lg overflow-visible ${isExpanded ? 'ring-2 ring-primary' : ''}`} data-testid={`match-row-${match.id}`}>
+                  <div 
+                    className="flex items-center justify-between p-4 cursor-pointer hover-elevate"
+                    onClick={() => toggleMatchExpand(match)}
+                  >
+                    <div className="flex items-center gap-4">
+                      {isExpanded ? <ChevronUp className="h-4 w-4 text-primary" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                      <Badge variant="outline">الجولة {match.round}</Badge>
+                      <span className="font-medium">{match.homeTeam?.name || "TBD"}</span>
+                      <span className="text-muted-foreground">vs</span>
+                      <span className="font-medium">{match.awayTeam?.name || "TBD"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {match.matchDate && (
+                        <span className="text-sm text-muted-foreground">
+                          {format(new Date(match.matchDate), "dd/MM/yyyy", { locale: ar })}
+                        </span>
+                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="text-destructive"
+                        onClick={(e) => { e.stopPropagation(); deleteMatchMutation.mutate(match.id); }}
+                        data-testid={`button-delete-match-${match.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {match.matchDate && (
-                      <span className="text-sm text-muted-foreground">
-                        {format(new Date(match.matchDate), "dd/MM/yyyy", { locale: ar })}
-                      </span>
-                    )}
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setEditingMatch(match)}
-                      data-testid={`button-edit-match-${match.id}`}
-                    >
-                      <Pencil className="h-4 w-4 ml-2" />
-                      تعديل
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      className="text-destructive"
-                      onClick={() => deleteMatchMutation.mutate(match.id)}
-                      data-testid={`button-delete-match-${match.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {isExpanded && (
+                    <div className="p-4 border-t bg-muted/30 space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <Label>الفريق المضيف</Label>
+                          <Select value={matchData.homeTeamId} onValueChange={(v) => updateMatchField(match.id, 'homeTeamId', v)}>
+                            <SelectTrigger data-testid="inline-select-home-team"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {teams.filter(t => t.id !== matchData.awayTeamId).map((team) => (
+                                <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>الفريق الضيف</Label>
+                          <Select value={matchData.awayTeamId} onValueChange={(v) => updateMatchField(match.id, 'awayTeamId', v)}>
+                            <SelectTrigger data-testid="inline-select-away-team"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {teams.filter(t => t.id !== matchData.homeTeamId).map((team) => (
+                                <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>التاريخ</Label>
+                          <Input type="date" value={matchData.matchDate || ''} onChange={(e) => updateMatchField(match.id, 'matchDate', e.target.value)} data-testid="inline-input-date" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>الوقت</Label>
+                          <Input type="time" value={matchData.matchTime || ''} onChange={(e) => updateMatchField(match.id, 'matchTime', e.target.value)} data-testid="inline-input-time" />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-center gap-6 p-4 bg-card rounded-lg border">
+                        <div className="text-center">
+                          <p className="font-bold text-lg mb-1">{teams.find(t => t.id === matchData.homeTeamId)?.name || "المضيف"}</p>
+                          <Input type="number" min={0} value={matchData.homeScore ?? 0} onChange={(e) => updateMatchField(match.id, 'homeScore', parseInt(e.target.value) || 0)} className="w-20 text-center text-2xl font-bold" data-testid="inline-input-home-score" />
+                        </div>
+                        <span className="text-3xl font-bold text-muted-foreground">-</span>
+                        <div className="text-center">
+                          <p className="font-bold text-lg mb-1">{teams.find(t => t.id === matchData.awayTeamId)?.name || "الضيف"}</p>
+                          <Input type="number" min={0} value={matchData.awayScore ?? 0} onChange={(e) => updateMatchField(match.id, 'awayScore', parseInt(e.target.value) || 0)} className="w-20 text-center text-2xl font-bold" data-testid="inline-input-away-score" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <Label>الحالة</Label>
+                          <Select value={matchData.status} onValueChange={(v) => updateMatchField(match.id, 'status', v)}>
+                            <SelectTrigger data-testid="inline-select-status"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="scheduled">مجدولة</SelectItem>
+                              <SelectItem value="live">مباشر</SelectItem>
+                              <SelectItem value="completed">منتهية</SelectItem>
+                              <SelectItem value="postponed">مؤجلة</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>الجولة</Label>
+                          <Input type="number" min={1} value={matchData.round ?? 1} onChange={(e) => updateMatchField(match.id, 'round', parseInt(e.target.value) || 1)} data-testid="inline-input-round" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>الملعب</Label>
+                          <Input value={matchData.venue || ''} onChange={(e) => updateMatchField(match.id, 'venue', e.target.value)} placeholder="اسم الملعب" data-testid="inline-input-venue" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>الحكم</Label>
+                          <Input value={matchData.referee || ''} onChange={(e) => updateMatchField(match.id, 'referee', e.target.value)} placeholder="اسم الحكم" data-testid="inline-input-referee" />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2 pt-2">
+                        <Button variant="outline" onClick={() => setExpandedMatchId(null)} data-testid="button-cancel-inline-edit">إلغاء</Button>
+                        <Button onClick={() => handleSaveMatch(match.id)} disabled={updateMatchMutation.isPending} data-testid="button-save-inline-edit">
+                          <Save className="h-4 w-4 ml-2" />
+                          {updateMatchMutation.isPending ? "جاري الحفظ..." : "حفظ"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+              );})}
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
@@ -2660,58 +2801,124 @@ function MatchesTab({
         </CardHeader>
         <CardContent>
           {completedMatches.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">الجولة</TableHead>
-                  <TableHead className="text-right">المضيف</TableHead>
-                  <TableHead className="text-center">النتيجة</TableHead>
-                  <TableHead className="text-right">الضيف</TableHead>
-                  <TableHead className="text-center">التاريخ</TableHead>
-                  <TableHead className="text-center">إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {completedMatches.map((match) => (
-                  <TableRow key={match.id} data-testid={`completed-match-${match.id}`}>
-                    <TableCell>
+            <div className="space-y-3">
+              {completedMatches.map((match) => {
+                const matchData = getMatchEditingData(match.id);
+                const isExpanded = expandedMatchId === match.id;
+                return (
+                <div key={match.id} className={`border rounded-lg overflow-visible ${isExpanded ? 'ring-2 ring-primary' : ''}`} data-testid={`completed-match-${match.id}`}>
+                  <div 
+                    className="flex items-center justify-between p-4 cursor-pointer hover-elevate"
+                    onClick={() => toggleMatchExpand(match)}
+                  >
+                    <div className="flex items-center gap-4">
+                      {isExpanded ? <ChevronUp className="h-4 w-4 text-primary" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                       <Badge variant="outline">الجولة {match.round}</Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">{match.homeTeam?.name}</TableCell>
-                    <TableCell className="text-center">
-                      <span className="font-bold text-lg">
-                        {match.homeScore} - {match.awayScore}
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-medium">{match.awayTeam?.name}</TableCell>
-                    <TableCell className="text-center text-muted-foreground">
-                      {match.matchDate && format(new Date(match.matchDate), "d/M/yyyy", { locale: ar })}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex justify-center gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => setEditingMatch(match)}
-                          data-testid={`button-edit-completed-${match.id}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          className="text-destructive"
-                          onClick={() => deleteMatchMutation.mutate(match.id)}
-                          data-testid={`button-delete-completed-${match.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
+                      <span className="font-medium">{match.homeTeam?.name}</span>
+                      <span className="font-bold text-lg px-2">{match.homeScore} - {match.awayScore}</span>
+                      <span className="font-medium">{match.awayTeam?.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {match.matchDate && (
+                        <span className="text-sm text-muted-foreground">
+                          {format(new Date(match.matchDate), "d/M/yyyy", { locale: ar })}
+                        </span>
+                      )}
+                      <Badge className="bg-emerald-500">منتهية</Badge>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="text-destructive"
+                        onClick={(e) => { e.stopPropagation(); deleteMatchMutation.mutate(match.id); }}
+                        data-testid={`button-delete-completed-${match.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="p-4 border-t bg-muted/30 space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <Label>الفريق المضيف</Label>
+                          <Select value={matchData.homeTeamId} onValueChange={(v) => updateMatchField(match.id, 'homeTeamId', v)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {teams.filter(t => t.id !== matchData.awayTeamId).map((team) => (
+                                <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>الفريق الضيف</Label>
+                          <Select value={matchData.awayTeamId} onValueChange={(v) => updateMatchField(match.id, 'awayTeamId', v)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {teams.filter(t => t.id !== matchData.homeTeamId).map((team) => (
+                                <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>التاريخ</Label>
+                          <Input type="date" value={matchData.matchDate || ''} onChange={(e) => updateMatchField(match.id, 'matchDate', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>الوقت</Label>
+                          <Input type="time" value={matchData.matchTime || ''} onChange={(e) => updateMatchField(match.id, 'matchTime', e.target.value)} />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-center gap-6 p-4 bg-card rounded-lg border">
+                        <div className="text-center">
+                          <p className="font-bold text-lg mb-1">{teams.find(t => t.id === matchData.homeTeamId)?.name || "المضيف"}</p>
+                          <Input type="number" min={0} value={matchData.homeScore ?? 0} onChange={(e) => updateMatchField(match.id, 'homeScore', parseInt(e.target.value) || 0)} className="w-20 text-center text-2xl font-bold" />
+                        </div>
+                        <span className="text-3xl font-bold text-muted-foreground">-</span>
+                        <div className="text-center">
+                          <p className="font-bold text-lg mb-1">{teams.find(t => t.id === matchData.awayTeamId)?.name || "الضيف"}</p>
+                          <Input type="number" min={0} value={matchData.awayScore ?? 0} onChange={(e) => updateMatchField(match.id, 'awayScore', parseInt(e.target.value) || 0)} className="w-20 text-center text-2xl font-bold" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <Label>الحالة</Label>
+                          <Select value={matchData.status} onValueChange={(v) => updateMatchField(match.id, 'status', v)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="scheduled">مجدولة</SelectItem>
+                              <SelectItem value="live">مباشر</SelectItem>
+                              <SelectItem value="completed">منتهية</SelectItem>
+                              <SelectItem value="postponed">مؤجلة</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>الجولة</Label>
+                          <Input type="number" min={1} value={matchData.round ?? 1} onChange={(e) => updateMatchField(match.id, 'round', parseInt(e.target.value) || 1)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>الملعب</Label>
+                          <Input value={matchData.venue || ''} onChange={(e) => updateMatchField(match.id, 'venue', e.target.value)} placeholder="اسم الملعب" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>الحكم</Label>
+                          <Input value={matchData.referee || ''} onChange={(e) => updateMatchField(match.id, 'referee', e.target.value)} placeholder="اسم الحكم" />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2 pt-2">
+                        <Button variant="outline" onClick={() => setExpandedMatchId(null)}>إلغاء</Button>
+                        <Button onClick={() => handleSaveMatch(match.id)} disabled={updateMatchMutation.isPending}>
+                          <Save className="h-4 w-4 ml-2" />
+                          {updateMatchMutation.isPending ? "جاري الحفظ..." : "حفظ"}
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                  )}
+                </div>
+              )})}
+            </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -2720,16 +2927,6 @@ function MatchesTab({
           )}
         </CardContent>
       </Card>
-
-      {editingMatch && (
-        <EditMatchDialog
-          match={editingMatch}
-          onClose={() => setEditingMatch(null)}
-          onSave={(data) => updateMatchMutation.mutate({ matchId: editingMatch.id, data })}
-          isPending={updateMatchMutation.isPending}
-          teams={teams}
-        />
-      )}
     </div>
   );
 }
