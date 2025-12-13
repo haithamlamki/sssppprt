@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { 
   Calendar, Users, Trophy, ImageIcon, Newspaper, 
   Plus, Pencil, Trash2, Loader2, Shield, BarChart3, Target, Upload, Phone, MapPin,
-  Goal, AlertTriangle, User as UserIcon, Clock, X
+  Goal, AlertTriangle, User as UserIcon, Clock, X, Shuffle
 } from "lucide-react";
 import { 
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
@@ -157,6 +157,23 @@ export default function Admin() {
   });
 
   const [tournamentToDelete, setTournamentToDelete] = useState<Tournament | null>(null);
+  const [drawTournament, setDrawTournament] = useState<Tournament | null>(null);
+  const [drawGroups, setDrawGroups] = useState<number>(2);
+
+  const randomDrawMutation = useMutation({
+    mutationFn: async ({ tournamentId, numberOfGroups }: { tournamentId: string; numberOfGroups: number }) => {
+      return await apiRequest("POST", `/api/tournaments/${tournamentId}/random-draw`, { numberOfGroups });
+    },
+    onSuccess: async (response) => {
+      const data = await response.json();
+      toast({ title: "تمت القرعة بنجاح", description: data.message });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments"] });
+      setDrawTournament(null);
+    },
+    onError: () => {
+      toast({ title: "فشل إجراء القرعة", variant: "destructive" });
+    },
+  });
 
   if (authLoading) {
     return (
@@ -546,6 +563,20 @@ export default function Admin() {
                             <Pencil className="h-4 w-4 ml-1" />
                             تعديل
                           </Button>
+                          {t.hasGroupStage && t.status === "registration" && (
+                            <Button 
+                              variant="secondary" 
+                              size="icon"
+                              onClick={() => {
+                                setDrawTournament(t);
+                                setDrawGroups(t.numberOfGroups || 2);
+                              }}
+                              data-testid={`button-draw-${t.id}`}
+                              title="قرعة عشوائية"
+                            >
+                              <Shuffle className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button 
                             variant="destructive" 
                             size="icon"
@@ -603,6 +634,70 @@ export default function Admin() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+
+            {/* Random Draw Dialog */}
+            <Dialog open={!!drawTournament} onOpenChange={(open) => !open && setDrawTournament(null)}>
+              <DialogContent dir="rtl" className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Shuffle className="h-5 w-5 text-primary" />
+                    القرعة العشوائية
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <p className="text-muted-foreground text-sm">
+                    سيتم توزيع الفرق المسجلة في "{drawTournament?.name}" على المجموعات بشكل عشوائي.
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="drawGroups">عدد المجموعات</Label>
+                    <Select
+                      value={drawGroups.toString()}
+                      onValueChange={(val) => setDrawGroups(parseInt(val))}
+                    >
+                      <SelectTrigger id="drawGroups" data-testid="select-draw-groups">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2">مجموعتان (2)</SelectItem>
+                        <SelectItem value="4">4 مجموعات</SelectItem>
+                        <SelectItem value="6">6 مجموعات</SelectItem>
+                        <SelectItem value="8">8 مجموعات</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2 pt-4">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setDrawTournament(null)}
+                      data-testid="button-cancel-draw"
+                    >
+                      إلغاء
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      onClick={() => {
+                        if (drawTournament) {
+                          randomDrawMutation.mutate({
+                            tournamentId: drawTournament.id,
+                            numberOfGroups: drawGroups
+                          });
+                        }
+                      }}
+                      disabled={randomDrawMutation.isPending}
+                      data-testid="button-confirm-draw"
+                    >
+                      {randomDrawMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                      ) : (
+                        <Shuffle className="h-4 w-4 ml-2" />
+                      )}
+                      إجراء القرعة
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* Matches Tab */}

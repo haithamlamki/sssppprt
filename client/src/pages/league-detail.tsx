@@ -86,7 +86,7 @@ interface GroupStandingsData {
   teams: Team[];
 }
 
-function GroupStandings({ standings, isLoading }: { standings: GroupStandingsData[]; isLoading?: boolean }) {
+function GroupStandings({ standings, matches, isLoading }: { standings: GroupStandingsData[]; matches?: MatchWithTeams[]; isLoading?: boolean }) {
   if (isLoading) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -108,6 +108,11 @@ function GroupStandings({ standings, isLoading }: { standings: GroupStandingsDat
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {standings.map(({ groupNumber, teams: groupTeams }) => {
+        const groupMatches = matches?.filter(m => 
+          m.stage === "group" && 
+          groupTeams.some(t => t.id === m.homeTeamId || t.id === m.awayTeamId)
+        ) || [];
+        
         return (
           <Card key={groupNumber} data-testid={`group-${groupNumber}`}>
             <CardHeader className="pb-3">
@@ -122,15 +127,17 @@ function GroupStandings({ standings, isLoading }: { standings: GroupStandingsDat
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="text-xs">
-                      <TableHead className="text-right w-8 px-2">#</TableHead>
+                    <TableRow className="text-xs bg-muted/50">
+                      <TableHead className="text-center w-10 px-1">#</TableHead>
                       <TableHead className="text-right px-2">الفريق</TableHead>
-                      <TableHead className="text-center px-1">لعب</TableHead>
-                      <TableHead className="text-center px-1">ف</TableHead>
-                      <TableHead className="text-center px-1">ت</TableHead>
-                      <TableHead className="text-center px-1">خ</TableHead>
-                      <TableHead className="text-center px-1">+/-</TableHead>
-                      <TableHead className="text-center px-2 font-bold">نقاط</TableHead>
+                      <TableHead className="text-center px-1 w-10">لعب</TableHead>
+                      <TableHead className="text-center px-1 w-10">ف</TableHead>
+                      <TableHead className="text-center px-1 w-10">ت</TableHead>
+                      <TableHead className="text-center px-1 w-10">خ</TableHead>
+                      <TableHead className="text-center px-1 w-10">له</TableHead>
+                      <TableHead className="text-center px-1 w-10">عليه</TableHead>
+                      <TableHead className="text-center px-1 w-10">فارق</TableHead>
+                      <TableHead className="text-center px-2 w-12 font-bold bg-primary/5">نقاط</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -142,36 +149,106 @@ function GroupStandings({ standings, isLoading }: { standings: GroupStandingsDat
                           className={isQualified ? "bg-emerald-500/5" : ""}
                           data-testid={`row-group-team-${team.id}`}
                         >
-                          <TableCell className="font-bold px-2 text-sm">
-                            {index === 0 && <Trophy className="h-4 w-4 text-yellow-500 inline" />}
+                          <TableCell className="font-bold px-1 text-sm text-center">
+                            {index === 0 && <Trophy className="h-4 w-4 text-yellow-500 mx-auto" />}
                             {index > 0 && index + 1}
                           </TableCell>
                           <TableCell className="font-medium px-2 text-sm">{team.name}</TableCell>
                           <TableCell className="text-center px-1 text-sm">{team.played}</TableCell>
-                          <TableCell className="text-center px-1 text-sm text-emerald-500">{team.won}</TableCell>
-                          <TableCell className="text-center px-1 text-sm text-gray-500">{team.drawn}</TableCell>
-                          <TableCell className="text-center px-1 text-sm text-red-500">{team.lost}</TableCell>
+                          <TableCell className="text-center px-1 text-sm text-emerald-600 dark:text-emerald-400 font-medium">{team.won}</TableCell>
+                          <TableCell className="text-center px-1 text-sm text-muted-foreground">{team.drawn}</TableCell>
+                          <TableCell className="text-center px-1 text-sm text-red-600 dark:text-red-400">{team.lost}</TableCell>
+                          <TableCell className="text-center px-1 text-sm">{team.goalsFor}</TableCell>
+                          <TableCell className="text-center px-1 text-sm">{team.goalsAgainst}</TableCell>
                           <TableCell className="text-center px-1 text-sm">
-                            <span className={team.goalDifference > 0 ? "text-emerald-500" : team.goalDifference < 0 ? "text-red-500" : ""}>
+                            <span className={team.goalDifference > 0 ? "text-emerald-600 dark:text-emerald-400" : team.goalDifference < 0 ? "text-red-600 dark:text-red-400" : ""}>
                               {team.goalDifference > 0 ? "+" : ""}{team.goalDifference}
                             </span>
                           </TableCell>
-                          <TableCell className="text-center px-2 font-bold">{team.points}</TableCell>
+                          <TableCell className="text-center px-2 font-bold text-lg bg-primary/5">{team.points}</TableCell>
                         </TableRow>
                       );
                     })}
                   </TableBody>
                 </Table>
               </div>
-              <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                <div className="w-3 h-3 rounded bg-emerald-500/20" />
-                <span>يتأهل للأدوار الإقصائية</span>
+              
+              <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded bg-emerald-500/20" />
+                  <span>يتأهل للأدوار الإقصائية</span>
+                </div>
               </div>
+
+              {groupMatches.length > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    مباريات المجموعة
+                  </h4>
+                  <div className="space-y-2">
+                    {groupMatches.slice(0, 4).map((match) => (
+                      <GroupMatchCard key={match.id} match={match} />
+                    ))}
+                    {groupMatches.length > 4 && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        +{groupMatches.length - 4} مباريات أخرى
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         );
       })}
     </div>
+  );
+}
+
+function GroupMatchCard({ match }: { match: MatchWithTeams }) {
+  const isCompleted = match.status === "completed";
+  const homeWon = isCompleted && (match.homeScore ?? 0) > (match.awayScore ?? 0);
+  const awayWon = isCompleted && (match.awayScore ?? 0) > (match.homeScore ?? 0);
+
+  return (
+    <Link href={`/matches/${match.id}`}>
+      <motion.div 
+        whileHover={{ x: -2 }}
+        className="flex items-center justify-between p-2 bg-muted/30 rounded-lg text-sm cursor-pointer hover-elevate"
+        data-testid={`group-match-${match.id}`}
+      >
+        <div className="flex items-center gap-2 flex-1">
+          <span className={`font-medium ${homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+            {match.homeTeam?.name}
+          </span>
+        </div>
+        
+        <div className="flex items-center gap-2 px-3">
+          {isCompleted ? (
+            <>
+              <span className={`font-bold min-w-[20px] text-center ${homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+                {match.homeScore}
+              </span>
+              <span className="text-muted-foreground">-</span>
+              <span className={`font-bold min-w-[20px] text-center ${awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+                {match.awayScore}
+              </span>
+            </>
+          ) : (
+            <Badge variant="outline" className="text-xs">
+              {matchStatusLabels[match.status]}
+            </Badge>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-2 flex-1 justify-end">
+          <span className={`font-medium ${awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+            {match.awayTeam?.name}
+          </span>
+        </div>
+      </motion.div>
+    </Link>
   );
 }
 
@@ -375,7 +452,7 @@ export default function LeagueDetail() {
 
           <TabsContent value="standings">
             {tournament.hasGroupStage ? (
-              <GroupStandings standings={groupStandings} isLoading={standingsLoading} />
+              <GroupStandings standings={groupStandings} matches={matches} isLoading={standingsLoading} />
             ) : (
               <Card>
                 <CardHeader>

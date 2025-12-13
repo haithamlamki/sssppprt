@@ -767,6 +767,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Random Draw - Shuffle teams into groups randomly
+  app.post("/api/tournaments/:id/random-draw", isAdmin, async (req, res) => {
+    try {
+      const { numberOfGroups } = req.body;
+      const tournamentId = req.params.id;
+      
+      // Get tournament and teams
+      const tournament = await storage.getTournamentById(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({ error: "البطولة غير موجودة" });
+      }
+      
+      const teams = await storage.getTeamsByTournament(tournamentId);
+      if (!teams || teams.length === 0) {
+        return res.status(400).json({ error: "لا توجد فرق مسجلة في البطولة" });
+      }
+      
+      const numGroups = numberOfGroups || tournament.numberOfGroups || 2;
+      
+      if (teams.length < numGroups) {
+        return res.status(400).json({ error: "عدد الفرق أقل من عدد المجموعات" });
+      }
+      
+      // Shuffle teams randomly using Fisher-Yates algorithm
+      const shuffledTeams = [...teams];
+      for (let i = shuffledTeams.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledTeams[i], shuffledTeams[j]] = [shuffledTeams[j], shuffledTeams[i]];
+      }
+      
+      // Distribute teams to groups evenly
+      const assignments: { teamId: string; groupNumber: number }[] = [];
+      shuffledTeams.forEach((team, index) => {
+        const groupNumber = (index % numGroups) + 1;
+        assignments.push({ teamId: team.id, groupNumber });
+      });
+      
+      // Apply the assignments
+      const updatedTeams = await storage.assignTeamsToGroups(tournamentId, assignments);
+      
+      res.json({ 
+        teams: updatedTeams, 
+        numberOfGroups: numGroups,
+        message: `تم إجراء القرعة بنجاح وتوزيع ${teams.length} فريق على ${numGroups} مجموعات` 
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "فشل في إجراء القرعة العشوائية" });
+    }
+  });
+
   app.get("/api/tournaments/:id/group-standings", async (req, res) => {
     try {
       const standings = await storage.getGroupStandings(req.params.id);
