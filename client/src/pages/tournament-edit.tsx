@@ -464,7 +464,7 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
     enabled: isAddOpen,
   });
 
-  const availableTeams = allTeams.filter(t => !t.tournamentId);
+  const availableTeams = allTeams.filter(t => t.tournamentId !== tournamentId);
 
   const addTeamMutation = useMutation({
     mutationFn: async (data: typeof newTeam) => {
