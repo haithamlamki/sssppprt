@@ -445,6 +445,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get linkable users for player association (excludes users already linked to a player)
+  app.get("/api/users/linkable", isAuthenticated, async (_req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const allPlayers = await storage.getAllPlayers();
+      
+      // Get set of userIds that are already linked to players
+      const linkedUserIds = new Set(
+        allPlayers
+          .filter(p => p.userId != null)
+          .map(p => p.userId as string)
+      );
+      
+      // Filter out already linked users and return minimal fields
+      const linkableUsers = users
+        .filter(u => !linkedUserIds.has(u.id))
+        .map(u => ({
+          id: u.id,
+          fullName: u.fullName,
+          employeeId: u.employeeId
+        }));
+      res.json(linkableUsers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
   // Notifications endpoints
   app.get("/api/notifications", isAuthenticated, async (req, res) => {
     try {

@@ -55,7 +55,13 @@ function CreatePlayerForm() {
     queryKey: ["/api/teams"],
   });
 
+  // Query for linkable users (users not already linked to a player)
+  const { data: linkableUsers } = useQuery<{ id: string; fullName: string; employeeId: string }[]>({
+    queryKey: ["/api/users/linkable"],
+  });
+
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -92,6 +98,7 @@ function CreatePlayerForm() {
     onSuccess: () => {
       toast({ title: "تم إنشاء اللاعب بنجاح" });
       queryClient.invalidateQueries({ queryKey: ["/api/players"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/linkable"] });
       setFormData({
         name: "", level: "", phone: "", averageAge: "", email: "",
         representativeName: "", activationZone: "", activationPeriod: "",
@@ -99,6 +106,7 @@ function CreatePlayerForm() {
         position: "midfielder", number: "",
       });
       setImageUrl("");
+      setSelectedUserId("");
     },
     onError: () => {
       toast({ title: "فشل في إنشاء اللاعب", variant: "destructive" });
@@ -110,6 +118,7 @@ function CreatePlayerForm() {
     mutation.mutate({
       ...formData,
       teamId: selectedTeamId || undefined,
+      userId: selectedUserId || undefined,
       number: formData.number ? parseInt(formData.number) : undefined,
       imageUrl: imageUrl || undefined,
     });
@@ -352,6 +361,33 @@ function CreatePlayerForm() {
                 {teams?.map((team) => (
                   <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Link to User Account */}
+          <div>
+            <Label>ربط بحساب موظف (اختياري)</Label>
+            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <SelectTrigger data-testid="select-player-user">
+                <SelectValue placeholder={
+                  !linkableUsers ? "جاري التحميل..." : 
+                  linkableUsers.length === 0 ? "لا يوجد مستخدمين متاحين" : 
+                  "اختر حساب الموظف"
+                } />
+              </SelectTrigger>
+              <SelectContent>
+                {linkableUsers && linkableUsers.length > 0 ? (
+                  linkableUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.fullName} - {user.employeeId}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <div className="py-2 px-3 text-sm text-muted-foreground text-center">
+                    {!linkableUsers ? "جاري التحميل..." : "لا يوجد مستخدمين متاحين للربط"}
+                  </div>
+                )}
               </SelectContent>
             </Select>
           </div>
