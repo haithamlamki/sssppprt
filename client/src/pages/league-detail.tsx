@@ -108,6 +108,10 @@ function GroupStandings({ standings, matches, isLoading }: { standings: GroupSta
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {standings.map(({ groupNumber, teams: groupTeams }) => {
+        if (!groupTeams || groupTeams.length === 0) {
+          return null;
+        }
+        
         const groupMatches = matches?.filter(m => 
           m.stage === "group" && 
           groupTeams.some(t => t.id === m.homeTeamId || t.id === m.awayTeamId)
