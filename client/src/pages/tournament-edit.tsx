@@ -1740,7 +1740,7 @@ function MatchesTab({
                       data-testid={`button-edit-match-${match.id}`}
                     >
                       <Pencil className="h-4 w-4 ml-2" />
-                      تعديل النتيجة
+                      تعديل
                     </Button>
                     <Button 
                       variant="ghost" 
@@ -1840,6 +1840,7 @@ function MatchesTab({
           onClose={() => setEditingMatch(null)}
           onSave={(data) => updateMatchMutation.mutate({ matchId: editingMatch.id, data })}
           isPending={updateMatchMutation.isPending}
+          teams={teams}
         />
       )}
     </div>
@@ -1850,63 +1851,161 @@ function EditMatchDialog({
   match, 
   onClose, 
   onSave, 
-  isPending 
+  isPending,
+  teams = [],
 }: { 
   match: MatchWithTeams; 
   onClose: () => void; 
   onSave: (data: any) => void;
   isPending: boolean;
+  teams?: Team[];
 }) {
+  const getDateFromMatch = () => {
+    if (!match.matchDate) return "";
+    const d = new Date(match.matchDate);
+    return d.toISOString().split('T')[0];
+  };
+  
+  const getTimeFromMatch = () => {
+    if (!match.matchDate) return "";
+    const d = new Date(match.matchDate);
+    return d.toTimeString().slice(0, 5);
+  };
+
   const [formData, setFormData] = useState({
+    homeTeamId: match.homeTeamId || "",
+    awayTeamId: match.awayTeamId || "",
+    matchDate: getDateFromMatch(),
+    matchTime: getTimeFromMatch(),
     homeScore: match.homeScore ?? 0,
     awayScore: match.awayScore ?? 0,
     status: match.status,
     venue: match.venue || "",
     referee: match.referee || "",
+    round: match.round || 1,
   });
+
+  const handleSave = () => {
+    let matchDateISO: string | null = null;
+    if (formData.matchDate) {
+      const dateStr = formData.matchDate;
+      const timeStr = formData.matchTime || "00:00";
+      matchDateISO = new Date(`${dateStr}T${timeStr}:00`).toISOString();
+    }
+    
+    onSave({
+      ...formData,
+      matchDate: matchDateISO,
+    });
+  };
+
+  const selectedHomeTeam = teams.find(t => t.id === formData.homeTeamId);
+  const selectedAwayTeam = teams.find(t => t.id === formData.awayTeamId);
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent dir="rtl" className="max-w-md">
+      <DialogContent dir="rtl" className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>تعديل نتيجة المباراة</DialogTitle>
+          <DialogTitle>تعديل المباراة</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 py-4">
-          <div className="text-center space-y-2">
-            <div className="flex items-center justify-center gap-4">
-              <div className="text-center">
-                <p className="font-bold text-lg">{match.homeTeam?.name}</p>
-                <p className="text-sm text-muted-foreground">مضيف</p>
-              </div>
-              <span className="text-2xl font-bold text-muted-foreground">vs</span>
-              <div className="text-center">
-                <p className="font-bold text-lg">{match.awayTeam?.name}</p>
-                <p className="text-sm text-muted-foreground">ضيف</p>
-              </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>الفريق المضيف</Label>
+              <Select
+                value={formData.homeTeamId}
+                onValueChange={(value) => setFormData({ ...formData, homeTeamId: value })}
+              >
+                <SelectTrigger data-testid="select-home-team">
+                  <SelectValue placeholder="اختر الفريق المضيف">
+                    {selectedHomeTeam?.name || "اختر الفريق"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.filter(t => t.id !== formData.awayTeamId).map((team) => (
+                    <SelectItem key={team.id} value={team.id} data-testid={`option-home-team-${team.id}`}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>الفريق الضيف</Label>
+              <Select
+                value={formData.awayTeamId}
+                onValueChange={(value) => setFormData({ ...formData, awayTeamId: value })}
+              >
+                <SelectTrigger data-testid="select-away-team">
+                  <SelectValue placeholder="اختر الفريق الضيف">
+                    {selectedAwayTeam?.name || "اختر الفريق"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.filter(t => t.id !== formData.homeTeamId).map((team) => (
+                    <SelectItem key={team.id} value={team.id} data-testid={`option-away-team-${team.id}`}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>التاريخ</Label>
+              <Input
+                type="date"
+                value={formData.matchDate}
+                onChange={(e) => setFormData({ ...formData, matchDate: e.target.value })}
+                data-testid="input-match-date"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>الوقت</Label>
+              <Input
+                type="time"
+                value={formData.matchTime}
+                onChange={(e) => setFormData({ ...formData, matchTime: e.target.value })}
+                data-testid="input-match-time"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>الجولة</Label>
+              <Input
+                type="number"
+                min={1}
+                value={formData.round}
+                onChange={(e) => setFormData({ ...formData, round: parseInt(e.target.value) || 1 })}
+                data-testid="input-match-round"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-4 p-4 bg-muted/50 rounded-lg">
             <div className="text-center">
-              <Label className="text-sm">أهداف المضيف</Label>
+              <p className="font-bold text-lg">{selectedHomeTeam?.name || "المضيف"}</p>
+              <Label className="text-sm text-muted-foreground">أهداف المضيف</Label>
               <Input
                 type="number"
                 min={0}
                 value={formData.homeScore}
                 onChange={(e) => setFormData({ ...formData, homeScore: parseInt(e.target.value) || 0 })}
-                className="w-20 text-center text-xl font-bold"
+                className="w-20 text-center text-xl font-bold mx-auto mt-1"
                 data-testid="input-home-score"
               />
             </div>
             <span className="text-2xl font-bold">-</span>
             <div className="text-center">
-              <Label className="text-sm">أهداف الضيف</Label>
+              <p className="font-bold text-lg">{selectedAwayTeam?.name || "الضيف"}</p>
+              <Label className="text-sm text-muted-foreground">أهداف الضيف</Label>
               <Input
                 type="number"
                 min={0}
                 value={formData.awayScore}
                 onChange={(e) => setFormData({ ...formData, awayScore: parseInt(e.target.value) || 0 })}
-                className="w-20 text-center text-xl font-bold"
+                className="w-20 text-center text-xl font-bold mx-auto mt-1"
                 data-testid="input-away-score"
               />
             </div>
@@ -1953,8 +2052,8 @@ function EditMatchDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} data-testid="button-cancel-edit-match">إلغاء</Button>
-          <Button onClick={() => onSave(formData)} disabled={isPending} data-testid="button-save-match">
-            {isPending ? "جاري الحفظ..." : "حفظ النتيجة"}
+          <Button onClick={handleSave} disabled={isPending} data-testid="button-save-match">
+            {isPending ? "جاري الحفظ..." : "حفظ التغييرات"}
           </Button>
         </DialogFooter>
       </DialogContent>
