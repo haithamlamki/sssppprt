@@ -39,6 +39,8 @@ import {
   type InsertMatchComment,
   type TeamEvaluation,
   type InsertTeamEvaluation,
+  type Referee,
+  type InsertReferee,
   type MatchWithTeams,
   type PlayerWithTeam,
   type MatchCommentWithUser,
@@ -60,7 +62,8 @@ import {
   matchEvents,
   matchLineups,
   matchComments,
-  teamEvaluations
+  teamEvaluations,
+  referees
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, asc } from "drizzle-orm";
@@ -155,6 +158,14 @@ export interface IStorage {
   updatePlayer(id: string, updates: Partial<Player>): Promise<Player | undefined>;
   deletePlayer(id: string): Promise<boolean>;
   getTopScorers(tournamentId: string, limit?: number): Promise<PlayerWithTeam[]>;
+  
+  // Referees
+  getAllReferees(): Promise<Referee[]>;
+  getRefereesByTournament(tournamentId: string): Promise<Referee[]>;
+  getRefereeById(id: string): Promise<Referee | undefined>;
+  createReferee(referee: InsertReferee): Promise<Referee>;
+  updateReferee(id: string, updates: Partial<Referee>): Promise<Referee | undefined>;
+  deleteReferee(id: string): Promise<boolean>;
   
   // Matches
   getMatchesByTournament(tournamentId: string): Promise<MatchWithTeams[]>;
@@ -975,6 +986,35 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return scorers;
+  }
+
+  // Referees
+  async getAllReferees(): Promise<Referee[]> {
+    return await db.select().from(referees).orderBy(desc(referees.createdAt));
+  }
+
+  async getRefereesByTournament(tournamentId: string): Promise<Referee[]> {
+    return await db.select().from(referees).where(eq(referees.tournamentId, tournamentId));
+  }
+
+  async getRefereeById(id: string): Promise<Referee | undefined> {
+    const [referee] = await db.select().from(referees).where(eq(referees.id, id));
+    return referee;
+  }
+
+  async createReferee(insertReferee: InsertReferee): Promise<Referee> {
+    const [referee] = await db.insert(referees).values(insertReferee).returning();
+    return referee;
+  }
+
+  async updateReferee(id: string, updates: Partial<Referee>): Promise<Referee | undefined> {
+    const [referee] = await db.update(referees).set(updates).where(eq(referees.id, id)).returning();
+    return referee;
+  }
+
+  async deleteReferee(id: string): Promise<boolean> {
+    await db.delete(referees).where(eq(referees.id, id));
+    return true;
   }
 
   // Matches

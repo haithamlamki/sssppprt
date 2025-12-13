@@ -942,6 +942,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Referees
+  app.get("/api/referees", async (_req, res) => {
+    try {
+      const refereesList = await storage.getAllReferees();
+      res.json(refereesList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch referees" });
+    }
+  });
+
+  app.get("/api/tournaments/:tournamentId/referees", async (req, res) => {
+    try {
+      const refereesList = await storage.getRefereesByTournament(req.params.tournamentId);
+      res.json(refereesList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch referees" });
+    }
+  });
+
+  app.get("/api/referees/:id", async (req, res) => {
+    try {
+      const referee = await storage.getRefereeById(req.params.id);
+      if (!referee) {
+        return res.status(404).json({ error: "Referee not found" });
+      }
+      res.json(referee);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch referee" });
+    }
+  });
+
+  app.post("/api/tournaments/:tournamentId/referees", isAdmin, async (req, res) => {
+    try {
+      const referee = await storage.createReferee({
+        ...req.body,
+        tournamentId: req.params.tournamentId,
+      });
+      res.status(201).json(referee);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create referee" });
+    }
+  });
+
+  app.patch("/api/referees/:id", isAdmin, async (req, res) => {
+    try {
+      const referee = await storage.updateReferee(req.params.id, req.body);
+      if (!referee) {
+        return res.status(404).json({ error: "Referee not found" });
+      }
+      res.json(referee);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update referee" });
+    }
+  });
+
+  app.delete("/api/referees/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteReferee(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete referee" });
+    }
+  });
+
   // Matches
   app.get("/api/tournaments/:tournamentId/matches", async (req, res) => {
     try {
