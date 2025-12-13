@@ -20,6 +20,7 @@ import {
   Shield,
   BarChart3
 } from "lucide-react";
+import { TeamBox, getTeamColor, isLightColor } from "@/components/TeamBox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -916,124 +917,6 @@ export default function LeagueDetail() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
-  );
-}
-
-// Helper function to get team color - uses primaryJersey or generates from name
-function getTeamColor(team?: { name: string; primaryJersey?: string | null }): string {
-  if (!team) return "#6b7280"; // gray default
-  
-  // If team has a primaryJersey color defined, use it
-  if (team.primaryJersey) {
-    const jersey = team.primaryJersey.toLowerCase();
-    // Common color names mapping
-    const colorMap: Record<string, string> = {
-      "أحمر": "#dc2626", "red": "#dc2626",
-      "أزرق": "#2563eb", "blue": "#2563eb",
-      "أخضر": "#16a34a", "green": "#16a34a",
-      "أصفر": "#eab308", "yellow": "#eab308",
-      "برتقالي": "#ea580c", "orange": "#ea580c",
-      "أسود": "#1f2937", "black": "#1f2937",
-      "أبيض": "#f3f4f6", "white": "#f3f4f6",
-      "بنفسجي": "#7c3aed", "purple": "#7c3aed",
-      "وردي": "#ec4899", "pink": "#ec4899",
-      "بني": "#92400e", "brown": "#92400e",
-      "رمادي": "#6b7280", "gray": "#6b7280", "grey": "#6b7280",
-      "ذهبي": "#d97706", "gold": "#d97706",
-      "فضي": "#9ca3af", "silver": "#9ca3af",
-      "سماوي": "#06b6d4", "cyan": "#06b6d4",
-      "كحلي": "#1e3a5f", "navy": "#1e3a5f",
-      "عنابي": "#7f1d1d", "maroon": "#7f1d1d",
-    };
-    
-    // Check if it's a hex color
-    if (jersey.startsWith("#") && (jersey.length === 4 || jersey.length === 7)) {
-      return jersey;
-    }
-    
-    // Check color map
-    for (const [key, value] of Object.entries(colorMap)) {
-      if (jersey.includes(key)) return value;
-    }
-  }
-  
-  // Generate color from team name
-  let hash = 0;
-  const name = team.name;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  
-  const colors = [
-    "#dc2626", "#ea580c", "#d97706", "#16a34a", 
-    "#059669", "#0d9488", "#0891b2", "#2563eb", 
-    "#4f46e5", "#7c3aed", "#a855f7", "#c026d3",
-    "#db2777", "#e11d48"
-  ];
-  
-  return colors[Math.abs(hash) % colors.length];
-}
-
-// Helper to check if color is light (for text contrast)
-function isLightColor(hex: string): boolean {
-  let color = hex.replace("#", "");
-  // Expand 3-digit hex to 6-digit (e.g., #0af → #00aaff)
-  if (color.length === 3) {
-    color = color[0] + color[0] + color[1] + color[1] + color[2] + color[2];
-  }
-  // Ensure valid 6-digit hex
-  if (color.length !== 6) {
-    return false; // Default to dark text for invalid colors
-  }
-  const r = parseInt(color.substring(0, 2), 16);
-  const g = parseInt(color.substring(2, 4), 16);
-  const b = parseInt(color.substring(4, 6), 16);
-  // Guard against NaN
-  if (isNaN(r) || isNaN(g) || isNaN(b)) return false;
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5;
-}
-
-// Team box component for match display
-function TeamBox({ team, showLogo = true, isWinner = false, score }: { 
-  team?: { id: string; name: string; logoUrl?: string | null; primaryJersey?: string | null };
-  showLogo?: boolean;
-  isWinner?: boolean;
-  score?: number | null;
-}) {
-  const bgColor = getTeamColor(team);
-  const textColor = isLightColor(bgColor) ? "#1f2937" : "#ffffff";
-  
-  return (
-    <div 
-      className={`flex items-center gap-2 px-3 py-2 rounded-lg min-w-[120px] ${isWinner ? "ring-2 ring-yellow-400 ring-offset-1" : ""}`}
-      style={{ backgroundColor: bgColor }}
-      data-testid={`team-box-${team?.id}`}
-    >
-      {showLogo && (
-        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
-          {team?.logoUrl ? (
-            <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
-          ) : (
-            <Shield className="w-5 h-5" style={{ color: textColor }} />
-          )}
-        </div>
-      )}
-      <span 
-        className="font-bold text-sm truncate flex-1"
-        style={{ color: textColor }}
-      >
-        {team?.name || "غير محدد"}
-      </span>
-      {score !== undefined && score !== null && (
-        <span 
-          className="font-bold text-lg min-w-[24px] text-center"
-          style={{ color: textColor }}
-        >
-          {score}
-        </span>
-      )}
     </div>
   );
 }

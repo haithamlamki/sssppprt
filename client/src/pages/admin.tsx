@@ -4,6 +4,7 @@ import {
   Plus, Pencil, Trash2, Loader2, Shield, BarChart3, Target, Upload, Phone, MapPin,
   Goal, AlertTriangle, User as UserIcon, Clock, X, Shuffle
 } from "lucide-react";
+import { TeamBox, TeamColorPicker, getTeamColor, isLightColor } from "@/components/TeamBox";
 import { 
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
   CartesianGrid, Tooltip, Legend, ResponsiveContainer 
@@ -739,55 +740,74 @@ export default function Admin() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {matchesList.map((match) => (
-                      <Card key={match.id} className="hover-elevate" data-testid={`card-match-${match.id}`}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4 flex-1">
-                              <div className="text-center min-w-[100px]">
-                                <p className="font-bold">{match.homeTeam?.name || "فريق 1"}</p>
+                    {matchesList.map((match) => {
+                      const isCompleted = match.status === "completed";
+                      const isLive = match.status === "live";
+                      const homeWon = isCompleted && (match.homeScore ?? 0) > (match.awayScore ?? 0);
+                      const awayWon = isCompleted && (match.awayScore ?? 0) > (match.homeScore ?? 0);
+                      
+                      return (
+                        <Card key={match.id} className={`hover-elevate ${isLive ? "ring-2 ring-red-500" : ""}`} data-testid={`card-match-${match.id}`}>
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-3 flex-1">
+                                <TeamBox 
+                                  team={match.homeTeam}
+                                  showLogo={true}
+                                  isWinner={homeWon}
+                                  size="md"
+                                />
+                                
+                                <div className="flex flex-col items-center px-3">
+                                  {isLive && <Badge className="bg-red-500 animate-pulse text-xs mb-1">مباشر</Badge>}
+                                  <InlineScoreEditor
+                                    match={match}
+                                    onSave={(data) => updateMatchMutation.mutate({ matchId: match.id, data })}
+                                    isPending={updateMatchMutation.isPending}
+                                  />
+                                </div>
+                                
+                                <TeamBox 
+                                  team={match.awayTeam}
+                                  showLogo={true}
+                                  isWinner={awayWon}
+                                  size="md"
+                                />
                               </div>
-                              <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-lg">
-                                <span className="text-2xl font-bold">{match.homeScore ?? "-"}</span>
-                                <span className="text-muted-foreground">:</span>
-                                <span className="text-2xl font-bold">{match.awayScore ?? "-"}</span>
-                              </div>
-                              <div className="text-center min-w-[100px]">
-                                <p className="font-bold">{match.awayTeam?.name || "فريق 2"}</p>
+                              
+                              <div className="flex items-center gap-3">
+                                <div className="text-left">
+                                  <Badge
+                                    className={
+                                      match.status === "completed" ? "bg-green-500" :
+                                      match.status === "live" ? "bg-red-500" :
+                                      match.status === "postponed" ? "bg-yellow-500" : "bg-gray-500"
+                                    }
+                                  >
+                                    {match.status === "completed" ? "انتهت" :
+                                     match.status === "live" ? "مباشر" :
+                                     match.status === "postponed" ? "مؤجلة" : "مقررة"}
+                                  </Badge>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    الجولة {match.round}
+                                  </p>
+                                </div>
+                                <EditMatchDialog
+                                  match={match}
+                                  onSave={(data) => updateMatchMutation.mutate({ matchId: match.id, data })}
+                                  isPending={updateMatchMutation.isPending}
+                                />
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <div className="text-left">
-                                <Badge
-                                  className={
-                                    match.status === "completed" ? "bg-green-500" :
-                                    match.status === "live" ? "bg-red-500" :
-                                    match.status === "postponed" ? "bg-yellow-500" : "bg-gray-500"
-                                  }
-                                >
-                                  {match.status === "completed" ? "انتهت" :
-                                   match.status === "live" ? "مباشر" :
-                                   match.status === "postponed" ? "مؤجلة" : "مقررة"}
-                                </Badge>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  الجولة {match.round}
-                                </p>
-                              </div>
-                              <EditMatchDialog
-                                match={match}
-                                onSave={(data) => updateMatchMutation.mutate({ matchId: match.id, data })}
-                                isPending={updateMatchMutation.isPending}
-                              />
-                            </div>
-                          </div>
-                          {match.matchDate && (
-                            <p className="text-xs text-muted-foreground mt-2">
-                              {new Date(match.matchDate).toLocaleDateString('ar-SA')} - {match.venue || "غير محدد"}
-                            </p>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
+                            {match.matchDate && (
+                              <p className="text-xs text-muted-foreground mt-2">
+                                {new Date(match.matchDate).toLocaleDateString('ar-SA')} - {match.venue || "غير محدد"}
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -1984,6 +2004,107 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
         {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إضافة البطولة"}
       </Button>
     </form>
+  );
+}
+
+function InlineScoreEditor({
+  match,
+  onSave,
+  isPending,
+}: {
+  match: MatchWithTeams;
+  onSave: (data: { homeScore: number | null; awayScore: number | null; status: string }) => void;
+  isPending: boolean;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [homeScore, setHomeScore] = useState(match.homeScore?.toString() || "0");
+  const [awayScore, setAwayScore] = useState(match.awayScore?.toString() || "0");
+  const homeInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && homeInputRef.current) {
+      homeInputRef.current.focus();
+      homeInputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleSave = () => {
+    onSave({
+      homeScore: homeScore ? parseInt(homeScore) : null,
+      awayScore: awayScore ? parseInt(awayScore) : null,
+      status: "completed",
+    });
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      setIsEditing(false);
+      setHomeScore(match.homeScore?.toString() || "0");
+      setAwayScore(match.awayScore?.toString() || "0");
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-2">
+        <Input
+          ref={homeInputRef}
+          type="number"
+          min="0"
+          value={homeScore}
+          onChange={(e) => setHomeScore(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="w-14 text-center font-bold text-lg h-10"
+          data-testid={`input-inline-home-score-${match.id}`}
+        />
+        <span className="font-bold text-lg text-muted-foreground">-</span>
+        <Input
+          type="number"
+          min="0"
+          value={awayScore}
+          onChange={(e) => setAwayScore(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="w-14 text-center font-bold text-lg h-10"
+          data-testid={`input-inline-away-score-${match.id}`}
+        />
+        <Button 
+          size="icon" 
+          onClick={handleSave} 
+          disabled={isPending}
+          data-testid={`button-inline-save-${match.id}`}
+        >
+          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
+        </Button>
+        <Button 
+          size="icon" 
+          variant="ghost"
+          onClick={() => {
+            setIsEditing(false);
+            setHomeScore(match.homeScore?.toString() || "0");
+            setAwayScore(match.awayScore?.toString() || "0");
+          }}
+          data-testid={`button-inline-cancel-${match.id}`}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setIsEditing(true)}
+      className="flex items-center gap-2 bg-muted/30 hover:bg-muted/50 rounded-lg px-3 py-2 transition-colors group cursor-pointer"
+      data-testid={`button-inline-edit-${match.id}`}
+    >
+      <span className="text-2xl font-bold">{match.homeScore ?? 0}</span>
+      <span className="font-bold text-muted-foreground">-</span>
+      <span className="text-2xl font-bold">{match.awayScore ?? 0}</span>
+      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity mr-1" />
+    </button>
   );
 }
 

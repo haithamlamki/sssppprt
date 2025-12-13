@@ -26,6 +26,7 @@ import {
   Image,
   Upload
 } from "lucide-react";
+import { TeamColorPicker } from "@/components/TeamBox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1358,6 +1359,7 @@ function EditTeamDialog({
     contactPhone: team.contactPhone || "",
     contactEmail: team.contactEmail || "",
     groupNumber: team.groupNumber || undefined,
+    primaryJersey: team.primaryJersey || "",
   });
 
   return (
@@ -1411,6 +1413,11 @@ function EditTeamDialog({
               </SelectContent>
             </Select>
           </div>
+          <TeamColorPicker
+            value={formData.primaryJersey}
+            onChange={(color) => setFormData({ ...formData, primaryJersey: color })}
+            label="لون القميص الأساسي"
+          />
           <div className="space-y-2">
             <Label>الممثل</Label>
             <Input
