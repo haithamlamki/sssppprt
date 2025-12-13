@@ -349,6 +349,9 @@ export const tournaments = pgTable("tournaments", {
   // Registration
   isOpenForRegistration: boolean("is_open_for_registration").notNull().default(true),
   
+  // Schedule configuration - JSON: { matchesPerDay, dailyStartTime, dailyEndTime }
+  scheduleConfig: text("schedule_config"),
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

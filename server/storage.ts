@@ -173,7 +173,7 @@ export interface IStorage {
   createMatch(match: InsertMatch): Promise<Match>;
   updateMatch(id: string, updates: Partial<Match>): Promise<Match | undefined>;
   deleteMatch(id: string): Promise<boolean>;
-  generateLeagueMatches(tournamentId: string): Promise<Match[]>;
+  generateLeagueMatches(tournamentId: string, options?: { matchesPerDay?: number; dailyStartTime?: string }): Promise<Match[]>;
   generateKnockoutMatchesFromGroups(tournamentId: string): Promise<Match[]>;
   
   // Match Events
@@ -1075,7 +1075,10 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
-  async generateLeagueMatches(tournamentId: string): Promise<Match[]> {
+  async generateLeagueMatches(tournamentId: string, options?: { 
+    matchesPerDay?: number;
+    dailyStartTime?: string; 
+  }): Promise<Match[]> {
     const tournament = await this.getTournamentById(tournamentId);
     if (!tournament) throw new Error("Tournament not found");
 
@@ -1084,6 +1087,16 @@ export class DatabaseStorage implements IStorage {
 
     // Delete existing matches
     await db.delete(matches).where(eq(matches.tournamentId, tournamentId));
+
+    // Parse schedule config from tournament or options
+    let scheduleConfig = { matchesPerDay: 2, dailyStartTime: "16:00" };
+    if (tournament.scheduleConfig) {
+      try {
+        scheduleConfig = { ...scheduleConfig, ...JSON.parse(tournament.scheduleConfig) };
+      } catch (e) {}
+    }
+    if (options?.matchesPerDay) scheduleConfig.matchesPerDay = options.matchesPerDay;
+    if (options?.dailyStartTime) scheduleConfig.dailyStartTime = options.dailyStartTime;
 
     const generatedMatches: Match[] = [];
     const teamsList = [...tournamentTeams];
@@ -1096,6 +1109,13 @@ export class DatabaseStorage implements IStorage {
     const numTeams = teamsList.length;
     const numRounds = numTeams - 1;
     const matchesPerRound = numTeams / 2;
+
+    // Calculate dates using tournament start/end dates
+    const startDate = tournament.startDate ? new Date(tournament.startDate) : new Date();
+    const endDate = tournament.endDate ? new Date(tournament.endDate) : null;
+
+    // Generate all match pairs first
+    const allMatchPairs: { homeTeam: typeof teamsList[0]; awayTeam: typeof teamsList[0]; round: number; leg: number }[] = [];
 
     // Round-robin algorithm
     for (let round = 0; round < numRounds; round++) {
@@ -1113,46 +1133,61 @@ export class DatabaseStorage implements IStorage {
         // Skip ghost matches
         if (homeTeam.id === 'ghost' || awayTeam.id === 'ghost') continue;
 
-        // First leg (ذهاب)
-        const matchDate = new Date();
-        matchDate.setDate(matchDate.getDate() + (round * 7));
-
-        const [match1] = await db.insert(matches).values({
-          tournamentId,
-          homeTeamId: homeTeam.id,
-          awayTeamId: awayTeam.id,
-          round: round + 1,
-          leg: 1,
-          stage: tournament.hasGroupStage ? 'group' : 'league',
-          groupNumber: homeTeam.groupNumber,
-          matchDate,
-          venue: tournament.venues && tournament.venues.length > 0 
-            ? tournament.venues[round % tournament.venues.length] 
-            : null,
-          status: 'scheduled',
-        }).returning();
-        generatedMatches.push(match1);
+        allMatchPairs.push({ homeTeam, awayTeam, round: round + 1, leg: 1 });
 
         // Second leg (إياب) if enabled
         if (tournament.hasSecondLeg) {
-          const returnDate = new Date(matchDate);
-          returnDate.setDate(returnDate.getDate() + (numRounds * 7));
+          allMatchPairs.push({ 
+            homeTeam: awayTeam, 
+            awayTeam: homeTeam, 
+            round: numRounds + round + 1, 
+            leg: 2 
+          });
+        }
+      }
+    }
 
-          const [match2] = await db.insert(matches).values({
-            tournamentId,
-            homeTeamId: awayTeam.id,
-            awayTeamId: homeTeam.id,
-            round: numRounds + round + 1,
-            leg: 2,
-            stage: tournament.hasGroupStage ? 'group' : 'league',
-            groupNumber: homeTeam.groupNumber,
-            matchDate: returnDate,
-            venue: tournament.venues && tournament.venues.length > 0 
-              ? tournament.venues[(numRounds + round) % tournament.venues.length] 
-              : null,
-            status: 'scheduled',
-          }).returning();
-          generatedMatches.push(match2);
+    // Distribute matches across dates
+    const { matchesPerDay, dailyStartTime } = scheduleConfig;
+    const [startHour, startMinute] = dailyStartTime.split(':').map(Number);
+    let currentDate = new Date(startDate);
+    let matchesScheduledToday = 0;
+    let currentSlotIndex = 0;
+
+    for (const matchPair of allMatchPairs) {
+      // Calculate match time (add 2 hours per match slot)
+      const matchDate = new Date(currentDate);
+      matchDate.setHours(startHour + (currentSlotIndex * 2), startMinute, 0, 0);
+
+      const [match] = await db.insert(matches).values({
+        tournamentId,
+        homeTeamId: matchPair.homeTeam.id,
+        awayTeamId: matchPair.awayTeam.id,
+        round: matchPair.round,
+        leg: matchPair.leg,
+        stage: tournament.hasGroupStage ? 'group' : 'league',
+        groupNumber: matchPair.homeTeam.groupNumber,
+        matchDate,
+        venue: tournament.venues && tournament.venues.length > 0 
+          ? tournament.venues[generatedMatches.length % tournament.venues.length] 
+          : null,
+        status: 'scheduled',
+      }).returning();
+      generatedMatches.push(match);
+
+      matchesScheduledToday++;
+      currentSlotIndex++;
+
+      // Move to next day if needed
+      if (matchesScheduledToday >= matchesPerDay) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        matchesScheduledToday = 0;
+        currentSlotIndex = 0;
+
+        // Check if we exceeded end date
+        if (endDate && currentDate > endDate) {
+          // Reset to start and continue (wrap around)
+          currentDate = new Date(startDate);
         }
       }
     }

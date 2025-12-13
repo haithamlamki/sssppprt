@@ -733,7 +733,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/tournaments/:id/generate-matches", isAdmin, async (req, res) => {
     try {
-      const generatedMatches = await storage.generateLeagueMatches(req.params.id);
+      const { matchesPerDay, dailyStartTime } = req.body;
+      const options = { 
+        matchesPerDay: matchesPerDay ? parseInt(matchesPerDay) : undefined,
+        dailyStartTime: dailyStartTime || undefined
+      };
+      const generatedMatches = await storage.generateLeagueMatches(req.params.id, options);
       await storage.updateTournament(req.params.id, { status: "ongoing" });
       res.json({ matches: generatedMatches, count: generatedMatches.length });
     } catch (error: any) {

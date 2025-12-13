@@ -1120,6 +1120,11 @@ function MatchesTab({
   const { toast } = useToast();
   const [editingMatch, setEditingMatch] = useState<MatchWithTeams | null>(null);
   const [isAddMatchOpen, setIsAddMatchOpen] = useState(false);
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+  const [scheduleConfig, setScheduleConfig] = useState({
+    matchesPerDay: 2,
+    dailyStartTime: "16:00",
+  });
   const [newMatch, setNewMatch] = useState({
     homeTeamId: "",
     awayTeamId: "",
@@ -1144,12 +1149,13 @@ function MatchesTab({
   });
 
   const generateMatchesMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest("POST", `/api/tournaments/${tournamentId}/generate-matches`);
+    mutationFn: async (config: typeof scheduleConfig) => {
+      return await apiRequest("POST", `/api/tournaments/${tournamentId}/generate-matches`, config);
     },
     onSuccess: () => {
       toast({ title: "تم توليد جدول المباريات بنجاح" });
       queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "matches"] });
+      setIsGenerateOpen(false);
     },
     onError: () => {
       toast({ title: "فشل توليد جدول المباريات", variant: "destructive" });
@@ -1191,19 +1197,77 @@ function MatchesTab({
             إدارة المباريات
           </CardTitle>
           <div className="flex gap-2">
-            <Button 
-              variant="outline"
-              onClick={() => generateMatchesMutation.mutate()}
-              disabled={generateMatchesMutation.isPending || teams.length < 2}
-              data-testid="button-generate-matches"
-            >
-              {generateMatchesMutation.isPending ? (
-                <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-              ) : (
-                <Calendar className="h-4 w-4 ml-2" />
-              )}
-              توليد جدول المباريات
-            </Button>
+            <Dialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="outline"
+                  disabled={teams.length < 2}
+                  data-testid="button-generate-matches"
+                >
+                  <Calendar className="h-4 w-4 ml-2" />
+                  توليد جدول المباريات
+                </Button>
+              </DialogTrigger>
+              <DialogContent dir="rtl">
+                <DialogHeader>
+                  <DialogTitle>إعدادات توليد جدول المباريات</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <p className="text-sm text-muted-foreground">
+                    سيتم توليد المباريات بناءً على تاريخ بداية ونهاية البطولة المحددين في معلومات البطولة
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>عدد المباريات في اليوم</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={scheduleConfig.matchesPerDay}
+                        onChange={(e) => setScheduleConfig({ ...scheduleConfig, matchesPerDay: parseInt(e.target.value) || 2 })}
+                        data-testid="input-matches-per-day"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>وقت بداية المباريات</Label>
+                      <Input
+                        type="time"
+                        value={scheduleConfig.dailyStartTime}
+                        onChange={(e) => setScheduleConfig({ ...scheduleConfig, dailyStartTime: e.target.value })}
+                        data-testid="input-daily-start-time"
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-muted p-3 rounded-lg text-sm">
+                    <p><strong>عدد الفرق:</strong> {teams.length}</p>
+                    <p><strong>عدد المباريات المتوقع:</strong> {teams.length * (teams.length - 1) / 2}</p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsGenerateOpen(false)}
+                    data-testid="button-cancel-generate"
+                  >
+                    إلغاء
+                  </Button>
+                  <Button 
+                    onClick={() => generateMatchesMutation.mutate(scheduleConfig)}
+                    disabled={generateMatchesMutation.isPending}
+                    data-testid="button-submit-generate"
+                  >
+                    {generateMatchesMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                        جاري التوليد...
+                      </>
+                    ) : (
+                      "توليد المباريات"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Dialog open={isAddMatchOpen} onOpenChange={setIsAddMatchOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-add-match" disabled={teams.length < 2}>
