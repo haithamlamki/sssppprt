@@ -132,14 +132,14 @@ function BracketMatchCard({
           score={match.homeScore}
           isWinner={homeWon}
           showScore={showScores}
-          placeholder={match.homeTeam?.name ? undefined : "TBD"}
+          placeholder="TBD"
         />
         <TeamRow 
           teamName={awayTeamName}
           score={match.awayScore}
           isWinner={awayWon}
           showScore={showScores}
-          placeholder={match.awayTeam?.name ? undefined : "TBD"}
+          placeholder="TBD"
         />
 
         <div className="flex items-center justify-center px-3 py-1.5 bg-muted/30 text-xs text-muted-foreground">
