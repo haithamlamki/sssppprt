@@ -437,6 +437,7 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
   const { toast } = useToast();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [dialogTab, setDialogTab] = useState<"existing" | "new">("existing");
   const [newTeam, setNewTeam] = useState({
     name: "",
     level: "intermediate",
@@ -446,6 +447,13 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
     description: "",
   });
 
+  const { data: allTeams = [], isLoading: teamsLoading } = useQuery<Team[]>({
+    queryKey: ["/api/teams"],
+    enabled: isAddOpen,
+  });
+
+  const availableTeams = allTeams.filter(t => !t.tournamentId);
+
   const addTeamMutation = useMutation({
     mutationFn: async (data: typeof newTeam) => {
       return await apiRequest("POST", `/api/tournaments/${tournamentId}/teams`, data);
@@ -453,11 +461,27 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
     onSuccess: () => {
       toast({ title: "تم إضافة الفريق بنجاح" });
       queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
       setIsAddOpen(false);
       setNewTeam({ name: "", level: "intermediate", representativeName: "", contactPhone: "", contactEmail: "", description: "" });
     },
     onError: () => {
       toast({ title: "فشل إضافة الفريق", variant: "destructive" });
+    },
+  });
+
+  const assignTeamMutation = useMutation({
+    mutationFn: async (teamId: string) => {
+      return await apiRequest("PATCH", `/api/teams/${teamId}`, { tournamentId });
+    },
+    onSuccess: () => {
+      toast({ title: "تم تعيين الفريق للبطولة بنجاح" });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "teams"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      setIsAddOpen(false);
+    },
+    onError: () => {
+      toast({ title: "فشل تعيين الفريق", variant: "destructive" });
     },
   });
 
@@ -495,87 +519,168 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
           <Users className="h-5 w-5" />
           الفرق المشاركة ({teams.length})
         </CardTitle>
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <Dialog open={isAddOpen} onOpenChange={(open) => {
+          setIsAddOpen(open);
+          if (!open) {
+            setDialogTab("existing");
+          }
+        }}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-team">
               <Plus className="h-4 w-4 ml-2" />
               إضافة فريق
             </Button>
           </DialogTrigger>
-          <DialogContent dir="rtl">
+          <DialogContent dir="rtl" className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>إضافة فريق جديد</DialogTitle>
+              <DialogTitle>إضافة فريق</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>اسم الفريق *</Label>
-                <Input
-                  value={newTeam.name}
-                  onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}
-                  placeholder="أدخل اسم الفريق"
-                  data-testid="input-new-team-name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>المستوى</Label>
-                <Select
-                  value={newTeam.level}
-                  onValueChange={(value) => setNewTeam({ ...newTeam, level: value })}
-                >
-                  <SelectTrigger data-testid="select-team-level">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="beginner" data-testid="option-team-level-beginner">مبتدئ</SelectItem>
-                    <SelectItem value="intermediate" data-testid="option-team-level-intermediate">متوسط</SelectItem>
-                    <SelectItem value="advanced" data-testid="option-team-level-advanced">متقدم</SelectItem>
-                    <SelectItem value="professional" data-testid="option-team-level-professional">محترف</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>الممثل</Label>
-                <Input
-                  value={newTeam.representativeName}
-                  onChange={(e) => setNewTeam({ ...newTeam, representativeName: e.target.value })}
-                  placeholder="اسم ممثل الفريق"
-                  data-testid="input-team-representative"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>رقم الهاتف</Label>
-                  <Input
-                    value={newTeam.contactPhone}
-                    onChange={(e) => setNewTeam({ ...newTeam, contactPhone: e.target.value })}
-                    placeholder="05xxxxxxxx"
-                    data-testid="input-team-phone"
-                  />
+            <Tabs value={dialogTab} onValueChange={(v) => setDialogTab(v as "existing" | "new")} className="mt-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="existing" data-testid="tab-add-existing-team">
+                  <Users className="h-4 w-4 ml-2" />
+                  إضافة فريق موجود
+                </TabsTrigger>
+                <TabsTrigger value="new" data-testid="tab-create-new-team">
+                  <Plus className="h-4 w-4 ml-2" />
+                  إنشاء فريق جديد
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="existing" className="mt-4">
+                {teamsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : availableTeams.length > 0 ? (
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {availableTeams.map((team) => (
+                      <div 
+                        key={team.id}
+                        className="flex items-center justify-between p-3 border rounded-lg hover-elevate"
+                        data-testid={`available-team-${team.id}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <Shield className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{team.name}</p>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              {team.representativeName && (
+                                <span className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  {team.representativeName}
+                                </span>
+                              )}
+                              {team.level && (
+                                <Badge variant="outline" className="text-xs">
+                                  {levelLabels[team.level] || team.level}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => assignTeamMutation.mutate(team.id)}
+                          disabled={assignTeamMutation.isPending}
+                          data-testid={`button-assign-team-${team.id}`}
+                        >
+                          {assignTeamMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Plus className="h-4 w-4 ml-1" />
+                              إضافة
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>لا توجد فرق متاحة للإضافة</p>
+                    <p className="text-sm mt-2">يمكنك إنشاء فريق جديد من التبويب الآخر</p>
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="new" className="mt-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>اسم الفريق *</Label>
+                    <Input
+                      value={newTeam.name}
+                      onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}
+                      placeholder="أدخل اسم الفريق"
+                      data-testid="input-new-team-name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>المستوى</Label>
+                    <Select
+                      value={newTeam.level}
+                      onValueChange={(value) => setNewTeam({ ...newTeam, level: value })}
+                    >
+                      <SelectTrigger data-testid="select-team-level">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="beginner" data-testid="option-team-level-beginner">مبتدئ</SelectItem>
+                        <SelectItem value="intermediate" data-testid="option-team-level-intermediate">متوسط</SelectItem>
+                        <SelectItem value="advanced" data-testid="option-team-level-advanced">متقدم</SelectItem>
+                        <SelectItem value="professional" data-testid="option-team-level-professional">محترف</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>الممثل</Label>
+                    <Input
+                      value={newTeam.representativeName}
+                      onChange={(e) => setNewTeam({ ...newTeam, representativeName: e.target.value })}
+                      placeholder="اسم ممثل الفريق"
+                      data-testid="input-team-representative"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>رقم الهاتف</Label>
+                      <Input
+                        value={newTeam.contactPhone}
+                        onChange={(e) => setNewTeam({ ...newTeam, contactPhone: e.target.value })}
+                        placeholder="05xxxxxxxx"
+                        data-testid="input-team-phone"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>البريد الإلكتروني</Label>
+                      <Input
+                        type="email"
+                        value={newTeam.contactEmail}
+                        onChange={(e) => setNewTeam({ ...newTeam, contactEmail: e.target.value })}
+                        placeholder="email@example.com"
+                        data-testid="input-team-email"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-4">
+                    <DialogClose asChild>
+                      <Button variant="outline" data-testid="button-cancel-add-team">إلغاء</Button>
+                    </DialogClose>
+                    <Button 
+                      onClick={() => addTeamMutation.mutate(newTeam)}
+                      disabled={!newTeam.name.trim() || addTeamMutation.isPending}
+                      data-testid="button-submit-team"
+                    >
+                      {addTeamMutation.isPending ? "جاري الإضافة..." : "إضافة الفريق"}
+                    </Button>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>البريد الإلكتروني</Label>
-                  <Input
-                    type="email"
-                    value={newTeam.contactEmail}
-                    onChange={(e) => setNewTeam({ ...newTeam, contactEmail: e.target.value })}
-                    placeholder="email@example.com"
-                    data-testid="input-team-email"
-                  />
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline" data-testid="button-cancel-add-team">إلغاء</Button>
-              </DialogClose>
-              <Button 
-                onClick={() => addTeamMutation.mutate(newTeam)}
-                disabled={!newTeam.name.trim() || addTeamMutation.isPending}
-                data-testid="button-submit-team"
-              >
-                {addTeamMutation.isPending ? "جاري الإضافة..." : "إضافة"}
-              </Button>
-            </DialogFooter>
+              </TabsContent>
+            </Tabs>
           </DialogContent>
         </Dialog>
       </CardHeader>
