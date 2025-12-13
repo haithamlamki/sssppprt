@@ -1,11 +1,21 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, UserPlus, Shield, Trophy, Settings, ChevronLeft, ChevronRight,
-  Save, Plus, Trash2, GripVertical, User, Phone, Mail, Calendar
+  Save, Plus, Trash2, GripVertical, User, Phone, Mail, Calendar, Move, Upload, Loader2, ImageIcon
 } from "lucide-react";
+import {
+  DndContext,
+  DragEndEvent,
+  DragStartEvent,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  DragOverlay,
+} from "@dnd-kit/core";
+import { useDraggable } from "@dnd-kit/core";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,6 +32,9 @@ import type { Team, Player, Tournament } from "@shared/schema";
 // ========== PLAYER CREATION FORM ==========
 function CreatePlayerForm() {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageUrl, setImageUrl] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     level: "",
@@ -44,6 +57,34 @@ function CreatePlayerForm() {
 
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formDataUpload = new FormData();
+    formDataUpload.append("image", file);
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formDataUpload,
+        credentials: "include",
+      });
+      const data = await response.json();
+      if (data.success) {
+        setImageUrl(data.url);
+        toast({ title: "تم رفع الصورة بنجاح" });
+      } else {
+        toast({ title: "فشل رفع الصورة", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "فشل رفع الصورة", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const mutation = useMutation({
     mutationFn: async (data: any) => {
       return apiRequest("POST", "/api/players", data);
@@ -57,6 +98,7 @@ function CreatePlayerForm() {
         primaryJersey: "jersey_1", secondaryJersey: "jersey_2", thirdJersey: "jersey_3",
         position: "midfielder", number: "",
       });
+      setImageUrl("");
     },
     onError: () => {
       toast({ title: "فشل في إنشاء اللاعب", variant: "destructive" });
@@ -69,6 +111,7 @@ function CreatePlayerForm() {
       ...formData,
       teamId: selectedTeamId || undefined,
       number: formData.number ? parseInt(formData.number) : undefined,
+      imageUrl: imageUrl || undefined,
     });
   };
 
@@ -98,12 +141,38 @@ function CreatePlayerForm() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Player Image and Basic Info */}
           <div className="grid md:grid-cols-2 gap-6">
-            {/* Left: Image placeholder */}
-            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg bg-muted/30">
-              <div className="w-32 h-32 rounded-lg bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center mb-4">
-                <User className="w-16 h-16 text-white" />
+            {/* Left: Image upload */}
+            <div 
+              className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              data-testid="upload-player-image"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageUpload}
+              />
+              {isUploading ? (
+                <div className="w-32 h-32 rounded-lg bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center mb-4">
+                  <Loader2 className="w-8 h-8 text-white animate-spin" />
+                </div>
+              ) : imageUrl ? (
+                <img 
+                  src={imageUrl} 
+                  alt="صورة اللاعب" 
+                  className="w-32 h-32 rounded-lg object-cover mb-4"
+                />
+              ) : (
+                <div className="w-32 h-32 rounded-lg bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center mb-4">
+                  <User className="w-16 h-16 text-white" />
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Upload className="w-4 h-4" />
+                <span>{imageUrl ? "تغيير الصورة" : "رفع صورة اللاعب"}</span>
               </div>
-              <p className="text-sm text-muted-foreground">شعار الفريق</p>
             </div>
 
             {/* Right: Form fields */}
@@ -304,6 +373,9 @@ function CreatePlayerForm() {
 // ========== TEAM CREATION FORM ==========
 function CreateTeamForm() {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [logoUrl, setLogoUrl] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     level: "",
@@ -325,6 +397,34 @@ function CreateTeamForm() {
 
   const [selectedTournamentId, setSelectedTournamentId] = useState<string>("");
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formDataUpload = new FormData();
+    formDataUpload.append("image", file);
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formDataUpload,
+        credentials: "include",
+      });
+      const data = await response.json();
+      if (data.success) {
+        setLogoUrl(data.url);
+        toast({ title: "تم رفع الشعار بنجاح" });
+      } else {
+        toast({ title: "فشل رفع الشعار", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "فشل رفع الشعار", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const mutation = useMutation({
     mutationFn: async (data: any) => {
       return apiRequest("POST", "/api/teams", data);
@@ -337,6 +437,7 @@ function CreateTeamForm() {
         representativeName: "", activationZone: "", activationPeriod: "", description: "",
         primaryJersey: "", secondaryJersey: "", thirdJersey: "",
       });
+      setLogoUrl("");
     },
     onError: () => {
       toast({ title: "فشل في إنشاء الفريق", variant: "destructive" });
@@ -348,6 +449,7 @@ function CreateTeamForm() {
     mutation.mutate({
       ...formData,
       tournamentId: selectedTournamentId || undefined,
+      logoUrl: logoUrl || undefined,
     });
   };
 
@@ -379,16 +481,38 @@ function CreateTeamForm() {
       <CardContent className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
-            {/* Left: Logo */}
-            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg bg-muted/30">
-              <div className="w-32 h-32 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center mb-4 text-white text-3xl font-bold">
-                FC
+            {/* Left: Logo upload */}
+            <div 
+              className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              data-testid="upload-team-logo"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleLogoUpload}
+              />
+              {isUploading ? (
+                <div className="w-32 h-32 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center mb-4">
+                  <Loader2 className="w-8 h-8 text-white animate-spin" />
+                </div>
+              ) : logoUrl ? (
+                <img 
+                  src={logoUrl} 
+                  alt="شعار الفريق" 
+                  className="w-32 h-32 rounded-lg object-cover mb-4"
+                />
+              ) : (
+                <div className="w-32 h-32 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center mb-4 text-white text-3xl font-bold">
+                  FC
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Upload className="w-4 h-4" />
+                <span>{logoUrl ? "تغيير الشعار" : "رفع شعار الفريق"}</span>
               </div>
-              <p className="text-sm text-muted-foreground">شعار الفريق</p>
-              <Button type="button" variant="ghost" size="sm" className="mt-2">
-                <Settings className="w-4 h-4 mr-1" />
-                تعديل
-              </Button>
             </div>
 
             {/* Right: Fields */}
@@ -568,6 +692,56 @@ function CreateTeamForm() {
   );
 }
 
+// ========== DRAGGABLE PLAYER COMPONENT ==========
+interface DraggablePlayerProps {
+  id: string;
+  name: string;
+  number: number;
+  position: { x: number; y: number };
+  isDragging?: boolean;
+}
+
+function DraggablePlayer({ id, name, number, position, isDragging }: DraggablePlayerProps) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    id: id,
+  });
+
+  const style: React.CSSProperties = {
+    left: `${position.x}%`,
+    top: `${position.y}%`,
+    transform: transform 
+      ? `translate3d(${transform.x}px, ${transform.y}px, 0) translate(-50%, -50%)`
+      : 'translate(-50%, -50%)',
+    cursor: 'grab',
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : 10,
+    touchAction: 'none',
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className="absolute group"
+      style={style}
+      data-testid={`draggable-player-${id}`}
+    >
+      <div className="relative">
+        <div className="w-10 h-12 bg-gradient-to-b from-red-500 to-red-600 rounded-t-full flex items-center justify-center text-white font-bold text-xs shadow-lg transition-transform group-hover:scale-110 group-active:scale-95">
+          {number}
+        </div>
+        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-white bg-black/50 px-1 rounded">
+          {name}
+        </div>
+        <div className="absolute -top-1 -right-1 w-4 h-4 bg-white/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <Move className="w-2.5 h-2.5 text-gray-700" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ========== LINEUP/FORMATION BUILDER ==========
 const formations = [
   { id: "4-3-3", name: "4-3-3", positions: ["GK", "LB", "CB", "CB", "RB", "CM", "CM", "CM", "LW", "ST", "RW"] },
@@ -614,6 +788,8 @@ function LineupBuilder() {
   const [playerCount, setPlayerCount] = useState("11");
   const [policy, setPolicy] = useState("public");
   const [fieldBackground, setFieldBackground] = useState("field_6");
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [fieldRef, setFieldRef] = useState<HTMLDivElement | null>(null);
 
   const { data: teams } = useQuery<Team[]>({
     queryKey: ["/api/teams"],
@@ -624,25 +800,85 @@ function LineupBuilder() {
   });
 
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  
+  // Default positions for 7 players on field
+  const defaultPositions = [
+    { x: 50, y: 85 }, // GK
+    { x: 20, y: 65 }, // LB
+    { x: 40, y: 70 }, // CB
+    { x: 60, y: 70 }, // CB
+    { x: 80, y: 65 }, // RB
+    { x: 30, y: 40 }, // CM
+    { x: 70, y: 40 }, // CM
+    { x: 15, y: 20 }, // LW
+    { x: 50, y: 15 }, // ST
+    { x: 85, y: 20 }, // RW
+    { x: 50, y: 50 }, // Extra
+  ];
+  
   const [lineupPlayers, setLineupPlayers] = useState<Array<{
     id: string;
     name: string;
     number: number;
     position: string;
     selected: boolean;
+    fieldPosition: { x: number; y: number };
   }>>([
-    { id: "1", name: "اللاعب A", number: 1, position: "goalkeeper", selected: true },
-    { id: "2", name: "اللاعب B", number: 2, position: "defender", selected: true },
-    { id: "3", name: "اللاعب C", number: 3, position: "defender", selected: true },
-    { id: "4", name: "اللاعب D", number: 4, position: "defender", selected: true },
-    { id: "5", name: "اللاعب E", number: 5, position: "defender", selected: true },
-    { id: "6", name: "اللاعب F", number: 6, position: "midfielder", selected: true },
-    { id: "7", name: "اللاعب G", number: 7, position: "midfielder", selected: true },
-    { id: "8", name: "اللاعب H", number: 8, position: "midfielder", selected: false },
-    { id: "9", name: "اللاعب I", number: 9, position: "midfielder", selected: false },
-    { id: "10", name: "اللاعب J", number: 10, position: "forward", selected: false },
-    { id: "11", name: "اللاعب K", number: 11, position: "forward", selected: false },
+    { id: "1", name: "اللاعب A", number: 1, position: "goalkeeper", selected: true, fieldPosition: defaultPositions[0] },
+    { id: "2", name: "اللاعب B", number: 2, position: "defender", selected: true, fieldPosition: defaultPositions[1] },
+    { id: "3", name: "اللاعب C", number: 3, position: "defender", selected: true, fieldPosition: defaultPositions[2] },
+    { id: "4", name: "اللاعب D", number: 4, position: "defender", selected: true, fieldPosition: defaultPositions[3] },
+    { id: "5", name: "اللاعب E", number: 5, position: "defender", selected: true, fieldPosition: defaultPositions[4] },
+    { id: "6", name: "اللاعب F", number: 6, position: "midfielder", selected: true, fieldPosition: defaultPositions[5] },
+    { id: "7", name: "اللاعب G", number: 7, position: "midfielder", selected: true, fieldPosition: defaultPositions[6] },
+    { id: "8", name: "اللاعب H", number: 8, position: "midfielder", selected: false, fieldPosition: defaultPositions[7] },
+    { id: "9", name: "اللاعب I", number: 9, position: "midfielder", selected: false, fieldPosition: defaultPositions[8] },
+    { id: "10", name: "اللاعب J", number: 10, position: "forward", selected: false, fieldPosition: defaultPositions[9] },
+    { id: "11", name: "اللاعب K", number: 11, position: "forward", selected: false, fieldPosition: defaultPositions[10] },
   ]);
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  }, []);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, delta } = event;
+    const playerId = active.id as string;
+    
+    if (fieldRef) {
+      const fieldRect = fieldRef.getBoundingClientRect();
+      
+      setLineupPlayers((prev) =>
+        prev.map((player) => {
+          if (player.id === playerId) {
+            // Calculate new position based on drag delta
+            const deltaXPercent = (delta.x / fieldRect.width) * 100;
+            const deltaYPercent = (delta.y / fieldRect.height) * 100;
+            
+            const newX = Math.max(5, Math.min(95, player.fieldPosition.x + deltaXPercent));
+            const newY = Math.max(5, Math.min(95, player.fieldPosition.y + deltaYPercent));
+            
+            return {
+              ...player,
+              fieldPosition: { x: newX, y: newY },
+            };
+          }
+          return player;
+        })
+      );
+    }
+    
+    setActiveId(null);
+  }, [fieldRef]);
 
   const positionLabels: { [key: string]: string } = {
     goalkeeper: "حارس مرمى",
@@ -743,56 +979,62 @@ function LineupBuilder() {
 
       {/* Right Panel - Formation & Settings */}
       <div className="space-y-4">
-        {/* Visual Field */}
+        {/* Visual Field with Drag & Drop */}
         <Card className="border-0 shadow-lg overflow-hidden">
-          <div className="relative aspect-[4/3] bg-gradient-to-b from-green-600 to-green-700">
-            {/* Field markings */}
-            <div className="absolute inset-4 border-2 border-white/50 rounded-sm">
-              {/* Center line */}
-              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/50" />
-              {/* Center circle */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 border-2 border-white/50 rounded-full" />
-              {/* Penalty areas */}
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-40 h-16 border-2 border-t-0 border-white/50" />
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-16 border-2 border-b-0 border-white/50" />
+          <DndContext 
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div 
+              ref={setFieldRef}
+              className="relative aspect-[4/3] bg-gradient-to-b from-green-600 to-green-700"
+              data-testid="lineup-field"
+            >
+              {/* Field markings */}
+              <div className="absolute inset-4 border-2 border-white/50 rounded-sm">
+                {/* Center line */}
+                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/50" />
+                {/* Center circle */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 border-2 border-white/50 rounded-full" />
+                {/* Penalty areas */}
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-40 h-16 border-2 border-t-0 border-white/50" />
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-16 border-2 border-b-0 border-white/50" />
+              </div>
+
+              {/* Draggable Players on field */}
+              {lineupPlayers.filter(p => p.selected).slice(0, 11).map((player) => (
+                <DraggablePlayer
+                  key={player.id}
+                  id={player.id}
+                  name={player.name}
+                  number={player.number}
+                  position={player.fieldPosition}
+                  isDragging={activeId === player.id}
+                />
+              ))}
+
+              {/* Hint text */}
+              <div className="absolute top-2 right-2 text-xs text-white/70 flex items-center gap-1">
+                <Move className="w-3 h-3" />
+                اسحب اللاعبين لتغيير مواقعهم
+              </div>
             </div>
 
-            {/* Players on field */}
-            {lineupPlayers.filter(p => p.selected).slice(0, 7).map((player, idx) => {
-              const positions = [
-                { x: 50, y: 85 }, // GK
-                { x: 20, y: 65 }, // LB
-                { x: 40, y: 70 }, // CB
-                { x: 60, y: 70 }, // CB
-                { x: 80, y: 65 }, // RB
-                { x: 30, y: 40 }, // CM
-                { x: 70, y: 40 }, // CM
-              ];
-              const pos = positions[idx] || { x: 50, y: 50 };
-              
-              return (
-                <div
-                  key={player.id}
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
-                  style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                >
-                  <div className="relative">
-                    <div className="w-10 h-12 bg-gradient-to-b from-red-500 to-red-600 rounded-t-full flex items-center justify-center text-white font-bold text-xs shadow-lg">
-                      {player.number}
-                    </div>
-                    <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-white bg-black/50 px-1 rounded">
-                      {player.name}
-                    </div>
+            {/* Drag Overlay for smooth dragging */}
+            <DragOverlay>
+              {activeId ? (
+                <div className="relative">
+                  <div className="w-10 h-12 bg-gradient-to-b from-red-500 to-red-600 rounded-t-full flex items-center justify-center text-white font-bold text-xs shadow-xl scale-110">
+                    {lineupPlayers.find(p => p.id === activeId)?.number}
+                  </div>
+                  <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-white bg-black/70 px-1 rounded">
+                    {lineupPlayers.find(p => p.id === activeId)?.name}
                   </div>
                 </div>
-              );
-            })}
-
-            {/* Hint text */}
-            <div className="absolute top-2 right-2 text-xs text-white/70">
-              انقر مرتين على اللاعبين لإنشاء ملاحظات تكتيكية
-            </div>
-          </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         </Card>
 
         {/* Formation Settings */}
