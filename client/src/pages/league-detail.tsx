@@ -15,7 +15,8 @@ import {
   Clock,
   Play,
   CheckCircle2,
-  User
+  User,
+  Swords
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Tournament, Team, MatchWithTeams, PlayerWithTeam } from "@shared/schema";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
+import KnockoutBracket from "@/components/KnockoutBracket";
 
 const sportLabels: Record<string, string> = {
   football: "كرة القدم",
@@ -243,9 +245,13 @@ export default function LeagueDetail() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="standings" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg mx-auto grid-cols-4">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-5">
             <TabsTrigger value="standings" data-testid="tab-standings">الترتيب</TabsTrigger>
             <TabsTrigger value="matches" data-testid="tab-matches">المباريات</TabsTrigger>
+            <TabsTrigger value="knockout" data-testid="tab-knockout">
+              <Swords className="h-4 w-4 ml-1" />
+              التصفيات
+            </TabsTrigger>
             <TabsTrigger value="scorers" data-testid="tab-scorers">الهدافين</TabsTrigger>
             <TabsTrigger value="teams" data-testid="tab-teams">الفرق</TabsTrigger>
           </TabsList>
@@ -356,6 +362,10 @@ export default function LeagueDetail() {
                 <p>لم يتم إنشاء جدول المباريات بعد</p>
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="knockout">
+            <KnockoutBracket matches={matches || []} />
           </TabsContent>
 
           <TabsContent value="scorers">
