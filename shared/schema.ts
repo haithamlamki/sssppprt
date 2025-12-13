@@ -360,6 +360,10 @@ export const tournaments = pgTable("tournaments", {
   // Round settings
   numberOfRounds: integer("number_of_rounds").default(1),
   
+  // Match duration settings - إعدادات مدة المباراة
+  halfDuration: integer("half_duration").notNull().default(45), // مدة الشوط بالدقائق
+  breakBetweenHalves: integer("break_between_halves").notNull().default(15), // الفترة بين الشوطين بالدقائق
+  
   // Registration
   isOpenForRegistration: boolean("is_open_for_registration").notNull().default(true),
   

@@ -288,6 +288,8 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
     pointsForWin: tournament.pointsForWin,
     pointsForDraw: tournament.pointsForDraw,
     pointsForLoss: tournament.pointsForLoss,
+    halfDuration: tournament.halfDuration,
+    breakBetweenHalves: tournament.breakBetweenHalves,
     trophyImageUrl: tournament.trophyImageUrl || "",
   });
 
@@ -493,6 +495,40 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
               <p className="font-medium">
                 {tournament.pointsForWin} / {tournament.pointsForDraw} / {tournament.pointsForLoss}
               </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>مدة الشوط (دقيقة)</Label>
+            {isEditing ? (
+              <Input
+                type="number"
+                value={formData.halfDuration}
+                onChange={(e) => setFormData({ ...formData, halfDuration: parseInt(e.target.value) })}
+                min={5}
+                max={90}
+                className="w-24"
+                data-testid="input-half-duration"
+              />
+            ) : (
+              <p className="font-medium">{tournament.halfDuration} دقيقة</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>الفترة بين الشوطين (دقيقة)</Label>
+            {isEditing ? (
+              <Input
+                type="number"
+                value={formData.breakBetweenHalves}
+                onChange={(e) => setFormData({ ...formData, breakBetweenHalves: parseInt(e.target.value) })}
+                min={0}
+                max={30}
+                className="w-24"
+                data-testid="input-break-between-halves"
+              />
+            ) : (
+              <p className="font-medium">{tournament.breakBetweenHalves} دقيقة</p>
             )}
           </div>
         </div>

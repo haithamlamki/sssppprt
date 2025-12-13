@@ -1416,6 +1416,8 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
     pointsForDraw: "1",
     pointsForLoss: "0",
     numberOfRounds: "1",
+    halfDuration: "45",
+    breakBetweenHalves: "15",
     isOpenForRegistration: true,
     dailyStartTime: "16:00",
     matchesPerDayPerVenue: "3",
@@ -1500,6 +1502,8 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
         pointsForDraw: "1",
         pointsForLoss: "0",
         numberOfRounds: "1",
+        halfDuration: "45",
+        breakBetweenHalves: "15",
         isOpenForRegistration: true,
         dailyStartTime: "16:00",
         matchesPerDayPerVenue: "3",
@@ -1532,6 +1536,8 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
       pointsForDraw: parseInt(formData.pointsForDraw) || 1,
       pointsForLoss: parseInt(formData.pointsForLoss) || 0,
       numberOfRounds: parseInt(formData.numberOfRounds) || 1,
+      halfDuration: parseInt(formData.halfDuration) || 45,
+      breakBetweenHalves: parseInt(formData.breakBetweenHalves) || 15,
       isOpenForRegistration: formData.isOpenForRegistration,
       hasGroupStage: formData.type === "groups" || formData.type === "groups_knockout",
       scheduleConfig: JSON.stringify({
@@ -1881,6 +1887,35 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
               min="0"
               max="10"
               data-testid="input-points-loss"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* مدة المباراة */}
+      <div className="bg-muted/50 rounded-lg p-4">
+        <Label className="text-base font-semibold mb-3 block">مدة المباراة</Label>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label className="text-sm">مدة الشوط (دقيقة)</Label>
+            <Input
+              type="number"
+              value={formData.halfDuration}
+              onChange={(e) => setFormData({ ...formData, halfDuration: e.target.value })}
+              min="5"
+              max="90"
+              data-testid="input-half-duration"
+            />
+          </div>
+          <div>
+            <Label className="text-sm">الفترة بين الشوطين (دقيقة)</Label>
+            <Input
+              type="number"
+              value={formData.breakBetweenHalves}
+              onChange={(e) => setFormData({ ...formData, breakBetweenHalves: e.target.value })}
+              min="0"
+              max="30"
+              data-testid="input-break-between-halves"
             />
           </div>
         </div>
