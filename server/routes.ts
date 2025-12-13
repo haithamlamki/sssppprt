@@ -819,8 +819,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/tournaments/:id/group-standings", async (req, res) => {
     try {
-      const standings = await storage.getGroupStandings(req.params.id);
-      res.json(standings);
+      const groupedStandings = await storage.getGroupStandings(req.params.id);
+      
+      // Group number to Arabic letter mapping
+      const groupNameMap: Record<number, string> = {
+        1: "المجموعة أ",
+        2: "المجموعة ب",
+        3: "المجموعة ج",
+        4: "المجموعة د",
+        5: "المجموعة هـ",
+        6: "المجموعة و",
+        7: "المجموعة ز",
+        8: "المجموعة ح",
+      };
+      
+      // Flatten the grouped standings into the format expected by the frontend
+      const flattenedStandings = groupedStandings.flatMap(group => 
+        group.teams.map(team => ({
+          teamId: team.id,
+          teamName: team.name,
+          groupName: groupNameMap[group.groupNumber] || `المجموعة ${group.groupNumber}`,
+          played: team.played ?? 0,
+          won: team.won ?? 0,
+          drawn: team.drawn ?? 0,
+          lost: team.lost ?? 0,
+          goalsFor: team.goalsFor ?? 0,
+          goalsAgainst: team.goalsAgainst ?? 0,
+          goalDifference: team.goalDifference ?? 0,
+          points: team.points ?? 0,
+        }))
+      );
+      
+      res.json(flattenedStandings);
     } catch (error: any) {
       res.status(500).json({ error: error.message || "فشل في جلب ترتيب المجموعات" });
     }
