@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { useEffect, useState } from "react";
-import heroImage from "@assets/generated_images/Sports_celebration_hero_image_857d51d1.png";
+import { useQuery } from "@tanstack/react-query";
+import defaultHeroImage from "@assets/WhatsApp_Image_2025-12-14_at_1.09.59_AM_1765663609189.jpg";
 
 export default function Home() {
   const [stats, setStats] = useState({
@@ -13,6 +14,12 @@ export default function Home() {
     achievements: 0,
     sports: 0,
   });
+
+  const { data: heroSetting } = useQuery<{ key: string; value: string | null }>({
+    queryKey: ['/api/settings/hero_image'],
+  });
+
+  const heroImage = heroSetting?.value || defaultHeroImage;
 
   useEffect(() => {
     // Animate counters

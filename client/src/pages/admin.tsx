@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { 
   Calendar, Users, Trophy, ImageIcon, Newspaper, 
   Plus, Pencil, Trash2, Loader2, Shield, BarChart3, Target, Upload, Phone, MapPin,
-  Goal, AlertTriangle, User as UserIcon, Clock, X, Shuffle
+  Goal, AlertTriangle, User as UserIcon, Clock, X, Shuffle, Settings
 } from "lucide-react";
 import { TeamBox, TeamColorPicker, getTeamColor, isLightColor } from "@/components/TeamBox";
 import { 
@@ -93,6 +93,60 @@ export default function Admin() {
     queryKey: ["/api/tournaments"],
     enabled: isAdmin,
   });
+
+  const { data: heroSetting } = useQuery<{ key: string; value: string | null }>({
+    queryKey: ['/api/settings/hero_image'],
+    enabled: isAdmin,
+  });
+
+  const [heroImagePreview, setHeroImagePreview] = useState<string>("");
+  const heroFileInputRef = useRef<HTMLInputElement>(null);
+
+  const updateHeroImageMutation = useMutation({
+    mutationFn: async (imageUrl: string) => {
+      return await apiRequest("POST", "/api/settings/hero_image", { value: imageUrl });
+    },
+    onSuccess: () => {
+      toast({ title: "تم تحديث صورة الصفحة الرئيسية بنجاح" });
+      queryClient.invalidateQueries({ queryKey: ['/api/settings/hero_image'] });
+      setHeroImagePreview("");
+    },
+    onError: () => {
+      toast({ title: "فشل تحديث الصورة", variant: "destructive" });
+    },
+  });
+
+  const uploadHeroImageMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error("Upload failed");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setHeroImagePreview(data.url);
+    },
+    onError: () => {
+      toast({ title: "فشل رفع الصورة", variant: "destructive" });
+    },
+  });
+
+  const handleHeroFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      uploadHeroImageMutation.mutate(file);
+    }
+  };
+
+  const saveHeroImage = () => {
+    if (heroImagePreview) {
+      updateHeroImageMutation.mutate(heroImagePreview);
+    }
+  };
 
   const { data: matchesList = [], isLoading: matchesLoading } = useQuery<MatchWithTeams[]>({
     queryKey: ["/api/tournaments", selectedTournamentId, "matches"],
@@ -231,7 +285,7 @@ export default function Admin() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 lg:w-auto lg:inline-grid gap-1">
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-9 lg:w-auto lg:inline-grid gap-1">
             <TabsTrigger value="dashboard" data-testid="tab-dashboard">
               <BarChart3 className="h-4 w-4 ml-2" />
               الإحصائيات
@@ -263,6 +317,10 @@ export default function Admin() {
             <TabsTrigger value="gallery" data-testid="tab-gallery">
               <ImageIcon className="h-4 w-4 ml-2" />
               المعرض
+            </TabsTrigger>
+            <TabsTrigger value="settings" data-testid="tab-settings">
+              <Settings className="h-4 w-4 ml-2" />
+              الإعدادات
             </TabsTrigger>
           </TabsList>
 
@@ -951,6 +1009,90 @@ export default function Admin() {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold">إعدادات الموقع</h2>
+            </div>
+            
+            {/* Hero Image Settings */}
+            <Card data-testid="card-hero-settings">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5" />
+                  صورة الصفحة الرئيسية
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Current Image Preview */}
+                <div className="space-y-2">
+                  <Label>الصورة الحالية</Label>
+                  <div className="relative aspect-video w-full max-w-2xl overflow-hidden rounded-lg border">
+                    <img
+                      src={heroImagePreview || heroSetting?.value || "/attached_assets/WhatsApp_Image_2025-12-14_at_1.09.59_AM_1765663609189.jpg"}
+                      alt="صورة الصفحة الرئيسية"
+                      className="w-full h-full object-cover"
+                      data-testid="img-hero-preview"
+                    />
+                  </div>
+                </div>
+
+                {/* Upload New Image */}
+                <div className="space-y-2">
+                  <Label>رفع صورة جديدة</Label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      ref={heroFileInputRef}
+                      onChange={handleHeroFileChange}
+                      data-testid="input-hero-file"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => heroFileInputRef.current?.click()}
+                      disabled={uploadHeroImageMutation.isPending}
+                      data-testid="button-upload-hero"
+                    >
+                      {uploadHeroImageMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4 ml-2" />
+                      )}
+                      اختيار صورة
+                    </Button>
+                    {heroImagePreview && (
+                      <Badge variant="outline" className="text-success">
+                        تم رفع الصورة - جاهزة للحفظ
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {/* Save Button */}
+                {heroImagePreview && (
+                  <Button
+                    onClick={saveHeroImage}
+                    disabled={updateHeroImageMutation.isPending}
+                    className="w-full sm:w-auto"
+                    data-testid="button-save-hero"
+                  >
+                    {updateHeroImageMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                    ) : null}
+                    حفظ الصورة
+                  </Button>
+                )}
+
+                <p className="text-sm text-muted-foreground">
+                  يفضل استخدام صورة بحجم 1920x600 بكسل للحصول على أفضل عرض
+                </p>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
