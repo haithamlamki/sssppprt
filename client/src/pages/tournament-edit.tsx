@@ -1933,9 +1933,19 @@ function StagesTab({
         qualifyingTeamsPerGroup: 2
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "تم إكمال مرحلة المجموعات" });
       queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId] });
+      
+      if (tournament.type === "groups_knockout") {
+        try {
+          await apiRequest("POST", `/api/tournaments/${tournamentId}/generate-knockout`);
+          toast({ title: "تم توليد مباريات خروج المغلوب تلقائياً" });
+          queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "matches"] });
+        } catch (error) {
+          toast({ title: "فشل توليد مباريات خروج المغلوب", variant: "destructive" });
+        }
+      }
     },
     onError: () => {
       toast({ title: "فشل إكمال المرحلة", variant: "destructive" });
@@ -2101,7 +2111,7 @@ function StagesTab({
         </>
       )}
 
-      {(isKnockoutTournament || (isGroupsTournament && tournament.groupStageComplete)) && (
+      {isKnockoutTournament && (
         <Card data-testid="card-knockout-stage">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -2110,7 +2120,7 @@ function StagesTab({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {isKnockoutTournament && (
+            {tournament.type === "knockout" && (
               <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
                 <p className="text-blue-700 dark:text-blue-300 text-sm" data-testid="text-knockout-info">
                   بطولة خروج المغلوب - {teams.length} فريق مسجل
@@ -2118,32 +2128,36 @@ function StagesTab({
               </div>
             )}
 
-            <Button
-              onClick={() => generateKnockoutMutation.mutate()}
-              disabled={generateKnockoutMutation.isPending || (isGroupsTournament && !tournament.groupStageComplete) || teams.length < 2}
-              data-testid="button-generate-knockout"
-            >
-              <GitBranch className={`h-4 w-4 ml-2 ${generateKnockoutMutation.isPending ? 'animate-spin' : ''}`} />
-              {generateKnockoutMutation.isPending ? "جاري التوليد..." : "توليد شجرة خروج المغلوب"}
-            </Button>
+            {tournament.type === "knockout" && (
+              <Button
+                onClick={() => generateKnockoutMutation.mutate()}
+                disabled={generateKnockoutMutation.isPending || teams.length < 2}
+                data-testid="button-generate-knockout"
+              >
+                <GitBranch className={`h-4 w-4 ml-2 ${generateKnockoutMutation.isPending ? 'animate-spin' : ''}`} />
+                {generateKnockoutMutation.isPending ? "جاري التوليد..." : "توليد شجرة خروج المغلوب"}
+              </Button>
+            )}
 
-            {isKnockoutTournament && teams.length < 2 && (
+            {tournament.type === "knockout" && teams.length < 2 && (
               <p className="text-sm text-muted-foreground" data-testid="text-knockout-teams-warning">
                 يجب إضافة فريقين على الأقل لتوليد شجرة خروج المغلوب
               </p>
             )}
 
-            {isGroupsTournament && !tournament.groupStageComplete && (
-              <p className="text-sm text-muted-foreground" data-testid="text-group-stage-required">
-                يجب إكمال مرحلة المجموعات أولاً قبل توليد مباريات خروج المغلوب
-              </p>
+            {tournament.type === "groups_knockout" && !tournament.groupStageComplete && (
+              <div className="p-3 bg-orange-50 dark:bg-orange-950 rounded-lg border border-orange-200 dark:border-orange-800 mb-4">
+                <p className="text-orange-700 dark:text-orange-300 text-sm" data-testid="text-group-stage-required">
+                  سيتم توليد مباريات خروج المغلوب تلقائياً عند إكمال مرحلة المجموعات
+                </p>
+              </div>
             )}
 
             <div className="mt-4" data-testid="container-knockout-bracket">
               <KnockoutBracket 
                 matches={matches} 
                 tournament={tournament}
-                groupStageComplete={tournament.groupStageComplete || !isGroupsTournament}
+                groupStageComplete={tournament.groupStageComplete || tournament.type === "knockout"}
               />
             </div>
           </CardContent>
