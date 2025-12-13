@@ -1177,12 +1177,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/matches/:id", isAdmin, async (req, res) => {
     try {
-      const match = await storage.updateMatch(req.params.id, req.body);
+      const updates = { ...req.body };
+      // Convert matchDate string to Date if provided
+      if (updates.matchDate && typeof updates.matchDate === 'string') {
+        updates.matchDate = new Date(updates.matchDate);
+      }
+      const match = await storage.updateMatch(req.params.id, updates);
       if (!match) {
         return res.status(404).json({ error: "Match not found" });
       }
       res.json(match);
     } catch (error) {
+      console.error("Match update error:", error);
       res.status(500).json({ error: "Failed to update match" });
     }
   });
