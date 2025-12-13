@@ -163,6 +163,7 @@ export interface IStorage {
   updateMatch(id: string, updates: Partial<Match>): Promise<Match | undefined>;
   deleteMatch(id: string): Promise<boolean>;
   generateLeagueMatches(tournamentId: string): Promise<Match[]>;
+  generateKnockoutMatchesFromGroups(tournamentId: string): Promise<Match[]>;
   
   // Match Events
   getMatchEvents(matchId: string): Promise<MatchEvent[]>;
@@ -847,7 +848,7 @@ export class DatabaseStorage implements IStorage {
 
     const scorers: PlayerWithTeam[] = [];
     for (const player of allPlayers) {
-      if (teamIds.includes(player.teamId) && player.goals > 0) {
+      if (player.teamId && teamIds.includes(player.teamId) && player.goals > 0) {
         const team = tournamentTeams.find(t => t.id === player.teamId);
         if (team) {
           scorers.push({ ...player, team });
@@ -996,6 +997,126 @@ export class DatabaseStorage implements IStorage {
           generatedMatches.push(match2);
         }
       }
+    }
+
+    return generatedMatches;
+  }
+
+  async generateKnockoutMatchesFromGroups(tournamentId: string): Promise<Match[]> {
+    const tournament = await this.getTournamentById(tournamentId);
+    if (!tournament) throw new Error("Tournament not found");
+    if (!tournament.hasGroupStage) throw new Error("Tournament doesn't have group stage");
+
+    const tournamentTeams = await this.getTeamsByTournament(tournamentId);
+    
+    // Group teams by groupNumber and sort by points
+    const groupedTeams: Record<number, Team[]> = {};
+    for (const team of tournamentTeams) {
+      const groupNum = team.groupNumber || 0;
+      if (groupNum > 0) {
+        if (!groupedTeams[groupNum]) groupedTeams[groupNum] = [];
+        groupedTeams[groupNum].push(team);
+      }
+    }
+
+    // Sort each group by points, goal difference, goals for
+    for (const groupNum in groupedTeams) {
+      groupedTeams[groupNum].sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+        return b.goalsFor - a.goalsFor;
+      });
+    }
+
+    // Get qualified teams (top 2 from each group)
+    const qualifiedTeams: { team: Team; position: number; groupNumber: number }[] = [];
+    const groups = Object.keys(groupedTeams).map(Number).sort((a, b) => a - b);
+    
+    for (const groupNum of groups) {
+      const groupTeams = groupedTeams[groupNum];
+      if (groupTeams.length >= 2) {
+        qualifiedTeams.push({ team: groupTeams[0], position: 1, groupNumber: groupNum });
+        qualifiedTeams.push({ team: groupTeams[1], position: 2, groupNumber: groupNum });
+      }
+    }
+
+    if (qualifiedTeams.length < 2) {
+      throw new Error("Not enough qualified teams for knockout stage");
+    }
+
+    // Delete existing knockout matches
+    await db.delete(matches)
+      .where(
+        and(
+          eq(matches.tournamentId, tournamentId),
+          sql`${matches.stage} != 'group' AND ${matches.stage} != 'league'`
+        )
+      );
+
+    const generatedMatches: Match[] = [];
+    const numQualified = qualifiedTeams.length;
+
+    // Determine the stage based on number of teams
+    let stage: string;
+    if (numQualified >= 16) stage = 'round_of_16';
+    else if (numQualified >= 8) stage = 'quarter_final';
+    else if (numQualified >= 4) stage = 'semi_final';
+    else stage = 'final';
+
+    // Generate matchups: 1st of group A vs 2nd of group B, etc.
+    const matchups: { home: Team; away: Team }[] = [];
+    
+    if (groups.length >= 2) {
+      // Cross-group matching: 1st of group plays 2nd of another group
+      for (let i = 0; i < groups.length; i += 2) {
+        const groupA = groups[i];
+        const groupB = groups[i + 1] || groups[i];
+        
+        const firstA = qualifiedTeams.find(t => t.groupNumber === groupA && t.position === 1);
+        const secondB = qualifiedTeams.find(t => t.groupNumber === groupB && t.position === 2);
+        const firstB = qualifiedTeams.find(t => t.groupNumber === groupB && t.position === 1);
+        const secondA = qualifiedTeams.find(t => t.groupNumber === groupA && t.position === 2);
+        
+        if (firstA && secondB) {
+          matchups.push({ home: firstA.team, away: secondB.team });
+        }
+        if (firstB && secondA && groupA !== groupB) {
+          matchups.push({ home: firstB.team, away: secondA.team });
+        }
+      }
+    } else {
+      // Single group: just match 1st vs 2nd
+      const first = qualifiedTeams.find(t => t.position === 1);
+      const second = qualifiedTeams.find(t => t.position === 2);
+      if (first && second) {
+        matchups.push({ home: first.team, away: second.team });
+      }
+    }
+
+    // Create matches
+    const baseDate = new Date();
+    baseDate.setDate(baseDate.getDate() + 7); // Start a week from now
+
+    for (let i = 0; i < matchups.length; i++) {
+      const matchup = matchups[i];
+      const matchDate = new Date(baseDate);
+      matchDate.setDate(matchDate.getDate() + Math.floor(i / 2) * 2);
+
+      const [match] = await db.insert(matches).values({
+        tournamentId,
+        homeTeamId: matchup.home.id,
+        awayTeamId: matchup.away.id,
+        round: i + 1,
+        leg: 1,
+        stage,
+        matchDate,
+        venue: tournament.venues && tournament.venues.length > 0 
+          ? tournament.venues[i % tournament.venues.length] 
+          : null,
+        status: 'scheduled',
+      }).returning();
+      
+      generatedMatches.push(match);
     }
 
     return generatedMatches;

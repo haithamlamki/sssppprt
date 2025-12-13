@@ -656,6 +656,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/tournaments/:id/generate-knockout", isAdmin, async (req, res) => {
+    try {
+      const generatedMatches = await storage.generateKnockoutMatchesFromGroups(req.params.id);
+      res.json({ matches: generatedMatches, count: generatedMatches.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to generate knockout matches" });
+    }
+  });
+
   // Teams
   app.get("/api/teams", async (_req, res) => {
     try {
