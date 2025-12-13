@@ -1153,17 +1153,36 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Distribute matches across dates
+    // Distribute matches across dates with venue-based time slots
     const { matchesPerDay, dailyStartTime } = scheduleConfig;
     const [startHour, startMinute] = dailyStartTime.split(':').map(Number);
+    
+    // Calculate match duration from tournament settings
+    const halfDuration = tournament.halfDuration || 45;
+    const breakBetweenHalves = tournament.breakBetweenHalves || 15;
+    const matchDurationMinutes = (halfDuration * 2) + breakBetweenHalves + 15; // Add 15 min buffer
+    
+    // Get venues configuration
+    const venuesList = tournament.venues && tournament.venues.length > 0 
+      ? tournament.venues 
+      : ['الملعب الرئيسي'];
+    const numberOfVenues = venuesList.length;
+    
+    // Calculate time slots per venue
+    const timeSlotsPerVenue = Math.ceil(matchesPerDay / numberOfVenues);
+    
     let currentDate = new Date(startDate);
     let matchesScheduledToday = 0;
-    let currentSlotIndex = 0;
+    let currentVenueIndex = 0;
+    let currentTimeSlotInVenue = 0;
 
     for (const matchPair of allMatchPairs) {
-      // Calculate match time (add 2 hours per match slot)
+      // Calculate match time based on venue and time slot
       const matchDate = new Date(currentDate);
-      matchDate.setHours(startHour + (currentSlotIndex * 2), startMinute, 0, 0);
+      const totalMinutesOffset = currentTimeSlotInVenue * matchDurationMinutes;
+      const slotHour = startHour + Math.floor(totalMinutesOffset / 60);
+      const slotMinute = startMinute + (totalMinutesOffset % 60);
+      matchDate.setHours(slotHour, slotMinute, 0, 0);
 
       const [match] = await db.insert(matches).values({
         tournamentId,
@@ -1174,21 +1193,26 @@ export class DatabaseStorage implements IStorage {
         stage: tournament.hasGroupStage ? 'group' : 'league',
         groupNumber: matchPair.homeTeam.groupNumber,
         matchDate,
-        venue: tournament.venues && tournament.venues.length > 0 
-          ? tournament.venues[generatedMatches.length % tournament.venues.length] 
-          : null,
+        venue: venuesList[currentVenueIndex],
         status: 'scheduled',
       }).returning();
       generatedMatches.push(match);
 
       matchesScheduledToday++;
-      currentSlotIndex++;
+      
+      // Move to next venue for the same time slot, or next time slot
+      currentVenueIndex++;
+      if (currentVenueIndex >= numberOfVenues) {
+        currentVenueIndex = 0;
+        currentTimeSlotInVenue++;
+      }
 
       // Move to next day if needed
       if (matchesScheduledToday >= matchesPerDay) {
         currentDate.setDate(currentDate.getDate() + 1);
         matchesScheduledToday = 0;
-        currentSlotIndex = 0;
+        currentVenueIndex = 0;
+        currentTimeSlotInVenue = 0;
 
         // Check if we exceeded end date
         if (endDate && currentDate > endDate) {
