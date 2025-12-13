@@ -1303,6 +1303,20 @@ function MatchesTab({
     },
   });
 
+  const deleteMatchMutation = useMutation({
+    mutationFn: async (matchId: string) => {
+      return await apiRequest("DELETE", `/api/matches/${matchId}`);
+    },
+    onSuccess: () => {
+      toast({ title: "تم حذف المباراة" });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "matches"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "teams"] });
+    },
+    onError: () => {
+      toast({ title: "فشل حذف المباراة", variant: "destructive" });
+    },
+  });
+
   const scheduledMatches = matches.filter(m => m.status === "scheduled" || m.status === "live");
   const completedMatches = matches.filter(m => m.status === "completed");
 
@@ -1548,6 +1562,15 @@ function MatchesTab({
                       <Pencil className="h-4 w-4 ml-2" />
                       تعديل النتيجة
                     </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="text-destructive"
+                      onClick={() => deleteMatchMutation.mutate(match.id)}
+                      data-testid={`button-delete-match-${match.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -1598,14 +1621,25 @@ function MatchesTab({
                       {match.matchDate && format(new Date(match.matchDate), "d/M/yyyy", { locale: ar })}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setEditingMatch(match)}
-                        data-testid={`button-edit-completed-${match.id}`}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <div className="flex justify-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => setEditingMatch(match)}
+                          data-testid={`button-edit-completed-${match.id}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="text-destructive"
+                          onClick={() => deleteMatchMutation.mutate(match.id)}
+                          data-testid={`button-delete-completed-${match.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

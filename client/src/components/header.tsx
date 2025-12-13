@@ -20,6 +20,8 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
 
+  const isAdmin = user?.role === "admin" || user?.role === "committee_member";
+
   const navItems = [
     { href: "/", label: "الرئيسية" },
     { href: "/events", label: "الفعاليات" },
@@ -29,6 +31,11 @@ export function Header() {
     { href: "/gallery", label: "المعرض" },
     { href: "/results", label: "النتائج" },
     { href: "/about", label: "من نحن" },
+  ];
+
+  const adminNavItems = [
+    { href: "/admin", label: "لوحة التحكم", icon: Shield },
+    { href: "/team-wizard", label: "معالج الفرق", icon: Users },
   ];
 
   return (
@@ -61,6 +68,22 @@ export function Header() {
               </Button>
             </Link>
           ))}
+          {isAuthenticated && isAdmin && (
+            <>
+              <div className="w-px h-6 bg-border mx-1" />
+              {adminNavItems.map((item) => (
+                <Link key={item.href} href={item.href} data-testid={`link-admin-${item.label}`}>
+                  <Button
+                    variant={location === item.href ? "secondary" : "ghost"}
+                    className="text-base font-medium gap-2"
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </Button>
+                </Link>
+              ))}
+            </>
+          )}
         </nav>
 
         {/* Right side actions */}
@@ -186,19 +209,33 @@ export function Header() {
                     <Calendar className="ml-2 h-4 w-4" />
                     فعالياتي
                   </Button>
-                  {(user?.role === "admin" || user?.role === "committee_member") && (
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        navigate("/admin");
-                        setMobileMenuOpen(false);
-                      }}
-                      data-testid="mobile-menu-admin"
-                    >
-                      <Shield className="ml-2 h-4 w-4" />
-                      لوحة التحكم
-                    </Button>
+                  {isAdmin && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => {
+                          navigate("/admin");
+                          setMobileMenuOpen(false);
+                        }}
+                        data-testid="mobile-menu-admin"
+                      >
+                        <Shield className="ml-2 h-4 w-4" />
+                        لوحة التحكم
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => {
+                          navigate("/team-wizard");
+                          setMobileMenuOpen(false);
+                        }}
+                        data-testid="mobile-menu-team-wizard"
+                      >
+                        <Users className="ml-2 h-4 w-4" />
+                        معالج الفرق
+                      </Button>
+                    </>
                   )}
                   <Button
                     variant="ghost"
