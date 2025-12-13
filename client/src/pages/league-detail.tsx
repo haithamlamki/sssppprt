@@ -920,6 +920,278 @@ export default function LeagueDetail() {
   );
 }
 
+// Helper function to get team color - uses primaryJersey or generates from name
+function getTeamColor(team?: { name: string; primaryJersey?: string | null }): string {
+  if (!team) return "#6b7280"; // gray default
+  
+  // If team has a primaryJersey color defined, use it
+  if (team.primaryJersey) {
+    const jersey = team.primaryJersey.toLowerCase();
+    // Common color names mapping
+    const colorMap: Record<string, string> = {
+      "أحمر": "#dc2626", "red": "#dc2626",
+      "أزرق": "#2563eb", "blue": "#2563eb",
+      "أخضر": "#16a34a", "green": "#16a34a",
+      "أصفر": "#eab308", "yellow": "#eab308",
+      "برتقالي": "#ea580c", "orange": "#ea580c",
+      "أسود": "#1f2937", "black": "#1f2937",
+      "أبيض": "#f3f4f6", "white": "#f3f4f6",
+      "بنفسجي": "#7c3aed", "purple": "#7c3aed",
+      "وردي": "#ec4899", "pink": "#ec4899",
+      "بني": "#92400e", "brown": "#92400e",
+      "رمادي": "#6b7280", "gray": "#6b7280", "grey": "#6b7280",
+      "ذهبي": "#d97706", "gold": "#d97706",
+      "فضي": "#9ca3af", "silver": "#9ca3af",
+      "سماوي": "#06b6d4", "cyan": "#06b6d4",
+      "كحلي": "#1e3a5f", "navy": "#1e3a5f",
+      "عنابي": "#7f1d1d", "maroon": "#7f1d1d",
+    };
+    
+    // Check if it's a hex color
+    if (jersey.startsWith("#") && (jersey.length === 4 || jersey.length === 7)) {
+      return jersey;
+    }
+    
+    // Check color map
+    for (const [key, value] of Object.entries(colorMap)) {
+      if (jersey.includes(key)) return value;
+    }
+  }
+  
+  // Generate color from team name
+  let hash = 0;
+  const name = team.name;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  const colors = [
+    "#dc2626", "#ea580c", "#d97706", "#16a34a", 
+    "#059669", "#0d9488", "#0891b2", "#2563eb", 
+    "#4f46e5", "#7c3aed", "#a855f7", "#c026d3",
+    "#db2777", "#e11d48"
+  ];
+  
+  return colors[Math.abs(hash) % colors.length];
+}
+
+// Helper to check if color is light (for text contrast)
+function isLightColor(hex: string): boolean {
+  let color = hex.replace("#", "");
+  // Expand 3-digit hex to 6-digit (e.g., #0af → #00aaff)
+  if (color.length === 3) {
+    color = color[0] + color[0] + color[1] + color[1] + color[2] + color[2];
+  }
+  // Ensure valid 6-digit hex
+  if (color.length !== 6) {
+    return false; // Default to dark text for invalid colors
+  }
+  const r = parseInt(color.substring(0, 2), 16);
+  const g = parseInt(color.substring(2, 4), 16);
+  const b = parseInt(color.substring(4, 6), 16);
+  // Guard against NaN
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return false;
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5;
+}
+
+// Team box component for match display
+function TeamBox({ team, showLogo = true, isWinner = false, score }: { 
+  team?: { id: string; name: string; logoUrl?: string | null; primaryJersey?: string | null };
+  showLogo?: boolean;
+  isWinner?: boolean;
+  score?: number | null;
+}) {
+  const bgColor = getTeamColor(team);
+  const textColor = isLightColor(bgColor) ? "#1f2937" : "#ffffff";
+  
+  return (
+    <div 
+      className={`flex items-center gap-2 px-3 py-2 rounded-lg min-w-[120px] ${isWinner ? "ring-2 ring-yellow-400 ring-offset-1" : ""}`}
+      style={{ backgroundColor: bgColor }}
+      data-testid={`team-box-${team?.id}`}
+    >
+      {showLogo && (
+        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+          {team?.logoUrl ? (
+            <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
+          ) : (
+            <Shield className="w-5 h-5" style={{ color: textColor }} />
+          )}
+        </div>
+      )}
+      <span 
+        className="font-bold text-sm truncate flex-1"
+        style={{ color: textColor }}
+      >
+        {team?.name || "غير محدد"}
+      </span>
+      {score !== undefined && score !== null && (
+        <span 
+          className="font-bold text-lg min-w-[24px] text-center"
+          style={{ color: textColor }}
+        >
+          {score}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// Format time range for match (e.g., "4:10-4:45 م")
+// Default duration: 2 halves of 20 min + 5 min break = 45 min (typical for company tournaments)
+function formatMatchTimeRange(matchDate: Date, durationMinutes: number = 45): string {
+  const startHour = matchDate.getHours();
+  const startMin = matchDate.getMinutes();
+  
+  // Ensure valid duration
+  const duration = typeof durationMinutes === 'number' && !isNaN(durationMinutes) && durationMinutes > 0 
+    ? durationMinutes 
+    : 45;
+  
+  const endDate = new Date(matchDate.getTime() + duration * 60 * 1000);
+  const endHour = endDate.getHours();
+  const endMin = endDate.getMinutes();
+  
+  const formatTime = (h: number, m: number) => {
+    const period = h >= 12 ? "م" : "ص";
+    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${hour12}:${m.toString().padStart(2, "0")} ${period}`;
+  };
+  
+  return `${formatTime(startHour, startMin)} - ${formatTime(endHour, endMin)}`;
+}
+
+// Schedule Match Cell - for grid layout with multiple venues
+function ScheduleMatchCell({ match }: { match: MatchWithTeams }) {
+  const isCompleted = match.status === "completed";
+  const isLive = match.status === "live";
+  const homeScore = match.homeScore ?? 0;
+  const awayScore = match.awayScore ?? 0;
+  const homeWon = isCompleted && homeScore > awayScore;
+  const awayWon = isCompleted && awayScore > homeScore;
+  
+  return (
+    <Link href={`/matches/${match.id}`}>
+      <motion.div
+        whileHover={{ scale: 1.02 }}
+        className={`p-3 bg-card border rounded-xl cursor-pointer hover-elevate ${isLive ? "ring-2 ring-red-500" : ""}`}
+        data-testid={`schedule-cell-${match.id}`}
+      >
+        <div className="flex items-center gap-2 justify-center">
+          {/* Home Team */}
+          <TeamBox 
+            team={match.homeTeam} 
+            showLogo={true}
+            isWinner={homeWon}
+            score={isCompleted || isLive ? homeScore : undefined}
+          />
+          
+          {/* VS or Score */}
+          <div className="px-2 flex flex-col items-center">
+            {isLive && <Badge className="bg-red-500 animate-pulse text-xs mb-1">مباشر</Badge>}
+            {!isCompleted && !isLive && (
+              <span className="text-lg font-bold text-muted-foreground">VS</span>
+            )}
+            {isCompleted && (
+              <span className="text-xs text-muted-foreground">انتهت</span>
+            )}
+          </div>
+          
+          {/* Away Team */}
+          <TeamBox 
+            team={match.awayTeam} 
+            showLogo={true}
+            isWinner={awayWon}
+            score={isCompleted || isLive ? awayScore : undefined}
+          />
+        </div>
+        
+        <div className="text-center mt-2 text-xs text-muted-foreground">
+          الجولة {match.round}
+          {match.leg === 2 && " - إياب"}
+        </div>
+      </motion.div>
+    </Link>
+  );
+}
+
+// Schedule Match Row - single venue layout with time on left
+function ScheduleMatchRow({ match, showTime = true }: { match: MatchWithTeams; showTime?: boolean }) {
+  const isCompleted = match.status === "completed";
+  const isLive = match.status === "live";
+  const homeScore = match.homeScore ?? 0;
+  const awayScore = match.awayScore ?? 0;
+  const homeWon = isCompleted && homeScore > awayScore;
+  const awayWon = isCompleted && awayScore > homeScore;
+  
+  const matchDate = match.matchDate ? new Date(match.matchDate) : null;
+  const timeRange = matchDate ? formatMatchTimeRange(matchDate, 35) : "";
+  
+  return (
+    <Link href={`/matches/${match.id}`}>
+      <motion.div
+        whileHover={{ x: -3 }}
+        className={`flex items-center gap-4 p-3 bg-card border rounded-xl cursor-pointer hover-elevate ${isLive ? "ring-2 ring-red-500" : ""}`}
+        data-testid={`schedule-row-${match.id}`}
+      >
+        {/* Time Column */}
+        {showTime && (
+          <div className="min-w-[90px] text-center py-2 px-3 bg-primary/10 rounded-lg">
+            <Clock className="h-4 w-4 mx-auto mb-1 text-primary" />
+            <span className="text-xs font-medium text-primary">{timeRange}</span>
+          </div>
+        )}
+        
+        {/* Match Content */}
+        <div className="flex-1 flex items-center justify-center gap-3">
+          {/* Home Team */}
+          <div className="flex-1">
+            <TeamBox 
+              team={match.homeTeam} 
+              showLogo={true}
+              isWinner={homeWon}
+              score={isCompleted || isLive ? homeScore : undefined}
+            />
+          </div>
+          
+          {/* VS or Status */}
+          <div className="px-3 flex flex-col items-center">
+            {isLive && <Badge className="bg-red-500 animate-pulse">مباشر</Badge>}
+            {!isCompleted && !isLive && (
+              <span className="text-xl font-bold text-muted-foreground bg-muted px-3 py-1 rounded-lg">VS</span>
+            )}
+            {isCompleted && (
+              <Badge variant="secondary" className="text-xs">انتهت</Badge>
+            )}
+          </div>
+          
+          {/* Away Team */}
+          <div className="flex-1">
+            <TeamBox 
+              team={match.awayTeam} 
+              showLogo={true}
+              isWinner={awayWon}
+              score={isCompleted || isLive ? awayScore : undefined}
+            />
+          </div>
+        </div>
+        
+        {/* Info Column */}
+        <div className="text-right min-w-[80px]">
+          <div className="text-xs text-muted-foreground">الجولة {match.round}</div>
+          {match.venue && (
+            <div className="text-xs text-muted-foreground flex items-center gap-1 justify-end mt-1">
+              <MapPin className="h-3 w-3" />
+              {match.venue}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </Link>
+  );
+}
+
 function MatchesView({ matches }: { matches: MatchWithTeams[] }) {
   const [viewMode, setViewMode] = useState<"status" | "round" | "day">("day");
   
@@ -1010,49 +1282,114 @@ function MatchesView({ matches }: { matches: MatchWithTeams[] }) {
       </div>
 
       {viewMode === "day" ? (
-        <div className="space-y-6">
+        <div className="space-y-8">
           {dayKeys.map((dayKey) => {
             const dayMatches = matchesByDay[dayKey];
             const completedCount = dayMatches.filter(m => m.status === "completed").length;
             const totalCount = dayMatches.length;
             const formattedDate = dayKey === "غير محدد" 
               ? "تاريخ غير محدد" 
-              : format(new Date(dayKey), "EEEE dd/MM/yyyy", { locale: ar });
+              : format(new Date(dayKey), "EEEE d MMMM", { locale: ar });
+            
+            // Sort matches by time
+            const sortedDayMatches = [...dayMatches].sort((a, b) => {
+              const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
+              const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
+              return dateA - dateB;
+            });
+            
+            // Group by venue
+            const venues = Array.from(new Set(sortedDayMatches.map(m => m.venue || "الملعب الرئيسي")));
+            
+            // Group by time slot
+            const timeSlots = sortedDayMatches.reduce((acc, match) => {
+              const timeKey = match.matchDate 
+                ? format(new Date(match.matchDate), "HH:mm")
+                : "00:00";
+              if (!acc[timeKey]) acc[timeKey] = [];
+              acc[timeKey].push(match);
+              return acc;
+            }, {} as Record<string, MatchWithTeams[]>);
+            
+            const timeSlotKeys = Object.keys(timeSlots).sort();
             
             return (
-              <Card key={dayKey} data-testid={`card-day-${dayKey}`}>
-                <CardHeader className="bg-orange-500/5 border-b border-orange-500/10">
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
-                        <Calendar className="h-5 w-5 text-orange-500" />
+              <div key={dayKey} data-testid={`card-day-${dayKey}`} className="space-y-4">
+                {/* Day Header - Big and Bold */}
+                <div className="text-center py-4 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-lg">
+                  <h2 className="text-2xl md:text-3xl font-bold text-white uppercase tracking-wide">
+                    {formattedDate}
+                  </h2>
+                  <div className="flex items-center justify-center gap-3 mt-2">
+                    <Badge className="bg-white/20 text-white border-none">
+                      {totalCount} مباريات
+                    </Badge>
+                    {completedCount === totalCount && totalCount > 0 && (
+                      <Badge className="bg-emerald-400 text-white border-none">مكتملة</Badge>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Venue Headers */}
+                {venues.length > 1 && (
+                  <div className="grid gap-4" style={{ gridTemplateColumns: `80px repeat(${venues.length}, 1fr)` }}>
+                    <div></div>
+                    {venues.map((venue, idx) => (
+                      <div key={venue} className="text-center py-2 bg-muted/50 rounded-lg font-bold text-sm">
+                        <MapPin className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
+                        {venue}
                       </div>
-                      <span className="text-orange-600 dark:text-orange-400">{formattedDate}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {totalCount} مباريات
-                      </Badge>
-                      {completedCount === totalCount && totalCount > 0 && (
-                        <Badge className="bg-emerald-500 text-xs">مكتملة</Badge>
-                      )}
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 space-y-3">
-                  {dayMatches
-                    .sort((a, b) => {
-                      const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
-                      const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
-                      return dateA - dateB;
-                    })
-                    .map((match) => (
-                      match.status === "completed" ? 
-                        <CompletedMatchCard key={match.id} match={match} /> :
-                        <MatchCard key={match.id} match={match} />
                     ))}
-                </CardContent>
-              </Card>
+                  </div>
+                )}
+                
+                {/* Time Slots with Matches */}
+                <div className="space-y-3">
+                  {timeSlotKeys.map((timeKey) => {
+                    const slotMatches = timeSlots[timeKey];
+                    const firstMatch = slotMatches[0];
+                    const matchDate = firstMatch.matchDate ? new Date(firstMatch.matchDate) : null;
+                    const timeRange = matchDate ? formatMatchTimeRange(matchDate, 35) : timeKey;
+                    
+                    if (venues.length > 1) {
+                      // Multi-venue grid layout
+                      return (
+                        <div 
+                          key={timeKey} 
+                          className="grid gap-4 items-center"
+                          style={{ gridTemplateColumns: `80px repeat(${venues.length}, 1fr)` }}
+                        >
+                          {/* Time Column */}
+                          <div className="text-center py-2 bg-primary/10 rounded-lg">
+                            <Clock className="h-4 w-4 mx-auto mb-1 text-primary" />
+                            <span className="text-xs font-medium text-primary">{timeRange}</span>
+                          </div>
+                          
+                          {/* Match for each venue */}
+                          {venues.map((venue) => {
+                            const venueMatch = slotMatches.find(m => (m.venue || "الملعب الرئيسي") === venue);
+                            if (!venueMatch) {
+                              return <div key={venue} className="p-4 bg-muted/20 rounded-lg text-center text-muted-foreground text-sm">-</div>;
+                            }
+                            return (
+                              <ScheduleMatchCell key={venueMatch.id} match={venueMatch} />
+                            );
+                          })}
+                        </div>
+                      );
+                    } else {
+                      // Single venue - show all matches in row with time
+                      return (
+                        <div key={timeKey} className="space-y-2">
+                          {slotMatches.map((match) => (
+                            <ScheduleMatchRow key={match.id} match={match} showTime={true} />
+                          ))}
+                        </div>
+                      );
+                    }
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>
