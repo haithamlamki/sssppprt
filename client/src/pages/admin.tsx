@@ -2017,9 +2017,14 @@ function InlineScoreEditor({
   isPending: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [homeScore, setHomeScore] = useState(match.homeScore?.toString() || "0");
-  const [awayScore, setAwayScore] = useState(match.awayScore?.toString() || "0");
+  const [homeScore, setHomeScore] = useState<number>(match.homeScore ?? 0);
+  const [awayScore, setAwayScore] = useState<number>(match.awayScore ?? 0);
   const homeInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setHomeScore(match.homeScore ?? 0);
+    setAwayScore(match.awayScore ?? 0);
+  }, [match.homeScore, match.awayScore]);
 
   useEffect(() => {
     if (isEditing && homeInputRef.current) {
@@ -2029,21 +2034,41 @@ function InlineScoreEditor({
   }, [isEditing]);
 
   const handleSave = () => {
+    const parsedHome = Number(homeScore);
+    const parsedAway = Number(awayScore);
+    
+    if (isNaN(parsedHome) || isNaN(parsedAway) || parsedHome < 0 || parsedAway < 0) {
+      return;
+    }
+    
     onSave({
-      homeScore: homeScore ? parseInt(homeScore) : null,
-      awayScore: awayScore ? parseInt(awayScore) : null,
+      homeScore: parsedHome,
+      awayScore: parsedAway,
       status: "completed",
     });
     setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setHomeScore(match.homeScore ?? 0);
+    setAwayScore(match.awayScore ?? 0);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleSave();
     } else if (e.key === "Escape") {
-      setIsEditing(false);
-      setHomeScore(match.homeScore?.toString() || "0");
-      setAwayScore(match.awayScore?.toString() || "0");
+      handleCancel();
+    }
+  };
+
+  const handleScoreChange = (value: string, setter: (val: number) => void) => {
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && num >= 0) {
+      setter(num);
+    } else if (value === "") {
+      setter(0);
     }
   };
 
@@ -2055,7 +2080,7 @@ function InlineScoreEditor({
           type="number"
           min="0"
           value={homeScore}
-          onChange={(e) => setHomeScore(e.target.value)}
+          onChange={(e) => handleScoreChange(e.target.value, setHomeScore)}
           onKeyDown={handleKeyDown}
           className="w-14 text-center font-bold text-lg h-10"
           data-testid={`input-inline-home-score-${match.id}`}
@@ -2065,7 +2090,7 @@ function InlineScoreEditor({
           type="number"
           min="0"
           value={awayScore}
-          onChange={(e) => setAwayScore(e.target.value)}
+          onChange={(e) => handleScoreChange(e.target.value, setAwayScore)}
           onKeyDown={handleKeyDown}
           className="w-14 text-center font-bold text-lg h-10"
           data-testid={`input-inline-away-score-${match.id}`}
@@ -2081,11 +2106,7 @@ function InlineScoreEditor({
         <Button 
           size="icon" 
           variant="ghost"
-          onClick={() => {
-            setIsEditing(false);
-            setHomeScore(match.homeScore?.toString() || "0");
-            setAwayScore(match.awayScore?.toString() || "0");
-          }}
+          onClick={handleCancel}
           data-testid={`button-inline-cancel-${match.id}`}
         >
           <X className="h-4 w-4" />
