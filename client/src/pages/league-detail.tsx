@@ -46,7 +46,8 @@ const sportLabels: Record<string, string> = {
 const typeLabels: Record<string, string> = {
   round_robin: "دوري كامل (ذهاب وإياب)",
   knockout: "خروج مغلوب",
-  groups: "مجموعات + أدوار إقصائية",
+  groups: "مجموعات",
+  groups_knockout: "مجموعات + خروج مغلوب",
 };
 
 const statusLabels: Record<string, string> = {

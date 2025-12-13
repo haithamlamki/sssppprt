@@ -51,6 +51,7 @@ const typeLabels: Record<string, string> = {
   round_robin: "دوري كامل",
   knockout: "خروج مغلوب",
   groups: "مجموعات",
+  groups_knockout: "مجموعات + خروج مغلوب",
 };
 
 const statusLabels: Record<string, string> = {
@@ -346,6 +347,7 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
                   <SelectItem value="round_robin" data-testid="option-type-round-robin">دوري كامل</SelectItem>
                   <SelectItem value="knockout" data-testid="option-type-knockout">خروج مغلوب</SelectItem>
                   <SelectItem value="groups" data-testid="option-type-groups">مجموعات</SelectItem>
+                  <SelectItem value="groups_knockout" data-testid="option-type-groups-knockout">مجموعات + خروج مغلوب</SelectItem>
                 </SelectContent>
               </Select>
             ) : (
@@ -1770,8 +1772,8 @@ function StagesTab({
   teams: Team[];
 }) {
   const { toast } = useToast();
-  const isGroupsTournament = tournament.type === "groups";
-  const isKnockoutTournament = tournament.type === "knockout";
+  const isGroupsTournament = tournament.type === "groups" || tournament.type === "groups_knockout";
+  const isKnockoutTournament = tournament.type === "knockout" || tournament.type === "groups_knockout";
 
   const { data: groupStandings = [], isLoading: standingsLoading, refetch: refetchStandings } = useQuery<GroupStanding[]>({
     queryKey: ["/api/tournaments", tournamentId, "group-standings"],
@@ -1844,8 +1846,8 @@ function StagesTab({
     return acc;
   }, {} as Record<string, GroupStanding[]>);
 
-  const teamsWithGroups = teams.filter(t => t.groupName);
-  const teamsWithoutGroups = teams.filter(t => !t.groupName);
+  const teamsWithGroups = teams.filter(t => t.groupNumber);
+  const teamsWithoutGroups = teams.filter(t => !t.groupNumber);
 
   if (!isGroupsTournament && !isKnockoutTournament) {
     return (

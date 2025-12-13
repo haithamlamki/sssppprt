@@ -1365,7 +1365,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
       pointsForLoss: parseInt(formData.pointsForLoss) || 0,
       numberOfRounds: parseInt(formData.numberOfRounds) || 1,
       isOpenForRegistration: formData.isOpenForRegistration,
-      hasGroupStage: formData.type === "groups",
+      hasGroupStage: formData.type === "groups" || formData.type === "groups_knockout",
     };
     
     if (formData.startDate) {
@@ -1568,6 +1568,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
               <SelectItem value="round_robin">دوري كامل</SelectItem>
               <SelectItem value="knockout">خروج مغلوب</SelectItem>
               <SelectItem value="groups">مجموعات</SelectItem>
+              <SelectItem value="groups_knockout">مجموعات + خروج مغلوب</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -1600,7 +1601,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
       </div>
 
       {/* عدد المجموعات - اختيار بصري */}
-      {formData.type === "groups" && (
+      {(formData.type === "groups" || formData.type === "groups_knockout") && (
         <div>
           <Label className="text-base font-semibold mb-3 block">عدد المجموعات</Label>
           <div className="flex flex-wrap gap-2">
