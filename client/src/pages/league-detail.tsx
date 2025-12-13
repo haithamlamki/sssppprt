@@ -602,7 +602,11 @@ export default function LeagueDetail() {
           </TabsContent>
 
           <TabsContent value="knockout">
-            <KnockoutBracket matches={matches || []} />
+            <KnockoutBracket 
+              matches={matches || []} 
+              tournament={tournament}
+              groupStageComplete={tournament?.currentStage !== 'group_stage'}
+            />
           </TabsContent>
 
           <TabsContent value="scorers">
