@@ -337,6 +337,7 @@ export const tournaments = pgTable("tournaments", {
   
   // Media
   imageUrl: text("image_url"),
+  trophyImageUrl: text("trophy_image_url"), // صورة الكأس للعرض في شجرة خروج المغلوب
   
   // Contact info (from myleague.vn form)
   phoneNumber: varchar("phone_number", { length: 20 }),

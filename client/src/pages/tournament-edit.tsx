@@ -266,6 +266,7 @@ export default function TournamentEdit() {
 function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [uploadingTrophy, setUploadingTrophy] = useState(false);
   const [formData, setFormData] = useState({
     name: tournament.name,
     description: tournament.description || "",
@@ -276,7 +277,35 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
     pointsForWin: tournament.pointsForWin,
     pointsForDraw: tournament.pointsForDraw,
     pointsForLoss: tournament.pointsForLoss,
+    trophyImageUrl: tournament.trophyImageUrl || "",
   });
+
+  const handleTrophyUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingTrophy(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("image", file);
+      
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formDataUpload,
+        credentials: "include",
+      });
+      
+      if (!response.ok) throw new Error("فشل رفع الصورة");
+      
+      const data = await response.json();
+      setFormData({ ...formData, trophyImageUrl: data.url });
+      toast({ title: "تم رفع صورة الكأس بنجاح" });
+    } catch (error) {
+      toast({ title: "فشل رفع صورة الكأس", variant: "destructive" });
+    } finally {
+      setUploadingTrophy(false);
+    }
+  };
 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -469,6 +498,78 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
           ) : (
             <p className="text-muted-foreground">{tournament.description || "لا يوجد وصف"}</p>
           )}
+        </div>
+
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-yellow-500" />
+            صورة الكأس (للعرض في شجرة خروج المغلوب)
+          </Label>
+          <div className="flex items-center gap-4">
+            {(formData.trophyImageUrl || tournament.trophyImageUrl) && (
+              <div className="relative">
+                <img 
+                  src={formData.trophyImageUrl || tournament.trophyImageUrl || ""} 
+                  alt="صورة الكأس" 
+                  className="w-20 h-28 object-contain border rounded-lg bg-gradient-to-b from-yellow-400/20 to-orange-400/20"
+                />
+                {isEditing && (
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -left-2 h-6 w-6"
+                    onClick={() => setFormData({ ...formData, trophyImageUrl: "" })}
+                    data-testid="button-remove-trophy"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            )}
+            {isEditing && (
+              <div className="flex-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleTrophyUpload}
+                  disabled={uploadingTrophy}
+                  className="hidden"
+                  id="trophy-upload"
+                  data-testid="input-trophy-upload"
+                />
+                <label htmlFor="trophy-upload">
+                  <Button 
+                    variant="outline" 
+                    asChild
+                    disabled={uploadingTrophy}
+                  >
+                    <span className="cursor-pointer">
+                      {uploadingTrophy ? (
+                        <>
+                          <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                          جاري الرفع...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 ml-2" />
+                          {formData.trophyImageUrl ? "تغيير الصورة" : "رفع صورة الكأس"}
+                        </>
+                      )}
+                    </span>
+                  </Button>
+                </label>
+                <p className="text-xs text-muted-foreground mt-2">
+                  ستظهر صورة الكأس في منتصف شجرة خروج المغلوب
+                </p>
+              </div>
+            )}
+            {!isEditing && !tournament.trophyImageUrl && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Trophy className="h-8 w-8" />
+                <p className="text-sm">لم يتم رفع صورة الكأس بعد</p>
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

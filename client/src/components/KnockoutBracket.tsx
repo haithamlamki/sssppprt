@@ -18,10 +18,10 @@ const stageLabels: Record<string, string> = {
   quarter_final: "ربع النهائي",
   semi_final: "نصف النهائي",
   final: "النهائي",
-  third_place: "تحديد المركز الثالث",
+  third_place: "المركز الثالث",
 };
 
-const stageOrder = ["final", "semi_final", "quarter_final", "round_of_16"];
+const stageOrder = ["round_of_16", "quarter_final", "semi_final", "final"];
 
 const matchStatusLabels: Record<string, string> = {
   scheduled: "قادمة",
@@ -37,61 +37,14 @@ const matchStatusColors: Record<string, string> = {
   postponed: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
 };
 
-const groupLetterMap: Record<number, string> = {
-  1: "A", 2: "B", 3: "C", 4: "D", 5: "E", 6: "F", 7: "G", 8: "H"
-};
-
-function TeamRow({ 
-  teamName, 
-  score, 
-  isWinner, 
-  showScore,
-  placeholder,
-  flagUrl,
-}: { 
-  teamName?: string; 
-  score?: number | null; 
-  isWinner?: boolean;
-  showScore?: boolean;
-  placeholder?: string;
-  flagUrl?: string;
-}) {
-  const displayName = teamName || placeholder || "TBD";
-  const isTBD = !teamName;
-
-  return (
-    <div 
-      className={`flex items-center justify-between px-3 py-2 border-b last:border-b-0 ${
-        isWinner ? "bg-emerald-500/10" : ""
-      }`}
-    >
-      <div className="flex items-center gap-2">
-        {flagUrl && (
-          <img src={flagUrl} alt="" className="w-5 h-4 object-cover rounded-sm" />
-        )}
-        <span className={`text-sm font-medium ${isTBD ? "text-muted-foreground italic" : ""} ${isWinner ? "text-emerald-600 dark:text-emerald-400 font-bold" : ""}`}>
-          {displayName}
-        </span>
-      </div>
-      <div className={`min-w-[24px] h-6 flex items-center justify-center rounded text-sm font-bold ${
-        isWinner ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
-      }`}>
-        {showScore ? (score ?? 0) : "-"}
-      </div>
-    </div>
-  );
-}
-
-function BracketMatchCard({ 
+function CompactMatchCard({ 
   match, 
-  matchNumber,
   groupStageComplete = true,
-  matchLabel,
+  isRightSide = false,
 }: { 
   match: MatchWithTeams; 
-  matchNumber: number;
   groupStageComplete?: boolean;
-  matchLabel?: string;
+  isRightSide?: boolean;
 }) {
   const isCompleted = match.status === "completed";
   const isLive = match.status === "live";
@@ -100,116 +53,285 @@ function BracketMatchCard({
   const homeWon = isCompleted && (match.homeScore ?? 0) > (match.awayScore ?? 0);
   const awayWon = isCompleted && (match.awayScore ?? 0) > (match.homeScore ?? 0);
 
-  const homeTeamName = groupStageComplete ? match.homeTeam?.name : undefined;
-  const awayTeamName = groupStageComplete ? match.awayTeam?.name : undefined;
+  const homeTeamName = groupStageComplete ? (match.homeTeam?.name || "TBD") : "TBD";
+  const awayTeamName = groupStageComplete ? (match.awayTeam?.name || "TBD") : "TBD";
+
+  const getShortName = (name: string) => {
+    if (name === "TBD") return "TBD";
+    const words = name.split(/[\s&]+/).filter(w => w.length > 0);
+    if (words.length >= 2) {
+      return words.slice(0, 2).map(w => w.substring(0, 3).toUpperCase()).join(" ");
+    }
+    return name.substring(0, 6).toUpperCase();
+  };
 
   return (
     <Link href={`/matches/${match.id}`}>
       <motion.div
-        whileHover={{ scale: 1.02 }}
-        className="bg-card border rounded-lg overflow-hidden cursor-pointer hover-elevate w-full max-w-[280px]"
+        whileHover={{ scale: 1.03 }}
+        className="bg-card border-2 border-primary/20 rounded-lg overflow-hidden cursor-pointer hover-elevate w-[140px] shadow-md"
         data-testid={`bracket-match-${match.id}`}
       >
-        <div className="flex items-center justify-between px-3 py-1.5 bg-muted/50 border-b">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">
-              {matchNumber}
-            </span>
-            {matchLabel && (
-              <span className="text-xs text-primary font-medium">
-                {matchLabel}
-              </span>
-            )}
-          </div>
-          <Badge className={`text-[10px] px-1.5 py-0 ${matchStatusColors[match.status]}`}>
-            {isLive && <Play className="h-2 w-2 ml-0.5" />}
-            {matchStatusLabels[match.status]}
-          </Badge>
+        <div className={`flex items-center justify-between px-2 py-1 ${homeWon ? "bg-emerald-500/20" : "bg-muted/50"}`}>
+          <span className={`text-xs font-bold truncate flex-1 ${homeWon ? "text-emerald-600 dark:text-emerald-400" : ""} ${!groupStageComplete ? "text-muted-foreground italic" : ""}`}>
+            {getShortName(homeTeamName)}
+          </span>
+          <span className={`text-xs font-bold min-w-[20px] text-center rounded px-1 ${homeWon ? "bg-emerald-500 text-white" : "bg-muted"}`}>
+            {showScores ? (match.homeScore ?? 0) : "-"}
+          </span>
         </div>
 
-        <TeamRow 
-          teamName={homeTeamName}
-          score={match.homeScore}
-          isWinner={homeWon}
-          showScore={showScores}
-          placeholder="TBD"
-        />
-        <TeamRow 
-          teamName={awayTeamName}
-          score={match.awayScore}
-          isWinner={awayWon}
-          showScore={showScores}
-          placeholder="TBD"
-        />
+        <div className={`flex items-center justify-between px-2 py-1 ${awayWon ? "bg-emerald-500/20" : "bg-muted/50"}`}>
+          <span className={`text-xs font-bold truncate flex-1 ${awayWon ? "text-emerald-600 dark:text-emerald-400" : ""} ${!groupStageComplete ? "text-muted-foreground italic" : ""}`}>
+            {getShortName(awayTeamName)}
+          </span>
+          <span className={`text-xs font-bold min-w-[20px] text-center rounded px-1 ${awayWon ? "bg-emerald-500 text-white" : "bg-muted"}`}>
+            {showScores ? (match.awayScore ?? 0) : "-"}
+          </span>
+        </div>
 
-        <div className="flex items-center justify-center px-3 py-1.5 bg-muted/30 text-xs text-muted-foreground">
+        <div className="flex items-center justify-center px-1 py-0.5 bg-primary/5 text-[10px] text-muted-foreground">
           {match.matchDate ? (
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {format(new Date(match.matchDate), "d MMM", { locale: ar })}
-            </div>
+            format(new Date(match.matchDate), "d MMM HH:mm", { locale: ar })
           ) : (
-            <span>موعد غير محدد</span>
+            "موعد غير محدد"
           )}
         </div>
-
-        {(match.homePenaltyScore != null && match.awayPenaltyScore != null) && (
-          <div className="px-3 py-1 text-xs text-orange-500 bg-orange-500/5 text-center">
-            ركلات الترجيح: {match.homePenaltyScore} - {match.awayPenaltyScore}
-          </div>
-        )}
       </motion.div>
     </Link>
   );
 }
 
-function StageSection({ 
-  stage, 
-  matches,
+function HorizontalBracket({ 
+  matches, 
   groupStageComplete,
+  trophyImageUrl,
 }: { 
-  stage: string; 
   matches: MatchWithTeams[];
   groupStageComplete: boolean;
+  trophyImageUrl?: string;
 }) {
-  const stageMatches = matches.filter(m => m.stage === stage);
-  
-  if (stageMatches.length === 0) return null;
+  const round16 = matches.filter(m => m.stage === "round_of_16").sort((a, b) => (a.round || 0) - (b.round || 0));
+  const quarterFinals = matches.filter(m => m.stage === "quarter_final").sort((a, b) => (a.round || 0) - (b.round || 0));
+  const semiFinals = matches.filter(m => m.stage === "semi_final").sort((a, b) => (a.round || 0) - (b.round || 0));
+  const final = matches.find(m => m.stage === "final");
+  const thirdPlace = matches.find(m => m.stage === "third_place");
 
-  const isFinal = stage === "final";
-  
+  const leftR16 = round16.slice(0, 4);
+  const rightR16 = round16.slice(4, 8);
+  const leftQF = quarterFinals.slice(0, 2);
+  const rightQF = quarterFinals.slice(2, 4);
+  const leftSF = semiFinals.slice(0, 1);
+  const rightSF = semiFinals.slice(1, 2);
+
+  const hasR16 = round16.length > 0;
+  const hasQF = quarterFinals.length > 0;
+  const hasSF = semiFinals.length > 0;
+  const hasFinal = !!final;
+
   return (
-    <div className="mb-8" data-testid={`stage-section-${stage}`}>
-      <div className={`text-center mb-4 ${isFinal ? "" : ""}`}>
-        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
-          isFinal 
-            ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white" 
-            : "bg-muted"
-        }`}>
-          {isFinal && <Trophy className="h-4 w-4" />}
-          <span className={`font-bold ${isFinal ? "text-base" : "text-sm"}`}>
-            {stageLabels[stage]}
-          </span>
-          <span className="text-xs opacity-70">({stageMatches.length} مباراة)</span>
+    <div className="relative overflow-x-auto pb-4">
+      <div className="min-w-[900px] relative">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold">
+            <Trophy className="h-5 w-5" />
+            النهائي
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center gap-4">
+          <div className="flex flex-col gap-4">
+            {hasR16 && (
+              <div className="flex flex-col gap-8">
+                <div className="text-center text-xs font-medium text-muted-foreground mb-2">دور الـ 16</div>
+                {leftR16.map((match, i) => (
+                  <div key={match.id} className="relative">
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} />
+                    <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {hasQF && (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-20">
+                <div className="text-center text-xs font-medium text-muted-foreground mb-2">ربع النهائي</div>
+                {leftQF.map((match, i) => (
+                  <div key={match.id} className="relative">
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} />
+                    <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
+                    <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {hasSF && (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-32">
+                <div className="text-center text-xs font-medium text-muted-foreground mb-2">نصف النهائي</div>
+                {leftSF.map((match) => (
+                  <div key={match.id} className="relative">
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} />
+                    <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
+                    <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col items-center gap-4 mx-8">
+            {trophyImageUrl ? (
+              <img 
+                src={trophyImageUrl} 
+                alt="كأس البطولة" 
+                className="w-32 h-40 object-contain drop-shadow-2xl"
+              />
+            ) : (
+              <div className="w-32 h-40 flex items-center justify-center">
+                <Trophy className="w-24 h-24 text-yellow-500 drop-shadow-lg" />
+              </div>
+            )}
+            
+            {hasFinal && final && (
+              <div className="mt-4">
+                <CompactMatchCard match={final} groupStageComplete={groupStageComplete} />
+              </div>
+            )}
+
+            {thirdPlace && (
+              <div className="mt-4">
+                <div className="text-center text-xs font-medium text-muted-foreground mb-2">المركز الثالث</div>
+                <CompactMatchCard match={thirdPlace} groupStageComplete={groupStageComplete} />
+              </div>
+            )}
+          </div>
+
+          {hasSF && (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-32">
+                <div className="text-center text-xs font-medium text-muted-foreground mb-2">نصف النهائي</div>
+                {rightSF.map((match) => (
+                  <div key={match.id} className="relative">
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide />
+                    <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
+                    <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {hasQF && (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-20">
+                <div className="text-center text-xs font-medium text-muted-foreground mb-2">ربع النهائي</div>
+                {rightQF.map((match, i) => (
+                  <div key={match.id} className="relative">
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide />
+                    <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
+                    <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-4">
+            {hasR16 && (
+              <div className="flex flex-col gap-8">
+                <div className="text-center text-xs font-medium text-muted-foreground mb-2">دور الـ 16</div>
+                {rightR16.map((match, i) => (
+                  <div key={match.id} className="relative">
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide />
+                    <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      
-      <div className={`grid gap-4 ${
-        stageMatches.length === 1 
-          ? "grid-cols-1 max-w-[300px] mx-auto" 
-          : stageMatches.length === 2 
-            ? "grid-cols-1 md:grid-cols-2 max-w-[600px] mx-auto"
-            : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
-      }`}>
-        {stageMatches.map((match, index) => (
-          <div key={match.id} className="flex justify-center">
-            <BracketMatchCard 
-              match={match} 
-              matchNumber={index + 1}
-              groupStageComplete={groupStageComplete}
-            />
+    </div>
+  );
+}
+
+function SimpleBracket({ 
+  matches, 
+  groupStageComplete,
+  trophyImageUrl,
+}: { 
+  matches: MatchWithTeams[];
+  groupStageComplete: boolean;
+  trophyImageUrl?: string;
+}) {
+  const semiFinals = matches.filter(m => m.stage === "semi_final").sort((a, b) => (a.round || 0) - (b.round || 0));
+  const final = matches.find(m => m.stage === "final");
+  const thirdPlace = matches.find(m => m.stage === "third_place");
+
+  const leftSF = semiFinals[0];
+  const rightSF = semiFinals[1];
+
+  return (
+    <div className="flex items-stretch justify-center gap-2 md:gap-4 py-8 overflow-x-auto">
+      <div className="flex flex-col justify-center">
+        {leftSF && (
+          <div className="relative">
+            <div className="text-center text-xs font-medium text-muted-foreground mb-2">نصف النهائي</div>
+            <CompactMatchCard match={leftSF} groupStageComplete={groupStageComplete} />
+            <div className="absolute top-1/2 -left-2 md:-left-4 w-2 md:w-4 h-px bg-primary/40" />
           </div>
-        ))}
+        )}
+      </div>
+
+      <div className="flex items-center">
+        <div className="w-8 md:w-16 h-px bg-primary/40" />
+      </div>
+
+      <div className="flex flex-col items-center justify-center gap-4">
+        {trophyImageUrl ? (
+          <img 
+            src={trophyImageUrl} 
+            alt="كأس البطولة" 
+            className="w-20 h-28 md:w-28 md:h-36 object-contain drop-shadow-2xl"
+          />
+        ) : (
+          <div className="w-20 h-28 md:w-28 md:h-36 flex items-center justify-center bg-gradient-to-b from-yellow-400/20 to-orange-400/20 rounded-lg">
+            <Trophy className="w-12 h-12 md:w-16 md:h-16 text-yellow-500 drop-shadow-lg" />
+          </div>
+        )}
+        
+        {final && (
+          <div>
+            <div className="text-center text-xs font-medium text-yellow-600 dark:text-yellow-400 mb-2">النهائي</div>
+            <CompactMatchCard match={final} groupStageComplete={groupStageComplete} />
+          </div>
+        )}
+
+        {thirdPlace && (
+          <div className="mt-2">
+            <div className="text-center text-[10px] font-medium text-muted-foreground mb-1">المركز الثالث</div>
+            <CompactMatchCard match={thirdPlace} groupStageComplete={groupStageComplete} />
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center">
+        <div className="w-8 md:w-16 h-px bg-primary/40" />
+      </div>
+
+      <div className="flex flex-col justify-center">
+        {rightSF && (
+          <div className="relative">
+            <div className="text-center text-xs font-medium text-muted-foreground mb-2">نصف النهائي</div>
+            <CompactMatchCard match={rightSF} groupStageComplete={groupStageComplete} isRightSide />
+            <div className="absolute top-1/2 -right-2 md:-right-4 w-2 md:w-4 h-px bg-primary/40" />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -233,35 +355,40 @@ export function KnockoutBracket({ matches, tournament, groupStageComplete = true
     );
   }
 
-  const availableStages = stageOrder.filter(stage => 
-    knockoutMatches.some(m => m.stage === stage)
-  );
+  const hasR16 = knockoutMatches.some(m => m.stage === "round_of_16");
+  const hasQF = knockoutMatches.some(m => m.stage === "quarter_final");
+  const trophyImageUrl = tournament?.trophyImageUrl;
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="pb-4">
+      <Card className="bg-gradient-to-b from-blue-950/50 to-blue-900/30 dark:from-blue-950/80 dark:to-blue-900/50 border-blue-500/20">
+        <CardHeader className="pb-2">
           <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-yellow-500" />
+            <div className="flex items-center gap-2 text-white">
+              <Trophy className="h-5 w-5 text-yellow-400" />
               شجرة خروج المغلوب
             </div>
             {!groupStageComplete && (
-              <Badge variant="outline" className="text-orange-500 border-orange-500/30">
+              <Badge variant="outline" className="text-orange-400 border-orange-400/30 bg-orange-500/10">
                 في انتظار نتائج المجموعات
               </Badge>
             )}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {availableStages.map((stage) => (
-            <StageSection 
-              key={stage} 
-              stage={stage} 
-              matches={knockoutMatches}
+          {(hasR16 || hasQF) ? (
+            <HorizontalBracket 
+              matches={knockoutMatches} 
               groupStageComplete={groupStageComplete}
+              trophyImageUrl={trophyImageUrl}
             />
-          ))}
+          ) : (
+            <SimpleBracket 
+              matches={knockoutMatches} 
+              groupStageComplete={groupStageComplete}
+              trophyImageUrl={trophyImageUrl}
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -278,7 +405,7 @@ export function KnockoutBracket({ matches, tournament, groupStageComplete = true
               .sort((a, b) => {
                 const stageIndexA = stageOrder.indexOf(a.stage || "");
                 const stageIndexB = stageOrder.indexOf(b.stage || "");
-                if (stageIndexA !== stageIndexB) return stageIndexB - stageIndexA;
+                if (stageIndexA !== stageIndexB) return stageIndexA - stageIndexB;
                 return (a.round || 0) - (b.round || 0);
               })
               .map((match, index) => (
@@ -325,9 +452,7 @@ export function KnockoutBracket({ matches, tournament, groupStageComplete = true
             <div className="text-center text-sm text-orange-600 dark:text-orange-400">
               <p className="font-medium mb-1">نظام التوزيع في خروج المغلوب</p>
               <p className="text-muted-foreground">
-                الأول من المجموعة أ يواجه الثاني من المجموعة ب
-                <br />
-                الثاني من المجموعة أ يواجه الأول من المجموعة ب
+                الأول يواجه الثاني، الثالث يواجه الرابع، وهكذا
               </p>
             </div>
           </CardContent>
