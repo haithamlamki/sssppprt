@@ -44,6 +44,7 @@ import {
   type MatchWithTeams,
   type PlayerWithTeam,
   type MatchCommentWithUser,
+  type SiteSetting,
   events,
   news,
   results,
@@ -63,7 +64,8 @@ import {
   matchLineups,
   matchComments,
   teamEvaluations,
-  referees
+  referees,
+  siteSettings
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, asc } from "drizzle-orm";
@@ -204,6 +206,10 @@ export interface IStorage {
   
   // Standings
   updateTeamStandings(tournamentId: string): Promise<void>;
+  
+  // Site Settings
+  getSetting(key: string): Promise<string | null>;
+  setSetting(key: string, value: string): Promise<SiteSetting>;
   
   // Initialization
   initializeSampleData(): Promise<void>;
@@ -1730,6 +1736,29 @@ export class DatabaseStorage implements IStorage {
       await db.update(teams).set({
         played, won, drawn, lost, goalsFor, goalsAgainst, goalDifference, points
       }).where(eq(teams.id, team.id));
+    }
+  }
+
+  // Site Settings
+  async getSetting(key: string): Promise<string | null> {
+    const [setting] = await db.select().from(siteSettings).where(eq(siteSettings.key, key));
+    return setting?.value ?? null;
+  }
+
+  async setSetting(key: string, value: string): Promise<SiteSetting> {
+    const existing = await db.select().from(siteSettings).where(eq(siteSettings.key, key));
+    
+    if (existing.length > 0) {
+      const [updated] = await db.update(siteSettings)
+        .set({ value, updatedAt: new Date() })
+        .where(eq(siteSettings.key, key))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(siteSettings)
+        .values({ key, value })
+        .returning();
+      return created;
     }
   }
 }

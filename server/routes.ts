@@ -399,6 +399,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Site Settings endpoints
+  app.get("/api/settings/:key", async (req, res) => {
+    try {
+      const value = await storage.getSetting(req.params.key);
+      res.json({ key: req.params.key, value });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch setting" });
+    }
+  });
+
+  app.post("/api/settings/:key", isAdmin, async (req, res) => {
+    try {
+      const { value } = req.body;
+      const setting = await storage.setSetting(req.params.key, value);
+      res.json(setting);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update setting" });
+    }
+  });
+
   // Seed teams and players
   app.post("/api/seed/teams-players", isAdmin, async (_req, res) => {
     try {
