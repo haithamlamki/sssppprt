@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { 
   Calendar, Users, Trophy, ImageIcon, Newspaper, 
-  Plus, Pencil, Trash2, Loader2, Shield, BarChart3, Target, Upload, Phone, MapPin 
+  Plus, Pencil, Trash2, Loader2, Shield, BarChart3, Target, Upload, Phone, MapPin,
+  Goal, AlertTriangle, User as UserIcon, Clock, X
 } from "lucide-react";
 import { 
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
@@ -19,7 +20,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import type { Event, News, Result, Stats, User, Gallery, Tournament, MatchWithTeams } from "@shared/schema";
+import type { Event, News, Result, Stats, User, Gallery, Tournament, MatchWithTeams, Player, MatchEvent } from "@shared/schema";
+import { Tabs as DialogTabs, TabsContent as DialogTabsContent, TabsList as DialogTabsList, TabsTrigger as DialogTabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -1627,10 +1629,95 @@ function EditMatchDialog({
   isPending: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("result");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
   const [formData, setFormData] = useState({
     homeScore: match.homeScore?.toString() || "",
     awayScore: match.awayScore?.toString() || "",
     status: match.status || "scheduled",
+  });
+
+  const [goalForm, setGoalForm] = useState({
+    teamId: "",
+    playerId: "",
+    eventType: "goal",
+    minute: "",
+  });
+
+  const [cardForm, setCardForm] = useState({
+    teamId: "",
+    playerId: "",
+    eventType: "yellow_card",
+    minute: "",
+    notes: "",
+  });
+
+  // Fetch players for both teams
+  const { data: homePlayers = [] } = useQuery<Player[]>({
+    queryKey: ["/api/teams", match.homeTeamId, "players"],
+    queryFn: async () => {
+      if (!match.homeTeamId) return [];
+      const res = await fetch(`/api/teams/${match.homeTeamId}/players`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: open && !!match.homeTeamId,
+  });
+
+  const { data: awayPlayers = [] } = useQuery<Player[]>({
+    queryKey: ["/api/teams", match.awayTeamId, "players"],
+    queryFn: async () => {
+      if (!match.awayTeamId) return [];
+      const res = await fetch(`/api/teams/${match.awayTeamId}/players`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: open && !!match.awayTeamId,
+  });
+
+  // Fetch match events
+  const { data: matchEvents = [], refetch: refetchEvents } = useQuery<MatchEvent[]>({
+    queryKey: ["/api/matches", match.id, "events"],
+    queryFn: async () => {
+      const res = await fetch(`/api/matches/${match.id}/events`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: open,
+  });
+
+  const addEventMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("POST", `/api/matches/${match.id}/events`, data);
+    },
+    onSuccess: (_, variables) => {
+      toast({ title: "تم إضافة الحدث بنجاح" });
+      refetchEvents();
+      // Reset the appropriate form based on event type
+      if (variables.eventType === "goal" || variables.eventType === "own_goal") {
+        setGoalForm({ teamId: "", playerId: "", eventType: "goal", minute: "" });
+      } else {
+        setCardForm({ teamId: "", playerId: "", eventType: "yellow_card", minute: "", notes: "" });
+      }
+    },
+    onError: () => {
+      toast({ title: "فشل إضافة الحدث", variant: "destructive" });
+    },
+  });
+
+  const deleteEventMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      return await apiRequest("DELETE", `/api/match-events/${eventId}`, {});
+    },
+    onSuccess: () => {
+      toast({ title: "تم حذف الحدث" });
+      refetchEvents();
+    },
+    onError: () => {
+      toast({ title: "فشل حذف الحدث", variant: "destructive" });
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -1643,6 +1730,74 @@ function EditMatchDialog({
     setOpen(false);
   };
 
+  const handleAddGoal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!goalForm.teamId || !goalForm.minute) {
+      toast({ title: "يرجى تعبئة جميع الحقول المطلوبة", variant: "destructive" });
+      return;
+    }
+    addEventMutation.mutate({
+      teamId: goalForm.teamId,
+      playerId: goalForm.playerId || null,
+      eventType: goalForm.eventType,
+      minute: parseInt(goalForm.minute),
+      notes: null,
+    });
+  };
+
+  const handleAddCard = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cardForm.teamId || !cardForm.minute) {
+      toast({ title: "يرجى تعبئة جميع الحقول المطلوبة", variant: "destructive" });
+      return;
+    }
+    addEventMutation.mutate({
+      teamId: cardForm.teamId,
+      playerId: cardForm.playerId || null,
+      eventType: cardForm.eventType,
+      minute: parseInt(cardForm.minute),
+      notes: cardForm.notes || null,
+    });
+  };
+
+  const allPlayers = [...homePlayers, ...awayPlayers];
+  const getPlayerName = (playerId: string | null) => {
+    if (!playerId) return "غير محدد";
+    const player = allPlayers.find(p => p.id === playerId);
+    return player?.name || "غير معروف";
+  };
+
+  const getTeamName = (teamId: string) => {
+    if (teamId === match.homeTeamId) return match.homeTeam?.name || "الفريق المضيف";
+    if (teamId === match.awayTeamId) return match.awayTeam?.name || "الفريق الضيف";
+    return "غير معروف";
+  };
+
+  const eventTypeLabels: Record<string, string> = {
+    goal: "هدف",
+    own_goal: "هدف بالخطأ",
+    yellow_card: "بطاقة صفراء",
+    red_card: "بطاقة حمراء",
+    substitution_in: "دخول بديل",
+    substitution_out: "خروج لاعب",
+    assist: "تمريرة حاسمة",
+  };
+
+  const eventTypeIcons: Record<string, JSX.Element> = {
+    goal: <Goal className="h-4 w-4 text-emerald-500" />,
+    own_goal: <Goal className="h-4 w-4 text-red-500" />,
+    yellow_card: <div className="w-3 h-4 bg-yellow-400 rounded-sm" />,
+    red_card: <div className="w-3 h-4 bg-red-500 rounded-sm" />,
+    substitution_in: <UserIcon className="h-4 w-4 text-emerald-500" />,
+    substitution_out: <UserIcon className="h-4 w-4 text-red-500" />,
+    assist: <Target className="h-4 w-4 text-blue-500" />,
+  };
+
+  const goalTeamPlayers = goalForm.teamId === match.homeTeamId ? homePlayers : 
+                          goalForm.teamId === match.awayTeamId ? awayPlayers : [];
+  const cardTeamPlayers = cardForm.teamId === match.homeTeamId ? homePlayers : 
+                          cardForm.teamId === match.awayTeamId ? awayPlayers : [];
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -1650,59 +1805,376 @@ function EditMatchDialog({
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md" dir="rtl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
-          <DialogTitle>تحديث نتيجة المباراة</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Trophy className="h-5 w-5" />
+            إدارة المباراة: {match.homeTeam?.name} vs {match.awayTeam?.name}
+          </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="flex items-center justify-center gap-4 p-4 bg-muted rounded-lg">
-            <div className="text-center">
-              <p className="font-bold mb-2">{match.homeTeam?.name || "فريق 1"}</p>
-              <Input
-                type="number"
-                min="0"
-                className="w-20 text-center text-2xl font-bold"
-                value={formData.homeScore}
-                onChange={(e) => setFormData({ ...formData, homeScore: e.target.value })}
-                data-testid="input-home-score"
-              />
-            </div>
-            <span className="text-2xl font-bold text-muted-foreground">:</span>
-            <div className="text-center">
-              <p className="font-bold mb-2">{match.awayTeam?.name || "فريق 2"}</p>
-              <Input
-                type="number"
-                min="0"
-                className="w-20 text-center text-2xl font-bold"
-                value={formData.awayScore}
-                onChange={(e) => setFormData({ ...formData, awayScore: e.target.value })}
-                data-testid="input-away-score"
-              />
-            </div>
-          </div>
+        
+        <DialogTabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <DialogTabsList className="grid w-full grid-cols-3">
+            <DialogTabsTrigger value="result" data-testid="tab-match-result">
+              <Trophy className="h-4 w-4 ml-1" />
+              النتيجة
+            </DialogTabsTrigger>
+            <DialogTabsTrigger value="goals" data-testid="tab-match-goals">
+              <Goal className="h-4 w-4 ml-1" />
+              الأهداف
+            </DialogTabsTrigger>
+            <DialogTabsTrigger value="cards" data-testid="tab-match-cards">
+              <AlertTriangle className="h-4 w-4 ml-1" />
+              البطاقات
+            </DialogTabsTrigger>
+          </DialogTabsList>
 
-          <div>
-            <Label>حالة المباراة</Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value) => setFormData({ ...formData, status: value })}
-            >
-              <SelectTrigger data-testid="select-match-status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="scheduled">مقررة</SelectItem>
-                <SelectItem value="live">مباشر</SelectItem>
-                <SelectItem value="completed">انتهت</SelectItem>
-                <SelectItem value="postponed">مؤجلة</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <DialogTabsContent value="result" className="mt-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="flex items-center justify-center gap-4 p-4 bg-muted rounded-lg">
+                <div className="text-center">
+                  <p className="font-bold mb-2">{match.homeTeam?.name || "فريق 1"}</p>
+                  <Input
+                    type="number"
+                    min="0"
+                    className="w-20 text-center text-2xl font-bold"
+                    value={formData.homeScore}
+                    onChange={(e) => setFormData({ ...formData, homeScore: e.target.value })}
+                    data-testid="input-home-score"
+                  />
+                </div>
+                <span className="text-2xl font-bold text-muted-foreground">:</span>
+                <div className="text-center">
+                  <p className="font-bold mb-2">{match.awayTeam?.name || "فريق 2"}</p>
+                  <Input
+                    type="number"
+                    min="0"
+                    className="w-20 text-center text-2xl font-bold"
+                    value={formData.awayScore}
+                    onChange={(e) => setFormData({ ...formData, awayScore: e.target.value })}
+                    data-testid="input-away-score"
+                  />
+                </div>
+              </div>
 
-          <Button type="submit" className="w-full" disabled={isPending} data-testid="button-save-match">
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ النتيجة"}
-          </Button>
-        </form>
+              <div>
+                <Label>حالة المباراة</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) => setFormData({ ...formData, status: value })}
+                >
+                  <SelectTrigger data-testid="select-match-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="scheduled">مقررة</SelectItem>
+                    <SelectItem value="live">مباشر</SelectItem>
+                    <SelectItem value="completed">انتهت</SelectItem>
+                    <SelectItem value="postponed">مؤجلة</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isPending} data-testid="button-save-match">
+                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ النتيجة"}
+              </Button>
+            </form>
+          </DialogTabsContent>
+
+          <DialogTabsContent value="goals" className="mt-4 space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  إضافة هدف
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleAddGoal} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>الفريق</Label>
+                      <Select
+                        value={goalForm.teamId}
+                        onValueChange={(value) => setGoalForm({ ...goalForm, teamId: value, playerId: "" })}
+                      >
+                        <SelectTrigger data-testid="select-goal-team">
+                          <SelectValue placeholder="اختر الفريق" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={match.homeTeamId || ""}>{match.homeTeam?.name}</SelectItem>
+                          <SelectItem value={match.awayTeamId || ""}>{match.awayTeam?.name}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>نوع الهدف</Label>
+                      <Select
+                        value={goalForm.eventType}
+                        onValueChange={(value) => setGoalForm({ ...goalForm, eventType: value })}
+                      >
+                        <SelectTrigger data-testid="select-goal-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="goal">هدف عادي</SelectItem>
+                          <SelectItem value="own_goal">هدف بالخطأ</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>اللاعب</Label>
+                      <Select
+                        value={goalForm.playerId}
+                        onValueChange={(value) => setGoalForm({ ...goalForm, playerId: value })}
+                        disabled={!goalForm.teamId}
+                      >
+                        <SelectTrigger data-testid="select-goal-player">
+                          <SelectValue placeholder="اختر اللاعب" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {goalTeamPlayers.map((player) => (
+                            <SelectItem key={player.id} value={player.id}>
+                              {player.jerseyNumber ? `#${player.jerseyNumber} ` : ""}{player.name}
+                            </SelectItem>
+                          ))}
+                          {goalTeamPlayers.length === 0 && (
+                            <SelectItem value="" disabled>لا يوجد لاعبين مسجلين</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>الدقيقة</Label>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="number"
+                          min="1"
+                          max="120"
+                          value={goalForm.minute}
+                          onChange={(e) => setGoalForm({ ...goalForm, minute: e.target.value })}
+                          placeholder="45"
+                          data-testid="input-goal-minute"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={addEventMutation.isPending}
+                    data-testid="button-add-goal"
+                  >
+                    {addEventMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إضافة الهدف"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">الأهداف المسجلة</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {matchEvents.filter(e => e.eventType === "goal" || e.eventType === "own_goal").length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">لا توجد أهداف مسجلة</p>
+                ) : (
+                  <div className="space-y-2">
+                    {matchEvents
+                      .filter(e => e.eventType === "goal" || e.eventType === "own_goal")
+                      .sort((a, b) => a.minute - b.minute)
+                      .map((event) => (
+                        <div 
+                          key={event.id} 
+                          className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                          data-testid={`event-goal-${event.id}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {eventTypeIcons[event.eventType]}
+                            <div>
+                              <p className="font-medium">{getPlayerName(event.playerId)}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {getTeamName(event.teamId)} - {eventTypeLabels[event.eventType]}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">{event.minute}'</Badge>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => deleteEventMutation.mutate(event.id)}
+                              disabled={deleteEventMutation.isPending}
+                              data-testid={`button-delete-event-${event.id}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </DialogTabsContent>
+
+          <DialogTabsContent value="cards" className="mt-4 space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  إضافة بطاقة
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleAddCard} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>الفريق</Label>
+                      <Select
+                        value={cardForm.teamId}
+                        onValueChange={(value) => setCardForm({ ...cardForm, teamId: value, playerId: "" })}
+                      >
+                        <SelectTrigger data-testid="select-card-team">
+                          <SelectValue placeholder="اختر الفريق" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={match.homeTeamId || ""}>{match.homeTeam?.name}</SelectItem>
+                          <SelectItem value={match.awayTeamId || ""}>{match.awayTeam?.name}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>نوع البطاقة</Label>
+                      <Select
+                        value={cardForm.eventType}
+                        onValueChange={(value) => setCardForm({ ...cardForm, eventType: value })}
+                      >
+                        <SelectTrigger data-testid="select-card-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yellow_card">بطاقة صفراء</SelectItem>
+                          <SelectItem value="red_card">بطاقة حمراء</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>اللاعب</Label>
+                      <Select
+                        value={cardForm.playerId}
+                        onValueChange={(value) => setCardForm({ ...cardForm, playerId: value })}
+                        disabled={!cardForm.teamId}
+                      >
+                        <SelectTrigger data-testid="select-card-player">
+                          <SelectValue placeholder="اختر اللاعب" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {cardTeamPlayers.map((player) => (
+                            <SelectItem key={player.id} value={player.id}>
+                              {player.jerseyNumber ? `#${player.jerseyNumber} ` : ""}{player.name}
+                            </SelectItem>
+                          ))}
+                          {cardTeamPlayers.length === 0 && (
+                            <SelectItem value="" disabled>لا يوجد لاعبين مسجلين</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>الدقيقة</Label>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="number"
+                          min="1"
+                          max="120"
+                          value={cardForm.minute}
+                          onChange={(e) => setCardForm({ ...cardForm, minute: e.target.value })}
+                          placeholder="45"
+                          data-testid="input-card-minute"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>ملاحظات (اختياري)</Label>
+                    <Input
+                      value={cardForm.notes}
+                      onChange={(e) => setCardForm({ ...cardForm, notes: e.target.value })}
+                      placeholder="سبب البطاقة..."
+                      data-testid="input-card-notes"
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={addEventMutation.isPending}
+                    data-testid="button-add-card"
+                  >
+                    {addEventMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إضافة البطاقة"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">البطاقات المسجلة</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {matchEvents.filter(e => e.eventType === "yellow_card" || e.eventType === "red_card").length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">لا توجد بطاقات مسجلة</p>
+                ) : (
+                  <div className="space-y-2">
+                    {matchEvents
+                      .filter(e => e.eventType === "yellow_card" || e.eventType === "red_card")
+                      .sort((a, b) => a.minute - b.minute)
+                      .map((event) => (
+                        <div 
+                          key={event.id} 
+                          className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                          data-testid={`event-card-${event.id}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {eventTypeIcons[event.eventType]}
+                            <div>
+                              <p className="font-medium">{getPlayerName(event.playerId)}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {getTeamName(event.teamId)} - {eventTypeLabels[event.eventType]}
+                              </p>
+                              {event.notes && (
+                                <p className="text-xs text-muted-foreground italic">{event.notes}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">{event.minute}'</Badge>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => deleteEventMutation.mutate(event.id)}
+                              disabled={deleteEventMutation.isPending}
+                              data-testid={`button-delete-card-${event.id}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </DialogTabsContent>
+        </DialogTabs>
       </DialogContent>
     </Dialog>
   );
