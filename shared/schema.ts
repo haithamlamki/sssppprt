@@ -324,6 +324,11 @@ export const tournaments = pgTable("tournaments", {
   numberOfGroups: integer("number_of_groups").default(2),
   teamsAdvancingPerGroup: integer("teams_advancing_per_group").default(2),
   
+  // Stage tracking for groups → knockout tournaments
+  currentStage: text("current_stage").default("registration"), // registration, group_stage, knockout_stage, completed
+  groupStageComplete: boolean("group_stage_complete").notNull().default(false),
+  knockoutBracket: text("knockout_bracket"), // JSON structure for bracket
+  
   // Dates
   registrationStart: timestamp("registration_start"),
   registrationEnd: timestamp("registration_end"),
@@ -506,7 +511,11 @@ export const matches = pgTable("matches", {
   round: integer("round").notNull(), // الجولة
   leg: integer("leg").default(1), // 1 = ذهاب، 2 = إياب
   groupNumber: integer("group_number"), // For group stage
-  stage: text("stage").default("group"), // group, round_of_16, quarter_final, semi_final, final
+  stage: text("stage").default("group"), // group, round_of_16, quarter_final, semi_final, third_place, final
+  
+  // Knockout bracket positioning
+  bracketPosition: integer("bracket_position"), // Position in knockout bracket (1, 2, 3... for ordering)
+  nextMatchId: varchar("next_match_id"), // Winner advances to this match
   
   // Schedule
   matchDate: timestamp("match_date"),
