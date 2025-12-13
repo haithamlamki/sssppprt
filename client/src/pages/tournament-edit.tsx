@@ -24,7 +24,8 @@ import {
   RefreshCw,
   Palette,
   Image,
-  Upload
+  Upload,
+  Clock
 } from "lucide-react";
 import { TeamColorPicker } from "@/components/TeamBox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -279,6 +281,11 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [uploadingTrophy, setUploadingTrophy] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  
+  // Parse schedule config
+  const scheduleConfig = tournament.scheduleConfig ? JSON.parse(tournament.scheduleConfig) : { dailyStartTime: "16:00", matchesPerDayPerVenue: 3 };
+  
   const [formData, setFormData] = useState({
     name: tournament.name,
     description: tournament.description || "",
@@ -292,7 +299,69 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
     halfDuration: tournament.halfDuration,
     breakBetweenHalves: tournament.breakBetweenHalves,
     trophyImageUrl: tournament.trophyImageUrl || "",
+    // New fields
+    tournamentStructure: tournament.tournamentStructure || "team",
+    startDate: tournament.startDate ? new Date(tournament.startDate).toISOString().split('T')[0] : "",
+    endDate: tournament.endDate ? new Date(tournament.endDate).toISOString().split('T')[0] : "",
+    numberOfGroups: tournament.numberOfGroups || 2,
+    numberOfVenues: tournament.numberOfVenues || 1,
+    excludedDays: tournament.excludedDays || [],
+    venues: tournament.venues?.join("، ") || "",
+    imageUrl: tournament.imageUrl || "",
+    phoneNumber: tournament.phoneNumber || "",
+    address: tournament.address || "",
+    policy: tournament.policy || "public",
+    numberOfRounds: tournament.numberOfRounds || 1,
+    isOpenForRegistration: tournament.isOpenForRegistration ?? true,
+    dailyStartTime: scheduleConfig.dailyStartTime || "16:00",
+    matchesPerDayPerVenue: scheduleConfig.matchesPerDayPerVenue || 3,
   });
+  
+  const daysOfWeek = [
+    { value: "friday", label: "الجمعة" },
+    { value: "saturday", label: "السبت" },
+    { value: "sunday", label: "الأحد" },
+    { value: "monday", label: "الاثنين" },
+    { value: "tuesday", label: "الثلاثاء" },
+    { value: "wednesday", label: "الأربعاء" },
+    { value: "thursday", label: "الخميس" },
+  ];
+  
+  const toggleExcludedDay = (day: string) => {
+    setFormData(prev => ({
+      ...prev,
+      excludedDays: prev.excludedDays.includes(day)
+        ? prev.excludedDays.filter(d => d !== day)
+        : [...prev.excludedDays, day]
+    }));
+  };
+  
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingImage(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("image", file);
+      
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formDataUpload,
+        credentials: "include",
+      });
+      
+      if (!response.ok) throw new Error("فشل رفع الصورة");
+      
+      const data = await response.json();
+      setFormData({ ...formData, imageUrl: data.url });
+      toast({ title: "تم رفع صورة البطولة بنجاح" });
+    } catch (error) {
+      toast({ title: "فشل رفع صورة البطولة", variant: "destructive" });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const handleTrophyUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -323,7 +392,45 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      return await apiRequest("PATCH", `/api/tournaments/${tournament.id}`, data);
+      const submitData: any = {
+        name: data.name,
+        description: data.description || undefined,
+        sport: data.sport,
+        type: data.type,
+        status: data.status,
+        maxTeams: data.maxTeams,
+        pointsForWin: data.pointsForWin,
+        pointsForDraw: data.pointsForDraw,
+        pointsForLoss: data.pointsForLoss,
+        halfDuration: data.halfDuration,
+        breakBetweenHalves: data.breakBetweenHalves,
+        trophyImageUrl: data.trophyImageUrl || undefined,
+        tournamentStructure: data.tournamentStructure,
+        numberOfGroups: data.numberOfGroups,
+        numberOfVenues: data.numberOfVenues,
+        excludedDays: data.excludedDays,
+        imageUrl: data.imageUrl || undefined,
+        phoneNumber: data.phoneNumber || undefined,
+        address: data.address || undefined,
+        policy: data.policy,
+        numberOfRounds: data.numberOfRounds,
+        isOpenForRegistration: data.isOpenForRegistration,
+        hasGroupStage: data.type === "groups" || data.type === "groups_knockout",
+        scheduleConfig: JSON.stringify({
+          dailyStartTime: data.dailyStartTime,
+          matchesPerDayPerVenue: data.matchesPerDayPerVenue
+        }),
+      };
+      
+      if (data.startDate) {
+        submitData.startDate = new Date(data.startDate).toISOString();
+      }
+      if (data.endDate) {
+        submitData.endDate = new Date(data.endDate).toISOString();
+      }
+      submitData.venues = data.venues ? data.venues.split("،").map((v: string) => v.trim()).filter((v: string) => v) : [];
+      
+      return await apiRequest("PATCH", `/api/tournaments/${tournament.id}`, submitData);
     },
     onSuccess: () => {
       toast({ title: "تم تحديث البطولة بنجاح" });
@@ -618,6 +725,382 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
               </div>
             )}
           </div>
+        </div>
+
+        {/* صورة البطولة الرئيسية */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <Image className="h-4 w-4" />
+            صورة البطولة الرئيسية
+          </Label>
+          <div className="flex items-center gap-4">
+            {(formData.imageUrl || tournament.imageUrl) && (
+              <div className="relative">
+                <img 
+                  src={formData.imageUrl || tournament.imageUrl || ""} 
+                  alt="صورة البطولة" 
+                  className="w-32 h-20 object-cover border rounded-lg"
+                />
+                {isEditing && (
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -left-2 h-6 w-6"
+                    onClick={() => setFormData({ ...formData, imageUrl: "" })}
+                    data-testid="button-remove-image"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            )}
+            {isEditing && (
+              <div className="flex-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={uploadingImage}
+                  className="hidden"
+                  id="tournament-image-upload"
+                  data-testid="input-image-upload"
+                />
+                <label htmlFor="tournament-image-upload">
+                  <Button 
+                    variant="outline" 
+                    asChild
+                    disabled={uploadingImage}
+                  >
+                    <span className="cursor-pointer">
+                      {uploadingImage ? (
+                        <>
+                          <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                          جاري الرفع...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 ml-2" />
+                          {formData.imageUrl ? "تغيير الصورة" : "رفع صورة البطولة"}
+                        </>
+                      )}
+                    </span>
+                  </Button>
+                </label>
+              </div>
+            )}
+            {!isEditing && !tournament.imageUrl && (
+              <p className="text-sm text-muted-foreground">لم يتم رفع صورة بعد</p>
+            )}
+          </div>
+        </div>
+
+        {/* نوع الدوري - فردي/فرقي */}
+        <div className="space-y-2">
+          <Label>نوع الدوري</Label>
+          {isEditing ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div
+                onClick={() => setFormData({ ...formData, tournamentStructure: "individual" })}
+                className={`cursor-pointer rounded-xl p-4 border-2 transition-all ${
+                  formData.tournamentStructure === "individual"
+                    ? "border-amber-500 bg-amber-50 dark:bg-amber-950/30"
+                    : "border-border hover:border-amber-300"
+                }`}
+                data-testid="card-structure-individual"
+              >
+                <div className="flex flex-col items-center text-center gap-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    formData.tournamentStructure === "individual" 
+                      ? "bg-amber-500 text-white" 
+                      : "bg-amber-100 dark:bg-amber-900/30 text-amber-600"
+                  }`}>
+                    <User className="h-5 w-5" />
+                  </div>
+                  <span className="font-bold text-sm">فردي</span>
+                </div>
+              </div>
+              <div
+                onClick={() => setFormData({ ...formData, tournamentStructure: "team" })}
+                className={`cursor-pointer rounded-xl p-4 border-2 transition-all ${
+                  formData.tournamentStructure === "team"
+                    ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-950/30"
+                    : "border-border hover:border-cyan-300"
+                }`}
+                data-testid="card-structure-team"
+              >
+                <div className="flex flex-col items-center text-center gap-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    formData.tournamentStructure === "team" 
+                      ? "bg-cyan-500 text-white" 
+                      : "bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600"
+                  }`}>
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <span className="font-bold text-sm">فرقي</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="font-medium">{tournament.tournamentStructure === "individual" ? "فردي" : "فرقي"}</p>
+          )}
+        </div>
+
+        {/* التواريخ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              تاريخ البداية
+            </Label>
+            {isEditing ? (
+              <Input
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                data-testid="input-start-date"
+              />
+            ) : (
+              <p className="font-medium">
+                {tournament.startDate 
+                  ? format(new Date(tournament.startDate), "dd/MM/yyyy", { locale: ar })
+                  : "غير محدد"}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              تاريخ النهاية
+            </Label>
+            {isEditing ? (
+              <Input
+                type="date"
+                value={formData.endDate}
+                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                data-testid="input-end-date"
+              />
+            ) : (
+              <p className="font-medium">
+                {tournament.endDate 
+                  ? format(new Date(tournament.endDate), "dd/MM/yyyy", { locale: ar })
+                  : "غير محدد"}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* معلومات الاتصال */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Phone className="h-4 w-4" />
+              رقم الهاتف
+            </Label>
+            {isEditing ? (
+              <Input
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                placeholder="05xxxxxxxx"
+                data-testid="input-phone-number"
+              />
+            ) : (
+              <p className="font-medium">{tournament.phoneNumber || "غير محدد"}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>السياسة</Label>
+            {isEditing ? (
+              <Select
+                value={formData.policy}
+                onValueChange={(value) => setFormData({ ...formData, policy: value })}
+              >
+                <SelectTrigger data-testid="select-policy">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">عام</SelectItem>
+                  <SelectItem value="private">خاص</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <Badge variant="outline">
+                {tournament.policy === "public" ? "عام" : "خاص"}
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* العنوان */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            العنوان
+          </Label>
+          {isEditing ? (
+            <Input
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              placeholder="مدينة/حي/شارع"
+              data-testid="input-address"
+            />
+          ) : (
+            <p className="font-medium">{tournament.address || "غير محدد"}</p>
+          )}
+        </div>
+
+        {/* عدد المجموعات والملاعب */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {(formData.type === "groups" || formData.type === "groups_knockout") && (
+            <div className="space-y-2">
+              <Label>عدد المجموعات</Label>
+              {isEditing ? (
+                <Input
+                  type="number"
+                  value={formData.numberOfGroups}
+                  onChange={(e) => setFormData({ ...formData, numberOfGroups: parseInt(e.target.value) || 2 })}
+                  min={2}
+                  max={16}
+                  data-testid="input-number-of-groups"
+                />
+              ) : (
+                <p className="font-medium">{tournament.numberOfGroups || 2} مجموعة</p>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>عدد الملاعب</Label>
+            {isEditing ? (
+              <Input
+                type="number"
+                value={formData.numberOfVenues}
+                onChange={(e) => setFormData({ ...formData, numberOfVenues: parseInt(e.target.value) || 1 })}
+                min={1}
+                max={20}
+                data-testid="input-number-of-venues"
+              />
+            ) : (
+              <p className="font-medium">{tournament.numberOfVenues || 1} ملعب</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>عدد الجولات</Label>
+            {isEditing ? (
+              <Input
+                type="number"
+                value={formData.numberOfRounds}
+                onChange={(e) => setFormData({ ...formData, numberOfRounds: parseInt(e.target.value) || 1 })}
+                min={1}
+                max={10}
+                data-testid="input-number-of-rounds"
+              />
+            ) : (
+              <p className="font-medium">{tournament.numberOfRounds || 1} جولة</p>
+            )}
+          </div>
+        </div>
+
+        {/* أسماء الملاعب */}
+        <div className="space-y-2">
+          <Label>أسماء الملاعب (مفصولة بفاصلة عربية ،)</Label>
+          {isEditing ? (
+            <Input
+              value={formData.venues}
+              onChange={(e) => setFormData({ ...formData, venues: e.target.value })}
+              placeholder="ملعب 1، ملعب 2، ملعب 3"
+              data-testid="input-venues"
+            />
+          ) : (
+            <p className="font-medium">
+              {tournament.venues?.join("، ") || "غير محدد"}
+            </p>
+          )}
+        </div>
+
+        {/* إعدادات الجدولة */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              توقيت البداية اليومي
+            </Label>
+            {isEditing ? (
+              <Input
+                type="time"
+                value={formData.dailyStartTime}
+                onChange={(e) => setFormData({ ...formData, dailyStartTime: e.target.value })}
+                data-testid="input-daily-start-time"
+              />
+            ) : (
+              <p className="font-medium">{scheduleConfig.dailyStartTime || "16:00"}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>عدد المباريات/ملعب/يوم</Label>
+            {isEditing ? (
+              <Input
+                type="number"
+                value={formData.matchesPerDayPerVenue}
+                onChange={(e) => setFormData({ ...formData, matchesPerDayPerVenue: parseInt(e.target.value) || 3 })}
+                min={1}
+                max={10}
+                data-testid="input-matches-per-venue"
+              />
+            ) : (
+              <p className="font-medium">{scheduleConfig.matchesPerDayPerVenue || 3} مباراة</p>
+            )}
+          </div>
+        </div>
+
+        {/* الأيام المستبعدة */}
+        <div className="space-y-2">
+          <Label>الأيام المستبعدة من الجدولة</Label>
+          {isEditing ? (
+            <div className="flex flex-wrap gap-2">
+              {daysOfWeek.map((day) => (
+                <Badge
+                  key={day.value}
+                  variant={formData.excludedDays.includes(day.value) ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => toggleExcludedDay(day.value)}
+                  data-testid={`badge-day-${day.value}`}
+                >
+                  {day.label}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <p className="font-medium">
+              {tournament.excludedDays && tournament.excludedDays.length > 0
+                ? tournament.excludedDays.map(d => daysOfWeek.find(day => day.value === d)?.label).join("، ")
+                : "لا يوجد أيام مستبعدة"}
+            </p>
+          )}
+        </div>
+
+        {/* التسجيل مفتوح */}
+        <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="space-y-1">
+            <Label>التسجيل مفتوح</Label>
+            <p className="text-sm text-muted-foreground">
+              السماح للفرق بالتسجيل في البطولة
+            </p>
+          </div>
+          {isEditing ? (
+            <Switch
+              checked={formData.isOpenForRegistration}
+              onCheckedChange={(checked) => setFormData({ ...formData, isOpenForRegistration: checked })}
+              data-testid="switch-registration"
+            />
+          ) : (
+            <Badge variant={tournament.isOpenForRegistration ? "default" : "secondary"}>
+              {tournament.isOpenForRegistration ? "مفتوح" : "مغلق"}
+            </Badge>
+          )}
         </div>
       </CardContent>
     </Card>
