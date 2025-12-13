@@ -24,6 +24,7 @@ export function Header() {
     { href: "/", label: "الرئيسية" },
     { href: "/events", label: "الفعاليات" },
     { href: "/leagues", label: "البطولات" },
+    { href: "/bracket", label: "التصفيات" },
     { href: "/forum", label: "المنتدى" },
     { href: "/gallery", label: "المعرض" },
     { href: "/results", label: "النتائج" },

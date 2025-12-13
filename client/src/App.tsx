@@ -22,6 +22,7 @@ import Leagues from "@/pages/leagues";
 import LeagueDetail from "@/pages/league-detail";
 import MatchDetail from "@/pages/match-detail";
 import TeamWizard from "@/pages/team-wizard";
+import Bracket from "@/pages/bracket";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/leagues/:id" component={LeagueDetail} />
       <Route path="/matches/:id" component={MatchDetail} />
       <Route path="/team-wizard" component={TeamWizard} />
+      <Route path="/bracket" component={Bracket} />
       <Route component={NotFound} />
     </Switch>
   );
