@@ -1119,6 +1119,14 @@ function MatchesTab({
 }) {
   const { toast } = useToast();
   const [editingMatch, setEditingMatch] = useState<MatchWithTeams | null>(null);
+  const [isAddMatchOpen, setIsAddMatchOpen] = useState(false);
+  const [newMatch, setNewMatch] = useState({
+    homeTeamId: "",
+    awayTeamId: "",
+    round: 1,
+    matchDate: "",
+    venue: "",
+  });
 
   const updateMatchMutation = useMutation({
     mutationFn: async ({ matchId, data }: { matchId: string; data: any }) => {
@@ -1135,11 +1143,191 @@ function MatchesTab({
     },
   });
 
+  const generateMatchesMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/tournaments/${tournamentId}/generate-matches`);
+    },
+    onSuccess: () => {
+      toast({ title: "تم توليد جدول المباريات بنجاح" });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "matches"] });
+    },
+    onError: () => {
+      toast({ title: "فشل توليد جدول المباريات", variant: "destructive" });
+    },
+  });
+
+  const addMatchMutation = useMutation({
+    mutationFn: async (data: typeof newMatch) => {
+      return await apiRequest("POST", `/api/tournaments/${tournamentId}/matches`, {
+        ...data,
+        matchDate: data.matchDate ? new Date(data.matchDate).toISOString() : null,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "تم إضافة المباراة بنجاح" });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "matches"] });
+      setIsAddMatchOpen(false);
+      setNewMatch({ homeTeamId: "", awayTeamId: "", round: 1, matchDate: "", venue: "" });
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "فشل إضافة المباراة", 
+        description: error.message || "حدث خطأ أثناء إضافة المباراة",
+        variant: "destructive" 
+      });
+    },
+  });
+
   const scheduledMatches = matches.filter(m => m.status === "scheduled" || m.status === "live");
   const completedMatches = matches.filter(m => m.status === "completed");
 
   return (
     <div className="space-y-6">
+      {/* Actions Card */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <CardTitle className="flex items-center gap-2">
+            <Trophy className="h-5 w-5" />
+            إدارة المباريات
+          </CardTitle>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline"
+              onClick={() => generateMatchesMutation.mutate()}
+              disabled={generateMatchesMutation.isPending || teams.length < 2}
+              data-testid="button-generate-matches"
+            >
+              {generateMatchesMutation.isPending ? (
+                <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+              ) : (
+                <Calendar className="h-4 w-4 ml-2" />
+              )}
+              توليد جدول المباريات
+            </Button>
+            <Dialog open={isAddMatchOpen} onOpenChange={setIsAddMatchOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-add-match" disabled={teams.length < 2}>
+                  <Plus className="h-4 w-4 ml-2" />
+                  إضافة مباراة
+                </Button>
+              </DialogTrigger>
+              <DialogContent dir="rtl">
+                <DialogHeader>
+                  <DialogTitle>إضافة مباراة جديدة</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>الفريق المضيف *</Label>
+                      <Select
+                        value={newMatch.homeTeamId}
+                        onValueChange={(value) => setNewMatch({ ...newMatch, homeTeamId: value })}
+                      >
+                        <SelectTrigger data-testid="select-home-team">
+                          <SelectValue placeholder="اختر الفريق" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {teams.filter(t => t.id !== newMatch.awayTeamId).map((team) => (
+                            <SelectItem key={team.id} value={team.id} data-testid={`option-home-team-${team.id}`}>
+                              {team.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>الفريق الضيف *</Label>
+                      <Select
+                        value={newMatch.awayTeamId}
+                        onValueChange={(value) => setNewMatch({ ...newMatch, awayTeamId: value })}
+                      >
+                        <SelectTrigger data-testid="select-away-team">
+                          <SelectValue placeholder="اختر الفريق" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {teams.filter(t => t.id !== newMatch.homeTeamId).map((team) => (
+                            <SelectItem key={team.id} value={team.id} data-testid={`option-away-team-${team.id}`}>
+                              {team.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>رقم الجولة</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={newMatch.round}
+                        onChange={(e) => setNewMatch({ ...newMatch, round: parseInt(e.target.value) || 1 })}
+                        data-testid="input-match-round"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>تاريخ المباراة</Label>
+                      <Input
+                        type="datetime-local"
+                        value={newMatch.matchDate}
+                        onChange={(e) => setNewMatch({ ...newMatch, matchDate: e.target.value })}
+                        data-testid="input-match-date"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>الملعب</Label>
+                    <Input
+                      value={newMatch.venue}
+                      onChange={(e) => setNewMatch({ ...newMatch, venue: e.target.value })}
+                      placeholder="أدخل اسم الملعب"
+                      data-testid="input-new-match-venue"
+                    />
+                  </div>
+                  {newMatch.homeTeamId && newMatch.awayTeamId && newMatch.homeTeamId === newMatch.awayTeamId && (
+                    <p className="text-sm text-destructive" data-testid="error-same-team">
+                      لا يمكن اختيار نفس الفريق كمضيف وضيف
+                    </p>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsAddMatchOpen(false);
+                      setNewMatch({ homeTeamId: "", awayTeamId: "", round: 1, matchDate: "", venue: "" });
+                    }}
+                    data-testid="button-cancel-add-match"
+                  >
+                    إلغاء
+                  </Button>
+                  <Button 
+                    onClick={() => addMatchMutation.mutate(newMatch)}
+                    disabled={
+                      !newMatch.homeTeamId || 
+                      !newMatch.awayTeamId || 
+                      newMatch.homeTeamId === newMatch.awayTeamId ||
+                      addMatchMutation.isPending
+                    }
+                    data-testid="button-submit-match"
+                  >
+                    {addMatchMutation.isPending ? "جاري الإضافة..." : "إضافة المباراة"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            {teams.length < 2 
+              ? "يجب إضافة فريقين على الأقل لتوليد المباريات أو إضافة مباراة يدوياً"
+              : `يمكنك توليد جدول مباريات تلقائي لـ ${teams.length} فرق أو إضافة مباريات يدوياً`
+            }
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
