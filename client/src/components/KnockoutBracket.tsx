@@ -21,6 +21,39 @@ const stageLabels: Record<string, string> = {
   third_place: "المركز الثالث",
 };
 
+// Arabic group letters
+const groupLetters: Record<number, string> = {
+  1: "أ", 2: "ب", 3: "ج", 4: "د", 5: "هـ", 6: "و", 7: "ز", 8: "ح",
+};
+
+// Get position label like "أ1" (A1) or "ب2" (B2)
+function getPositionLabel(matchIndex: number, isHome: boolean, stage: string): string {
+  // For semi-finals with 2 groups: Semi 1 = A1 vs B2, Semi 2 = B1 vs A2
+  if (stage === "semi_final") {
+    if (matchIndex === 0) {
+      return isHome ? `${groupLetters[1]}1` : `${groupLetters[2]}2`; // أ1 vs ب2
+    } else {
+      return isHome ? `${groupLetters[2]}1` : `${groupLetters[1]}2`; // ب1 vs أ2
+    }
+  }
+  // For final
+  if (stage === "final") {
+    return isHome ? "فائز 1" : "فائز 2";
+  }
+  // For quarter finals with 4 groups
+  if (stage === "quarter_final") {
+    const patterns = [
+      { home: `${groupLetters[1]}1`, away: `${groupLetters[2]}2` }, // A1 vs B2
+      { home: `${groupLetters[2]}1`, away: `${groupLetters[1]}2` }, // B1 vs A2
+      { home: `${groupLetters[3]}1`, away: `${groupLetters[4]}2` }, // C1 vs D2
+      { home: `${groupLetters[4]}1`, away: `${groupLetters[3]}2` }, // D1 vs C2
+    ];
+    const pattern = patterns[matchIndex] || patterns[0];
+    return isHome ? pattern.home : pattern.away;
+  }
+  return "TBD";
+}
+
 const stageOrder = ["round_of_16", "quarter_final", "semi_final", "final"];
 
 const matchStatusLabels: Record<string, string> = {
@@ -41,10 +74,12 @@ function CompactMatchCard({
   match, 
   groupStageComplete = true,
   isRightSide = false,
+  matchIndex = 0,
 }: { 
   match: MatchWithTeams; 
   groupStageComplete?: boolean;
   isRightSide?: boolean;
+  matchIndex?: number;
 }) {
   const isCompleted = match.status === "completed";
   const isLive = match.status === "live";
@@ -53,8 +88,12 @@ function CompactMatchCard({
   const homeWon = isCompleted && (match.homeScore ?? 0) > (match.awayScore ?? 0);
   const awayWon = isCompleted && (match.awayScore ?? 0) > (match.homeScore ?? 0);
 
-  const homeTeamName = groupStageComplete ? (match.homeTeam?.name || "TBD") : "TBD";
-  const awayTeamName = groupStageComplete ? (match.awayTeam?.name || "TBD") : "TBD";
+  const homeTeamName = groupStageComplete 
+    ? (match.homeTeam?.name || "TBD") 
+    : getPositionLabel(matchIndex, true, match.stage || "semi_final");
+  const awayTeamName = groupStageComplete 
+    ? (match.awayTeam?.name || "TBD") 
+    : getPositionLabel(matchIndex, false, match.stage || "semi_final");
 
   const getShortName = (name: string) => {
     if (name === "TBD") return "TBD";
@@ -146,7 +185,7 @@ function HorizontalBracket({
                 <div className="text-center text-xs font-medium text-muted-foreground mb-2">دور الـ 16</div>
                 {leftR16.map((match, i) => (
                   <div key={match.id} className="relative">
-                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} />
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} matchIndex={i} />
                     <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
                   </div>
                 ))}
@@ -160,7 +199,7 @@ function HorizontalBracket({
                 <div className="text-center text-xs font-medium text-muted-foreground mb-2">ربع النهائي</div>
                 {leftQF.map((match, i) => (
                   <div key={match.id} className="relative">
-                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} />
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} matchIndex={i} />
                     <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
                     <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
                   </div>
@@ -175,7 +214,7 @@ function HorizontalBracket({
                 <div className="text-center text-xs font-medium text-muted-foreground mb-2">نصف النهائي</div>
                 {leftSF.map((match) => (
                   <div key={match.id} className="relative">
-                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} />
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} matchIndex={0} />
                     <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
                     <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
                   </div>
@@ -199,14 +238,14 @@ function HorizontalBracket({
             
             {hasFinal && final && (
               <div className="mt-4">
-                <CompactMatchCard match={final} groupStageComplete={groupStageComplete} />
+                <CompactMatchCard match={final} groupStageComplete={groupStageComplete} matchIndex={0} />
               </div>
             )}
 
             {thirdPlace && (
               <div className="mt-4">
                 <div className="text-center text-xs font-medium text-muted-foreground mb-2">المركز الثالث</div>
-                <CompactMatchCard match={thirdPlace} groupStageComplete={groupStageComplete} />
+                <CompactMatchCard match={thirdPlace} groupStageComplete={groupStageComplete} matchIndex={0} />
               </div>
             )}
           </div>
@@ -217,7 +256,7 @@ function HorizontalBracket({
                 <div className="text-center text-xs font-medium text-muted-foreground mb-2">نصف النهائي</div>
                 {rightSF.map((match) => (
                   <div key={match.id} className="relative">
-                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide />
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide matchIndex={1} />
                     <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
                     <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
                   </div>
@@ -232,7 +271,7 @@ function HorizontalBracket({
                 <div className="text-center text-xs font-medium text-muted-foreground mb-2">ربع النهائي</div>
                 {rightQF.map((match, i) => (
                   <div key={match.id} className="relative">
-                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide />
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide matchIndex={i + 2} />
                     <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
                     <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
                   </div>
@@ -247,7 +286,7 @@ function HorizontalBracket({
                 <div className="text-center text-xs font-medium text-muted-foreground mb-2">دور الـ 16</div>
                 {rightR16.map((match, i) => (
                   <div key={match.id} className="relative">
-                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide />
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide matchIndex={i + 4} />
                     <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
                   </div>
                 ))}
@@ -282,7 +321,7 @@ function SimpleBracket({
         {leftSF && (
           <div className="relative">
             <div className="text-center text-xs font-medium text-muted-foreground mb-2">نصف النهائي</div>
-            <CompactMatchCard match={leftSF} groupStageComplete={groupStageComplete} />
+            <CompactMatchCard match={leftSF} groupStageComplete={groupStageComplete} matchIndex={0} />
             <div className="absolute top-1/2 -left-2 md:-left-4 w-2 md:w-4 h-px bg-primary/40" />
           </div>
         )}
@@ -305,17 +344,34 @@ function SimpleBracket({
           </div>
         )}
         
-        {final && (
+        {final ? (
           <div>
             <div className="text-center text-xs font-medium text-yellow-600 dark:text-yellow-400 mb-2">النهائي</div>
-            <CompactMatchCard match={final} groupStageComplete={groupStageComplete} />
+            <CompactMatchCard match={final} groupStageComplete={groupStageComplete} matchIndex={0} />
+          </div>
+        ) : (
+          <div>
+            <div className="text-center text-xs font-medium text-yellow-600 dark:text-yellow-400 mb-2">النهائي</div>
+            <div className="bg-card border-2 border-dashed border-yellow-500/40 rounded-lg w-[140px] shadow-md">
+              <div className="flex items-center justify-between px-2 py-1 bg-muted/30">
+                <span className="text-xs font-bold text-muted-foreground italic">فائز 1</span>
+                <span className="text-xs font-bold min-w-[20px] text-center rounded px-1 bg-muted">-</span>
+              </div>
+              <div className="flex items-center justify-between px-2 py-1 bg-muted/30">
+                <span className="text-xs font-bold text-muted-foreground italic">فائز 2</span>
+                <span className="text-xs font-bold min-w-[20px] text-center rounded px-1 bg-muted">-</span>
+              </div>
+              <div className="flex items-center justify-center px-1 py-0.5 bg-primary/5 text-[10px] text-muted-foreground">
+                موعد غير محدد
+              </div>
+            </div>
           </div>
         )}
 
         {thirdPlace && (
           <div className="mt-2">
             <div className="text-center text-[10px] font-medium text-muted-foreground mb-1">المركز الثالث</div>
-            <CompactMatchCard match={thirdPlace} groupStageComplete={groupStageComplete} />
+            <CompactMatchCard match={thirdPlace} groupStageComplete={groupStageComplete} matchIndex={0} />
           </div>
         )}
       </div>
@@ -328,7 +384,7 @@ function SimpleBracket({
         {rightSF && (
           <div className="relative">
             <div className="text-center text-xs font-medium text-muted-foreground mb-2">نصف النهائي</div>
-            <CompactMatchCard match={rightSF} groupStageComplete={groupStageComplete} isRightSide />
+            <CompactMatchCard match={rightSF} groupStageComplete={groupStageComplete} isRightSide matchIndex={1} />
             <div className="absolute top-1/2 -right-2 md:-right-4 w-2 md:w-4 h-px bg-primary/40" />
           </div>
         )}
@@ -408,40 +464,47 @@ export function KnockoutBracket({ matches, tournament, groupStageComplete = true
                 if (stageIndexA !== stageIndexB) return stageIndexA - stageIndexB;
                 return (a.round || 0) - (b.round || 0);
               })
-              .map((match, index) => (
-                <Link key={match.id} href={`/matches/${match.id}`}>
-                  <motion.div
-                    whileHover={{ x: -4 }}
-                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg cursor-pointer hover-elevate"
-                    data-testid={`list-match-${match.id}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 flex items-center justify-center bg-primary/10 rounded-full text-xs font-bold text-primary">
-                        {index + 1}
-                      </span>
-                      <Badge variant="outline" className="text-xs">
-                        {stageLabels[match.stage || ""] || match.stage}
-                      </Badge>
-                      <span className="font-medium">
-                        {groupStageComplete 
-                          ? `${match.homeTeam?.name || "TBD"} vs ${match.awayTeam?.name || "TBD"}`
-                          : "TBD vs TBD"
-                        }
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {match.status === "completed" && (
-                        <span className="font-bold">
-                          {match.homeScore} - {match.awayScore}
+              .map((match, index) => {
+                const stageMatches = knockoutMatches.filter(m => m.stage === match.stage);
+                const matchIndex = stageMatches.findIndex(m => m.id === match.id);
+                const homeLabel = getPositionLabel(matchIndex, true, match.stage || "semi_final");
+                const awayLabel = getPositionLabel(matchIndex, false, match.stage || "semi_final");
+                
+                return (
+                  <Link key={match.id} href={`/matches/${match.id}`}>
+                    <motion.div
+                      whileHover={{ x: -4 }}
+                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg cursor-pointer hover-elevate"
+                      data-testid={`list-match-${match.id}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="w-6 h-6 flex items-center justify-center bg-primary/10 rounded-full text-xs font-bold text-primary">
+                          {index + 1}
                         </span>
-                      )}
-                      <Badge className={matchStatusColors[match.status]}>
-                        {matchStatusLabels[match.status]}
-                      </Badge>
-                    </div>
-                  </motion.div>
-                </Link>
-              ))}
+                        <Badge variant="outline" className="text-xs">
+                          {stageLabels[match.stage || ""] || match.stage}
+                        </Badge>
+                        <span className="font-medium">
+                          {groupStageComplete 
+                            ? `${match.homeTeam?.name || "TBD"} × ${match.awayTeam?.name || "TBD"}`
+                            : `${homeLabel} × ${awayLabel}`
+                          }
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {match.status === "completed" && (
+                          <span className="font-bold">
+                            {match.homeScore} - {match.awayScore}
+                          </span>
+                        )}
+                        <Badge className={matchStatusColors[match.status]}>
+                          {matchStatusLabels[match.status]}
+                        </Badge>
+                      </div>
+                    </motion.div>
+                  </Link>
+                );
+              })}
           </div>
         </CardContent>
       </Card>
