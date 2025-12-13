@@ -732,13 +732,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/tournaments/:id", isAdmin, async (req, res) => {
     try {
-      const tournament = await storage.updateTournament(req.params.id, req.body);
+      const body = { ...req.body };
+      
+      // Convert date strings to Date objects
+      if (body.startDate && typeof body.startDate === 'string') {
+        body.startDate = new Date(body.startDate);
+      }
+      if (body.endDate && typeof body.endDate === 'string') {
+        body.endDate = new Date(body.endDate);
+      }
+      if (body.registrationStart && typeof body.registrationStart === 'string') {
+        body.registrationStart = new Date(body.registrationStart);
+      }
+      if (body.registrationEnd && typeof body.registrationEnd === 'string') {
+        body.registrationEnd = new Date(body.registrationEnd);
+      }
+      
+      const tournament = await storage.updateTournament(req.params.id, body);
       if (!tournament) {
         return res.status(404).json({ error: "Tournament not found" });
       }
       res.json(tournament);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update tournament" });
+    } catch (error: any) {
+      console.error("Tournament update error:", error);
+      res.status(500).json({ error: error.message || "Failed to update tournament" });
     }
   });
 
