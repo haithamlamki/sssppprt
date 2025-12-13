@@ -921,7 +921,7 @@ export default function LeagueDetail() {
 }
 
 function MatchesView({ matches }: { matches: MatchWithTeams[] }) {
-  const [viewMode, setViewMode] = useState<"status" | "round">("round");
+  const [viewMode, setViewMode] = useState<"status" | "round" | "day">("day");
   
   const upcomingMatches = matches.filter(m => m.status === "scheduled" || m.status === "live");
   const completedMatches = matches.filter(m => m.status === "completed");
@@ -938,9 +938,31 @@ function MatchesView({ matches }: { matches: MatchWithTeams[] }) {
   
   const roundNumbers = Object.keys(matchesByRound).map(Number).sort((a, b) => a - b);
   
+  // Group matches by day
+  const matchesByDay = matches.reduce((acc, match) => {
+    if (!match.matchDate) {
+      const key = "غير محدد";
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(match);
+      return acc;
+    }
+    const dateKey = format(new Date(match.matchDate), "yyyy-MM-dd");
+    if (!acc[dateKey]) {
+      acc[dateKey] = [];
+    }
+    acc[dateKey].push(match);
+    return acc;
+  }, {} as Record<string, MatchWithTeams[]>);
+  
+  const dayKeys = Object.keys(matchesByDay).sort((a, b) => {
+    if (a === "غير محدد") return 1;
+    if (b === "غير محدد") return -1;
+    return new Date(a).getTime() - new Date(b).getTime();
+  });
+  
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-4" data-testid="matches-summary">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-4" data-testid="matches-summary">
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-blue-500" />
@@ -956,6 +978,15 @@ function MatchesView({ matches }: { matches: MatchWithTeams[] }) {
             إجمالي: {matches.length} مباراة
           </Badge>
           <div className="flex border rounded-lg overflow-hidden">
+            <Button 
+              variant={viewMode === "day" ? "default" : "ghost"} 
+              size="sm"
+              onClick={() => setViewMode("day")}
+              className="rounded-none"
+              data-testid="button-view-by-day"
+            >
+              حسب اليوم
+            </Button>
             <Button 
               variant={viewMode === "round" ? "default" : "ghost"} 
               size="sm"
@@ -978,7 +1009,54 @@ function MatchesView({ matches }: { matches: MatchWithTeams[] }) {
         </div>
       </div>
 
-      {viewMode === "round" ? (
+      {viewMode === "day" ? (
+        <div className="space-y-6">
+          {dayKeys.map((dayKey) => {
+            const dayMatches = matchesByDay[dayKey];
+            const completedCount = dayMatches.filter(m => m.status === "completed").length;
+            const totalCount = dayMatches.length;
+            const formattedDate = dayKey === "غير محدد" 
+              ? "تاريخ غير محدد" 
+              : format(new Date(dayKey), "EEEE dd/MM/yyyy", { locale: ar });
+            
+            return (
+              <Card key={dayKey} data-testid={`card-day-${dayKey}`}>
+                <CardHeader className="bg-orange-500/5 border-b border-orange-500/10">
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+                        <Calendar className="h-5 w-5 text-orange-500" />
+                      </div>
+                      <span className="text-orange-600 dark:text-orange-400">{formattedDate}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {totalCount} مباريات
+                      </Badge>
+                      {completedCount === totalCount && totalCount > 0 && (
+                        <Badge className="bg-emerald-500 text-xs">مكتملة</Badge>
+                      )}
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  {dayMatches
+                    .sort((a, b) => {
+                      const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
+                      const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
+                      return dateA - dateB;
+                    })
+                    .map((match) => (
+                      match.status === "completed" ? 
+                        <CompletedMatchCard key={match.id} match={match} /> :
+                        <MatchCard key={match.id} match={match} />
+                    ))}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : viewMode === "round" ? (
         <div className="space-y-6">
           {roundNumbers.map((roundNum) => {
             const roundMatches = matchesByRound[roundNum];
