@@ -1236,10 +1236,13 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
     description: "",
     sport: "football",
     type: "groups",
+    tournamentStructure: "team", // team, individual
     startDate: "",
     endDate: "",
     maxTeams: "8",
     numberOfGroups: "2",
+    numberOfVenues: "1",
+    excludedDays: [] as string[],
     venues: "",
     imageUrl: "",
     phoneNumber: "",
@@ -1251,6 +1254,26 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
     numberOfRounds: "1",
     isOpenForRegistration: true,
   });
+
+  const groupCountOptions = [2, 3, 4, 5, 6, 8, 10, 12, 16];
+  const daysOfWeek = [
+    { value: "friday", label: "الجمعة" },
+    { value: "saturday", label: "السبت" },
+    { value: "sunday", label: "الأحد" },
+    { value: "monday", label: "الاثنين" },
+    { value: "tuesday", label: "الثلاثاء" },
+    { value: "wednesday", label: "الأربعاء" },
+    { value: "thursday", label: "الخميس" },
+  ];
+
+  const toggleExcludedDay = (day: string) => {
+    setFormData(prev => ({
+      ...prev,
+      excludedDays: prev.excludedDays.includes(day)
+        ? prev.excludedDays.filter(d => d !== day)
+        : [...prev.excludedDays, day]
+    }));
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1295,10 +1318,13 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
         description: "",
         sport: "football",
         type: "groups",
+        tournamentStructure: "team",
         startDate: "",
         endDate: "",
         maxTeams: "8",
         numberOfGroups: "2",
+        numberOfVenues: "1",
+        excludedDays: [],
         venues: "",
         imageUrl: "",
         phoneNumber: "",
@@ -1324,8 +1350,11 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
       description: formData.description || undefined,
       sport: formData.sport,
       type: formData.type,
+      tournamentStructure: formData.tournamentStructure,
       maxTeams: parseInt(formData.maxTeams) || 8,
       numberOfGroups: parseInt(formData.numberOfGroups) || 2,
+      numberOfVenues: parseInt(formData.numberOfVenues) || 1,
+      excludedDays: formData.excludedDays.length > 0 ? formData.excludedDays : undefined,
       status: "registration",
       imageUrl: formData.imageUrl || undefined,
       phoneNumber: formData.phoneNumber || undefined,
@@ -1458,6 +1487,55 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
         />
       </div>
 
+      {/* نوع الدوري - فردي/فرقي */}
+      <div>
+        <Label className="text-base font-semibold mb-3 block">نوع الدوري</Label>
+        <div className="grid grid-cols-2 gap-4">
+          <div
+            onClick={() => setFormData({ ...formData, tournamentStructure: "individual" })}
+            className={`cursor-pointer rounded-xl p-4 border-2 transition-all ${
+              formData.tournamentStructure === "individual"
+                ? "border-amber-500 bg-amber-50 dark:bg-amber-950/30"
+                : "border-border hover:border-amber-300"
+            }`}
+            data-testid="card-structure-individual"
+          >
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                formData.tournamentStructure === "individual" 
+                  ? "bg-amber-500 text-white" 
+                  : "bg-amber-100 dark:bg-amber-900/30 text-amber-600"
+              }`}>
+                <UserIcon className="h-6 w-6" />
+              </div>
+              <span className="font-bold">فردي</span>
+              <span className="text-xs text-muted-foreground">مسابقة فردية</span>
+            </div>
+          </div>
+          <div
+            onClick={() => setFormData({ ...formData, tournamentStructure: "team" })}
+            className={`cursor-pointer rounded-xl p-4 border-2 transition-all ${
+              formData.tournamentStructure === "team"
+                ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-950/30"
+                : "border-border hover:border-cyan-300"
+            }`}
+            data-testid="card-structure-team"
+          >
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                formData.tournamentStructure === "team" 
+                  ? "bg-cyan-500 text-white" 
+                  : "bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600"
+              }`}>
+                <Users className="h-6 w-6" />
+              </div>
+              <span className="font-bold">فرقي</span>
+              <span className="text-xs text-muted-foreground">مسابقة بين الفرق</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* الرياضة ونوع البطولة */}
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -1508,19 +1586,64 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
             data-testid="input-max-teams"
           />
         </div>
-        {formData.type === "groups" && (
-          <div>
-            <Label>عدد المجموعات</Label>
-            <Input
-              type="number"
-              value={formData.numberOfGroups}
-              onChange={(e) => setFormData({ ...formData, numberOfGroups: e.target.value })}
-              min="2"
-              max="16"
-              data-testid="input-number-of-groups"
-            />
+        <div>
+          <Label>عدد الملاعب</Label>
+          <Input
+            type="number"
+            value={formData.numberOfVenues}
+            onChange={(e) => setFormData({ ...formData, numberOfVenues: e.target.value })}
+            min="1"
+            max="20"
+            data-testid="input-number-of-venues"
+          />
+        </div>
+      </div>
+
+      {/* عدد المجموعات - اختيار بصري */}
+      {formData.type === "groups" && (
+        <div>
+          <Label className="text-base font-semibold mb-3 block">عدد المجموعات</Label>
+          <div className="flex flex-wrap gap-2">
+            {groupCountOptions.map((num) => (
+              <button
+                key={num}
+                type="button"
+                onClick={() => setFormData({ ...formData, numberOfGroups: num.toString() })}
+                className={`w-12 h-12 rounded-lg font-bold transition-all ${
+                  formData.numberOfGroups === num.toString()
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted hover:bg-muted/80"
+                }`}
+                data-testid={`button-group-count-${num}`}
+              >
+                {num}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
+      )}
+
+      {/* الأيام المستثناة */}
+      <div>
+        <Label className="text-base font-semibold mb-3 block">الأيام المستثناة</Label>
+        <p className="text-sm text-muted-foreground mb-2">حدد الأيام التي لا تُقام فيها المباريات</p>
+        <div className="flex flex-wrap gap-2">
+          {daysOfWeek.map((day) => (
+            <button
+              key={day.value}
+              type="button"
+              onClick={() => toggleExcludedDay(day.value)}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                formData.excludedDays.includes(day.value)
+                  ? "bg-destructive text-destructive-foreground"
+                  : "bg-muted hover:bg-muted/80"
+              }`}
+              data-testid={`button-day-${day.value}`}
+            >
+              {day.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* نظام النقاط */}

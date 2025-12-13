@@ -352,6 +352,11 @@ export const tournaments = pgTable("tournaments", {
   // Schedule configuration - JSON: { matchesPerDay, dailyStartTime, dailyEndTime }
   scheduleConfig: text("schedule_config"),
   
+  // Tournament structure
+  tournamentStructure: text("tournament_structure").default("team"), // team, individual
+  numberOfVenues: integer("number_of_venues").default(1),
+  excludedDays: text("excluded_days").array(), // ["friday", "saturday"]
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
