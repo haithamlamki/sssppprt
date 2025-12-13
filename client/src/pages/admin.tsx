@@ -19,7 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import type { Event, News, Result, Stats, User, Gallery, Tournament } from "@shared/schema";
+import type { Event, News, Result, Stats, User, Gallery, Tournament, MatchWithTeams } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +42,7 @@ export default function Admin() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string>("");
 
   const isAdmin = user?.role === "admin" || user?.role === "committee_member";
 
@@ -78,6 +79,30 @@ export default function Admin() {
   const { data: tournamentsList = [] } = useQuery<Tournament[]>({
     queryKey: ["/api/tournaments"],
     enabled: isAdmin,
+  });
+
+  const { data: matchesList = [], isLoading: matchesLoading } = useQuery<MatchWithTeams[]>({
+    queryKey: ["/api/tournaments", selectedTournamentId, "matches"],
+    queryFn: async () => {
+      if (!selectedTournamentId) return [];
+      const response = await fetch(`/api/tournaments/${selectedTournamentId}/matches`);
+      if (!response.ok) throw new Error("Failed to fetch matches");
+      return response.json();
+    },
+    enabled: isAdmin && !!selectedTournamentId,
+  });
+
+  const updateMatchMutation = useMutation({
+    mutationFn: async ({ matchId, data }: { matchId: string; data: any }) => {
+      return await apiRequest("PATCH", `/api/matches/${matchId}`, data);
+    },
+    onSuccess: () => {
+      toast({ title: "تم تحديث نتيجة المباراة" });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments", selectedTournamentId, "matches"] });
+    },
+    onError: () => {
+      toast({ title: "فشل تحديث النتيجة", variant: "destructive" });
+    },
   });
 
   const updateRoleMutation = useMutation({
@@ -161,7 +186,7 @@ export default function Admin() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 lg:w-auto lg:inline-grid gap-1">
             <TabsTrigger value="dashboard" data-testid="tab-dashboard">
               <BarChart3 className="h-4 w-4 ml-2" />
               الإحصائيات
@@ -173,6 +198,10 @@ export default function Admin() {
             <TabsTrigger value="tournaments" data-testid="tab-tournaments">
               <Target className="h-4 w-4 ml-2" />
               البطولات
+            </TabsTrigger>
+            <TabsTrigger value="matches" data-testid="tab-matches">
+              <Trophy className="h-4 w-4 ml-2" />
+              المباريات
             </TabsTrigger>
             <TabsTrigger value="news" data-testid="tab-news">
               <Newspaper className="h-4 w-4 ml-2" />
@@ -491,6 +520,100 @@ export default function Admin() {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Matches Tab */}
+          <TabsContent value="matches" className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5" />
+                  إدارة نتائج المباريات
+                </CardTitle>
+                <Select
+                  value={selectedTournamentId}
+                  onValueChange={setSelectedTournamentId}
+                >
+                  <SelectTrigger className="w-[250px]" data-testid="select-tournament-matches">
+                    <SelectValue placeholder="اختر البطولة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tournamentsList.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardHeader>
+              <CardContent>
+                {!selectedTournamentId ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>اختر بطولة لعرض مبارياتها</p>
+                  </div>
+                ) : matchesLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : matchesList.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>لا توجد مباريات في هذه البطولة</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {matchesList.map((match) => (
+                      <Card key={match.id} className="hover-elevate" data-testid={`card-match-${match.id}`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4 flex-1">
+                              <div className="text-center min-w-[100px]">
+                                <p className="font-bold">{match.homeTeam?.name || "فريق 1"}</p>
+                              </div>
+                              <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-lg">
+                                <span className="text-2xl font-bold">{match.homeScore ?? "-"}</span>
+                                <span className="text-muted-foreground">:</span>
+                                <span className="text-2xl font-bold">{match.awayScore ?? "-"}</span>
+                              </div>
+                              <div className="text-center min-w-[100px]">
+                                <p className="font-bold">{match.awayTeam?.name || "فريق 2"}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="text-left">
+                                <Badge
+                                  className={
+                                    match.status === "completed" ? "bg-green-500" :
+                                    match.status === "live" ? "bg-red-500" :
+                                    match.status === "postponed" ? "bg-yellow-500" : "bg-gray-500"
+                                  }
+                                >
+                                  {match.status === "completed" ? "انتهت" :
+                                   match.status === "live" ? "مباشر" :
+                                   match.status === "postponed" ? "مؤجلة" : "مقررة"}
+                                </Badge>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  الجولة {match.round}
+                                </p>
+                              </div>
+                              <EditMatchDialog
+                                match={match}
+                                onSave={(data) => updateMatchMutation.mutate({ matchId: match.id, data })}
+                                isPending={updateMatchMutation.isPending}
+                              />
+                            </div>
+                          </div>
+                          {match.matchDate && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {new Date(match.matchDate).toLocaleDateString('ar-SA')} - {match.venue || "غير محدد"}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1491,5 +1614,96 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
         {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إضافة البطولة"}
       </Button>
     </form>
+  );
+}
+
+function EditMatchDialog({ 
+  match, 
+  onSave, 
+  isPending 
+}: { 
+  match: MatchWithTeams; 
+  onSave: (data: any) => void; 
+  isPending: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    homeScore: match.homeScore?.toString() || "",
+    awayScore: match.awayScore?.toString() || "",
+    status: match.status || "scheduled",
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({
+      homeScore: formData.homeScore ? parseInt(formData.homeScore) : null,
+      awayScore: formData.awayScore ? parseInt(formData.awayScore) : null,
+      status: formData.status,
+    });
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="icon" variant="outline" data-testid={`button-edit-match-${match.id}`}>
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md" dir="rtl">
+        <DialogHeader>
+          <DialogTitle>تحديث نتيجة المباراة</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex items-center justify-center gap-4 p-4 bg-muted rounded-lg">
+            <div className="text-center">
+              <p className="font-bold mb-2">{match.homeTeam?.name || "فريق 1"}</p>
+              <Input
+                type="number"
+                min="0"
+                className="w-20 text-center text-2xl font-bold"
+                value={formData.homeScore}
+                onChange={(e) => setFormData({ ...formData, homeScore: e.target.value })}
+                data-testid="input-home-score"
+              />
+            </div>
+            <span className="text-2xl font-bold text-muted-foreground">:</span>
+            <div className="text-center">
+              <p className="font-bold mb-2">{match.awayTeam?.name || "فريق 2"}</p>
+              <Input
+                type="number"
+                min="0"
+                className="w-20 text-center text-2xl font-bold"
+                value={formData.awayScore}
+                onChange={(e) => setFormData({ ...formData, awayScore: e.target.value })}
+                data-testid="input-away-score"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label>حالة المباراة</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) => setFormData({ ...formData, status: value })}
+            >
+              <SelectTrigger data-testid="select-match-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="scheduled">مقررة</SelectItem>
+                <SelectItem value="live">مباشر</SelectItem>
+                <SelectItem value="completed">انتهت</SelectItem>
+                <SelectItem value="postponed">مؤجلة</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button type="submit" className="w-full" disabled={isPending} data-testid="button-save-match">
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ النتيجة"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
