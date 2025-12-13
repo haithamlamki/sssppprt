@@ -96,7 +96,7 @@ function BracketMatchCard({ match }: { match: MatchWithTeams }) {
         {match.matchDate && (
           <div className="text-xs text-muted-foreground text-center mb-1 flex items-center justify-center gap-1">
             <Calendar className="w-3 h-3" />
-            {format(new Date(match.matchDate), "EEEE، d MMMM", { locale: ar })}
+            {format(new Date(match.matchDate), "EEEE dd/MM/yyyy", { locale: ar })}
             {match.matchTime && ` - ${match.matchTime}`}
           </div>
         )}
@@ -368,7 +368,7 @@ function MatchResultsList({ matches }: { matches: MatchWithTeams[] }) {
                   {match.matchDate && (
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      {format(new Date(match.matchDate), "d MMMM yyyy", { locale: ar })}
+                      {format(new Date(match.matchDate), "dd/MM/yyyy", { locale: ar })}
                     </span>
                   )}
                   {match.stage && (

@@ -131,7 +131,7 @@ function CompactMatchCard({
 
         <div className="flex items-center justify-center px-1 py-0.5 bg-primary/5 text-[10px] text-muted-foreground">
           {match.matchDate ? (
-            format(new Date(match.matchDate), "d MMM HH:mm", { locale: ar })
+            format(new Date(match.matchDate), "dd/MM/yyyy HH:mm", { locale: ar })
           ) : (
             "موعد غير محدد"
           )}

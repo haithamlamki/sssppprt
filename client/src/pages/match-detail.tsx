@@ -193,7 +193,7 @@ export default function MatchDetail() {
                 {match.matchDate && (
                   <div className="mt-4 flex items-center justify-center gap-2 text-sm opacity-80">
                     <Clock className="h-4 w-4" />
-                    {format(new Date(match.matchDate), "EEEE d MMMM - HH:mm", { locale: ar })}
+                    {format(new Date(match.matchDate), "EEEE dd/MM/yyyy - HH:mm", { locale: ar })}
                   </div>
                 )}
               </div>
@@ -435,7 +435,7 @@ export default function MatchDetail() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-medium">{c.user?.fullName}</span>
                           <span className="text-xs text-muted-foreground">
-                            {format(new Date(c.createdAt), "d MMM - HH:mm", { locale: ar })}
+                            {format(new Date(c.createdAt), "dd/MM/yyyy - HH:mm", { locale: ar })}
                           </span>
                         </div>
                         <p className="text-sm">{c.content}</p>

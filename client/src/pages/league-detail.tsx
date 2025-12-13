@@ -1031,7 +1031,7 @@ function CompletedMatchCard({ match }: { match: MatchWithTeams }) {
         <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <Calendar className="h-3 w-3" />
-            {match.matchDate ? format(new Date(match.matchDate), "d MMM yyyy", { locale: ar }) : "غير محدد"}
+            {match.matchDate ? format(new Date(match.matchDate), "dd/MM/yyyy", { locale: ar }) : "غير محدد"}
           </div>
           {isDraw && <Badge variant="outline" className="text-xs">تعادل</Badge>}
           <div className="flex items-center gap-2">
@@ -1066,7 +1066,7 @@ function MatchCard({ match }: { match: MatchWithTeams }) {
           </Badge>
           <div className="text-sm text-muted-foreground flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            {match.matchDate ? format(new Date(match.matchDate), "EEEE d MMM - HH:mm", { locale: ar }) : "غير محدد"}
+            {match.matchDate ? format(new Date(match.matchDate), "EEEE dd/MM/yyyy - HH:mm", { locale: ar }) : "غير محدد"}
           </div>
         </div>
 

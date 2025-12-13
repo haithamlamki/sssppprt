@@ -163,7 +163,7 @@ export default function Leagues() {
                       {tournament.startDate && (
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Calendar className="h-4 w-4" />
-                          <span>{format(new Date(tournament.startDate), "d MMM", { locale: ar })}</span>
+                          <span>{format(new Date(tournament.startDate), "dd/MM/yyyy", { locale: ar })}</span>
                         </div>
                       )}
                     </div>

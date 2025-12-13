@@ -2091,7 +2091,7 @@ function MatchesTab({
                   <div className="flex items-center gap-2">
                     {match.matchDate && (
                       <span className="text-sm text-muted-foreground">
-                        {format(new Date(match.matchDate), "d MMM yyyy", { locale: ar })}
+                        {format(new Date(match.matchDate), "dd/MM/yyyy", { locale: ar })}
                       </span>
                     )}
                     <Button 
