@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Trophy, ChevronLeft, Users, Calendar, MapPin, Loader2 } from "lucide-react";
+import { Trophy, ChevronLeft, Users, Calendar, MapPin, Loader2, Flag } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -13,6 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Tournament, MatchWithTeams } from "@shared/schema";
+import { format } from "date-fns";
+import { ar } from "date-fns/locale";
 
 const STAGE_ORDER = ["round_of_16", "quarter_final", "semi_final", "final"];
 const STAGE_LABELS: Record<string, string> = {
@@ -22,124 +23,162 @@ const STAGE_LABELS: Record<string, string> = {
   final: "النهائي",
 };
 
-function MatchCard({ match, isRTL = true }: { match: MatchWithTeams; isRTL?: boolean }) {
-  const homeWinner = match.status === "completed" && match.homeScore !== null && match.awayScore !== null && match.homeScore > match.awayScore;
-  const awayWinner = match.status === "completed" && match.homeScore !== null && match.awayScore !== null && match.awayScore > match.homeScore;
-  const isDraw = match.status === "completed" && match.homeScore === match.awayScore;
-
+function TeamSlot({ 
+  team, 
+  score, 
+  isWinner, 
+  ranking,
+  showScore = true 
+}: { 
+  team?: { id: string; name: string; logoUrl?: string | null } | null;
+  score?: number | null;
+  isWinner?: boolean;
+  ranking?: number;
+  showScore?: boolean;
+}) {
   return (
-    <Link href={`/matches/${match.id}`}>
-      <Card 
-        className="w-56 hover-elevate cursor-pointer border-2 transition-all duration-200"
-        data-testid={`bracket-match-${match.id}`}
-      >
-        <CardContent className="p-3">
-          <div className="space-y-2">
-            <div 
-              className={`flex items-center justify-between p-2 rounded ${
-                homeWinner ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-muted/50"
-              }`}
-            >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Users className="w-3 h-3 text-primary" />
-                </div>
-                <span className={`text-sm truncate ${homeWinner ? "font-bold" : ""}`}>
-                  {match.homeTeam?.name || "فريق 1"}
-                </span>
-              </div>
-              <span className={`text-lg font-bold min-w-[24px] text-center ${homeWinner ? "text-emerald-600" : ""}`}>
-                {match.homeScore ?? "-"}
-              </span>
-            </div>
-            
-            <div 
-              className={`flex items-center justify-between p-2 rounded ${
-                awayWinner ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-muted/50"
-              }`}
-            >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="w-6 h-6 bg-secondary/50 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Users className="w-3 h-3" />
-                </div>
-                <span className={`text-sm truncate ${awayWinner ? "font-bold" : ""}`}>
-                  {match.awayTeam?.name || "فريق 2"}
-                </span>
-              </div>
-              <span className={`text-lg font-bold min-w-[24px] text-center ${awayWinner ? "text-emerald-600" : ""}`}>
-                {match.awayScore ?? "-"}
-              </span>
-            </div>
-
-            {match.homePenaltyScore !== null && match.awayPenaltyScore !== null && (
-              <div className="text-xs text-center text-muted-foreground">
-                ركلات الترجيح: {match.homePenaltyScore} - {match.awayPenaltyScore}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-2 pt-2 border-t">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              {match.matchDate && (
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  {new Date(match.matchDate).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' })}
-                </span>
+    <div className={`flex items-center justify-between gap-2 p-2 border-b last:border-b-0 ${
+      isWinner ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-background"
+    }`}>
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        {team ? (
+          <>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0 border">
+              {team.logoUrl ? (
+                <img src={team.logoUrl} alt={team.name} className="w-6 h-6 rounded-full object-cover" />
+              ) : (
+                <Flag className="w-4 h-4 text-primary" />
               )}
-              <Badge 
-                variant="outline" 
-                className={`text-[10px] ${
-                  match.status === "completed" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30" :
-                  match.status === "live" ? "bg-red-100 text-red-700 dark:bg-red-900/30 animate-pulse" :
-                  ""
-                }`}
-              >
-                {match.status === "completed" ? "انتهت" :
-                 match.status === "live" ? "مباشر" :
-                 match.status === "postponed" ? "مؤجلة" : "قادمة"}
-              </Badge>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
-function BracketConnector({ direction }: { direction: "right" | "left" }) {
-  return (
-    <div className="flex items-center">
-      <div className={`w-8 h-px bg-border ${direction === "right" ? "ml-0" : "mr-0"}`} />
+            <span className={`text-sm truncate ${isWinner ? "font-bold" : ""}`}>
+              {team.name}
+            </span>
+            {ranking && (
+              <span className="text-xs text-muted-foreground">({ranking})</span>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+              <Users className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <span className="text-sm text-muted-foreground">TBD</span>
+          </>
+        )}
+      </div>
+      {showScore && (
+        <div className={`min-w-[32px] h-8 flex items-center justify-center rounded font-bold text-sm ${
+          isWinner 
+            ? "bg-emerald-500 text-white" 
+            : score !== null && score !== undefined
+              ? "bg-muted text-foreground"
+              : "bg-muted/50 text-muted-foreground"
+        }`}>
+          {score !== null && score !== undefined ? score : "-"}
+        </div>
+      )}
     </div>
   );
 }
 
-function BracketStage({ 
-  stage, 
-  matches, 
-  isLast 
-}: { 
-  stage: string; 
-  matches: MatchWithTeams[]; 
-  isLast: boolean;
-}) {
-  const stageMatches = matches.filter(m => m.stage === stage);
-  
-  if (stageMatches.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-4">
-        <Badge variant="outline" className="mb-2">{STAGE_LABELS[stage]}</Badge>
-        <div className="text-muted-foreground text-sm text-center p-4">
-          لم يتم تحديد المباريات بعد
+function BracketMatchCard({ match }: { match: MatchWithTeams }) {
+  const homeWinner = match.status === "completed" && 
+    match.homeScore !== null && match.awayScore !== null && 
+    match.homeScore > match.awayScore;
+  const awayWinner = match.status === "completed" && 
+    match.homeScore !== null && match.awayScore !== null && 
+    match.awayScore > match.homeScore;
+
+  return (
+    <Link href={`/matches/${match.id}`}>
+      <div className="w-52 hover-elevate cursor-pointer" data-testid={`bracket-match-${match.id}`}>
+        {/* Date Header */}
+        {match.matchDate && (
+          <div className="text-xs text-muted-foreground text-center mb-1 flex items-center justify-center gap-1">
+            <Calendar className="w-3 h-3" />
+            {format(new Date(match.matchDate), "EEEE، d MMMM", { locale: ar })}
+            {match.matchTime && ` - ${match.matchTime}`}
+          </div>
+        )}
+        
+        {/* Match Box */}
+        <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
+          <TeamSlot 
+            team={match.homeTeam} 
+            score={match.homeScore} 
+            isWinner={homeWinner}
+          />
+          <TeamSlot 
+            team={match.awayTeam} 
+            score={match.awayScore} 
+            isWinner={awayWinner}
+          />
         </div>
+
+        {/* Penalty Score */}
+        {match.homePenaltyScore !== null && match.awayPenaltyScore !== null && (
+          <div className="text-xs text-center text-muted-foreground mt-1">
+            ركلات الترجيح: {match.homePenaltyScore} - {match.awayPenaltyScore}
+          </div>
+        )}
+
+        {/* Status Badge */}
+        <div className="flex justify-center mt-1">
+          <Badge 
+            variant="outline" 
+            className={`text-[10px] ${
+              match.status === "completed" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
+              match.status === "live" ? "bg-red-500 text-white animate-pulse" :
+              "bg-muted"
+            }`}
+          >
+            {match.status === "completed" ? "انتهت" :
+             match.status === "live" ? "مباشر" :
+             match.status === "postponed" ? "مؤجلة" : "قادمة"}
+          </Badge>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function BracketConnector({ matchCount, direction = "left" }: { matchCount: number; direction?: "left" | "right" }) {
+  if (matchCount <= 1) {
+    return (
+      <div className="w-12 flex items-center justify-center">
+        <div className="w-full h-px bg-border" />
       </div>
     );
   }
 
-  const getSpacing = () => {
+  return (
+    <div className="w-12 flex flex-col justify-center relative">
+      <svg className="w-full h-full absolute inset-0" preserveAspectRatio="none">
+        <line x1="0" y1="50%" x2="100%" y2="50%" stroke="currentColor" strokeWidth="1" className="text-border" />
+      </svg>
+    </div>
+  );
+}
+
+function BracketColumn({ 
+  stage, 
+  matches,
+  isFirst,
+  isLast
+}: { 
+  stage: string; 
+  matches: MatchWithTeams[];
+  isFirst: boolean;
+  isLast: boolean;
+}) {
+  const stageMatches = matches
+    .filter(m => m.stage === stage)
+    .sort((a, b) => (a.round || 0) - (b.round || 0));
+
+  const getGap = () => {
     switch (stage) {
-      case "round_of_16": return "gap-4";
-      case "quarter_final": return "gap-12";
+      case "round_of_16": return "gap-2";
+      case "quarter_final": return "gap-8";
       case "semi_final": return "gap-24";
       case "final": return "gap-0";
       default: return "gap-4";
@@ -148,27 +187,39 @@ function BracketStage({
 
   return (
     <div className="flex flex-col items-center">
-      <Badge 
-        className={`mb-4 ${stage === "final" ? "bg-yellow-500 text-black" : ""}`}
-      >
-        <Trophy className="w-3 h-3 ml-1" />
-        {STAGE_LABELS[stage]}
-      </Badge>
-      <div className={`flex flex-col ${getSpacing()} justify-center`}>
-        {stageMatches
-          .sort((a, b) => a.round - b.round)
-          .map((match) => (
+      {/* Stage Header */}
+      <div className={`mb-4 px-4 py-2 rounded-lg text-center ${
+        stage === "final" 
+          ? "bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900" 
+          : "bg-primary/10"
+      }`}>
+        <div className="flex items-center gap-2 justify-center">
+          {stage === "final" && <Trophy className="w-4 h-4" />}
+          <span className="font-bold text-sm">{STAGE_LABELS[stage]}</span>
+        </div>
+      </div>
+
+      {/* Matches */}
+      <div className={`flex flex-col ${getGap()} justify-center flex-1`}>
+        {stageMatches.length > 0 ? (
+          stageMatches.map((match) => (
             <div key={match.id} className="flex items-center">
-              <MatchCard match={match} />
-              {!isLast && <BracketConnector direction="left" />}
+              {!isFirst && <BracketConnector matchCount={stageMatches.length} direction="right" />}
+              <BracketMatchCard match={match} />
+              {!isLast && <BracketConnector matchCount={stageMatches.length} direction="left" />}
             </div>
-          ))}
+          ))
+        ) : (
+          <div className="w-52 h-24 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground text-sm">
+            لم تحدد بعد
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function BracketTree({ matches }: { matches: MatchWithTeams[] }) {
+function EnhancedBracketTree({ matches, tournamentName }: { matches: MatchWithTeams[]; tournamentName?: string }) {
   const knockoutMatches = matches.filter(m => m.stage && m.stage !== "group");
   
   if (knockoutMatches.length === 0) {
@@ -183,29 +234,36 @@ function BracketTree({ matches }: { matches: MatchWithTeams[] }) {
     );
   }
 
+  // Get available stages in order (RTL: final first visually on left)
   const availableStages = STAGE_ORDER.filter(stage => 
     knockoutMatches.some(m => m.stage === stage)
-  );
+  ).reverse(); // Reverse for RTL layout
 
   return (
-    <div className="overflow-x-auto pb-4">
-      <div className="flex items-center justify-center gap-8 min-w-max p-4">
-        {availableStages.map((stage, index) => (
-          <div key={stage} className="flex items-center">
-            <BracketStage 
-              stage={stage} 
-              matches={knockoutMatches} 
-              isLast={index === availableStages.length - 1}
-            />
-            {index < availableStages.length - 1 && (
-              <div className="w-8 flex items-center justify-center">
-                <ChevronLeft className="w-6 h-6 text-muted-foreground" />
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle className="flex items-center justify-center gap-2 text-xl">
+          <Trophy className="h-6 w-6 text-primary" />
+          {tournamentName} خروج المغلوب
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-6">
+        <div className="overflow-x-auto pb-4" dir="ltr">
+          <div className="flex items-stretch justify-center gap-4 min-w-max py-4">
+            {availableStages.map((stage, index) => (
+              <div key={stage} className="flex items-center">
+                <BracketColumn 
+                  stage={stage} 
+                  matches={knockoutMatches}
+                  isFirst={index === 0}
+                  isLast={index === availableStages.length - 1}
+                />
               </div>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -243,8 +301,94 @@ function TournamentWinner({ matches }: { matches: MatchWithTeams[] }) {
   );
 }
 
+function MatchResultsList({ matches }: { matches: MatchWithTeams[] }) {
+  const completedMatches = matches
+    .filter(m => m.status === "completed")
+    .sort((a, b) => {
+      if (a.matchDate && b.matchDate) {
+        return new Date(b.matchDate).getTime() - new Date(a.matchDate).getTime();
+      }
+      return 0;
+    });
+
+  if (completedMatches.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <Trophy className="w-12 h-12 mx-auto mb-4 opacity-50" />
+        <p>لا توجد نتائج بعد</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {completedMatches.map((match) => {
+        const homeWinner = match.homeScore !== null && match.awayScore !== null && match.homeScore > match.awayScore;
+        const awayWinner = match.homeScore !== null && match.awayScore !== null && match.awayScore > match.homeScore;
+        
+        return (
+          <Link key={match.id} href={`/matches/${match.id}`}>
+            <Card className="hover-elevate cursor-pointer" data-testid={`result-match-${match.id}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-4">
+                  {/* Home Team */}
+                  <div className={`flex items-center gap-2 flex-1 justify-end ${homeWinner ? "font-bold" : ""}`}>
+                    <span className="text-sm truncate">{match.homeTeam?.name || "فريق 1"}</span>
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Flag className="w-4 h-4 text-primary" />
+                    </div>
+                  </div>
+
+                  {/* Score */}
+                  <div className="flex items-center gap-1">
+                    <div className={`w-8 h-8 flex items-center justify-center rounded font-bold ${
+                      homeWinner ? "bg-emerald-500 text-white" : "bg-muted"
+                    }`}>
+                      {match.homeScore ?? "-"}
+                    </div>
+                    <span className="text-muted-foreground">-</span>
+                    <div className={`w-8 h-8 flex items-center justify-center rounded font-bold ${
+                      awayWinner ? "bg-emerald-500 text-white" : "bg-muted"
+                    }`}>
+                      {match.awayScore ?? "-"}
+                    </div>
+                  </div>
+
+                  {/* Away Team */}
+                  <div className={`flex items-center gap-2 flex-1 ${awayWinner ? "font-bold" : ""}`}>
+                    <div className="w-8 h-8 rounded-full bg-secondary/50 flex items-center justify-center flex-shrink-0">
+                      <Flag className="w-4 h-4" />
+                    </div>
+                    <span className="text-sm truncate">{match.awayTeam?.name || "فريق 2"}</span>
+                  </div>
+                </div>
+
+                {/* Match Info */}
+                <div className="flex items-center justify-center gap-4 mt-2 text-xs text-muted-foreground">
+                  {match.matchDate && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {format(new Date(match.matchDate), "d MMMM yyyy", { locale: ar })}
+                    </span>
+                  )}
+                  {match.stage && (
+                    <Badge variant="outline" className="text-[10px]">
+                      {STAGE_LABELS[match.stage] || match.stage}
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Bracket() {
   const [selectedTournamentId, setSelectedTournamentId] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"bracket" | "results">("bracket");
 
   const { data: tournaments = [], isLoading: tournamentsLoading } = useQuery<Tournament[]>({
     queryKey: ["/api/tournaments"],
@@ -275,40 +419,42 @@ export default function Bracket() {
             </p>
           </div>
 
-          <Select value={selectedTournamentId} onValueChange={setSelectedTournamentId}>
-            <SelectTrigger className="w-[280px]" data-testid="select-tournament-bracket">
-              <SelectValue placeholder="اختر البطولة" />
-            </SelectTrigger>
-            <SelectContent>
-              {tournamentsLoading ? (
-                <div className="p-4 text-center">
-                  <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                </div>
-              ) : knockoutTournaments.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground text-sm">
-                  لا توجد بطولات تصفيات
-                </div>
-              ) : (
-                knockoutTournaments.map((tournament) => (
-                  <SelectItem key={tournament.id} value={tournament.id}>
-                    {tournament.name}
-                  </SelectItem>
-                ))
-              )}
-              {tournaments.filter(t => t.type !== "knockout" && t.type !== "groups_knockout").length > 0 && (
-                <>
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground border-t mt-1">
-                    بطولات أخرى (دوري)
+          <div className="flex items-center gap-3">
+            <Select value={selectedTournamentId} onValueChange={setSelectedTournamentId}>
+              <SelectTrigger className="w-[280px]" data-testid="select-tournament-bracket">
+                <SelectValue placeholder="اختر البطولة" />
+              </SelectTrigger>
+              <SelectContent>
+                {tournamentsLoading ? (
+                  <div className="p-4 text-center">
+                    <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                   </div>
-                  {tournaments.filter(t => t.type !== "knockout" && t.type !== "groups_knockout").map((tournament) => (
+                ) : knockoutTournaments.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground text-sm">
+                    لا توجد بطولات تصفيات
+                  </div>
+                ) : (
+                  knockoutTournaments.map((tournament) => (
                     <SelectItem key={tournament.id} value={tournament.id}>
                       {tournament.name}
                     </SelectItem>
-                  ))}
-                </>
-              )}
-            </SelectContent>
-          </Select>
+                  ))
+                )}
+                {tournaments.filter(t => t.type !== "knockout" && t.type !== "groups_knockout").length > 0 && (
+                  <>
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground border-t mt-1">
+                      بطولات أخرى (دوري)
+                    </div>
+                    {tournaments.filter(t => t.type !== "knockout" && t.type !== "groups_knockout").map((tournament) => (
+                      <SelectItem key={tournament.id} value={tournament.id}>
+                        {tournament.name}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {!selectedTournamentId ? (
@@ -325,6 +471,7 @@ export default function Bracket() {
           </div>
         ) : (
           <div className="space-y-8">
+            {/* Tournament Info */}
             {selectedTournament && (
               <Card>
                 <CardHeader className="pb-3">
@@ -359,10 +506,50 @@ export default function Bracket() {
               </Card>
             )}
 
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-2 justify-center">
+              <Badge 
+                variant={viewMode === "bracket" ? "default" : "outline"}
+                className="cursor-pointer px-4 py-2"
+                onClick={() => setViewMode("bracket")}
+                data-testid="view-bracket"
+              >
+                شجرة التصفيات
+              </Badge>
+              <Badge 
+                variant={viewMode === "results" ? "default" : "outline"}
+                className="cursor-pointer px-4 py-2"
+                onClick={() => setViewMode("results")}
+                data-testid="view-results"
+              >
+                النتائج
+              </Badge>
+            </div>
+
+            {/* Winner */}
             <TournamentWinner matches={matches} />
             
-            <BracketTree matches={matches} />
+            {/* Content */}
+            {viewMode === "bracket" ? (
+              <EnhancedBracketTree 
+                matches={matches} 
+                tournamentName={selectedTournament?.name}
+              />
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Trophy className="h-5 w-5" />
+                    نتائج المباريات
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <MatchResultsList matches={matches} />
+                </CardContent>
+              </Card>
+            )}
 
+            {/* Legend */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">مفتاح الألوان</CardTitle>
@@ -370,15 +557,15 @@ export default function Bracket() {
               <CardContent>
                 <div className="flex flex-wrap gap-4 text-sm">
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-emerald-100 dark:bg-emerald-900/30 rounded border"></div>
+                    <div className="w-6 h-6 bg-emerald-500 rounded text-white flex items-center justify-center text-xs font-bold">2</div>
                     <span>الفائز</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-muted/50 rounded border"></div>
-                    <span>الخاسر / لم تنتهِ</span>
+                    <div className="w-6 h-6 bg-muted rounded flex items-center justify-center text-xs font-bold">1</div>
+                    <span>الخاسر</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-red-100 text-red-700 text-[10px]">مباشر</Badge>
+                    <Badge variant="outline" className="bg-red-500 text-white text-[10px]">مباشر</Badge>
                     <span>مباراة جارية</span>
                   </div>
                 </div>

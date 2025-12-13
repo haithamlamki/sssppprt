@@ -2175,7 +2175,7 @@ function EditMatchDialog({
                         <SelectContent>
                           {goalTeamPlayers.map((player) => (
                             <SelectItem key={player.id} value={player.id}>
-                              {player.jerseyNumber ? `#${player.jerseyNumber} ` : ""}{player.name}
+                              {player.number ? `#${player.number} ` : ""}{player.name}
                             </SelectItem>
                           ))}
                           {goalTeamPlayers.length === 0 && (
@@ -2316,7 +2316,7 @@ function EditMatchDialog({
                         <SelectContent>
                           {cardTeamPlayers.map((player) => (
                             <SelectItem key={player.id} value={player.id}>
-                              {player.jerseyNumber ? `#${player.jerseyNumber} ` : ""}{player.name}
+                              {player.number ? `#${player.number} ` : ""}{player.name}
                             </SelectItem>
                           ))}
                           {cardTeamPlayers.length === 0 && (
