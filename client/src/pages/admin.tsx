@@ -37,6 +37,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Admin() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -132,6 +142,21 @@ export default function Admin() {
       toast({ title: "فشل تحديث الحالة", variant: "destructive" });
     },
   });
+
+  const deleteTournamentMutation = useMutation({
+    mutationFn: async (tournamentId: string) => {
+      return await apiRequest("DELETE", `/api/tournaments/${tournamentId}`);
+    },
+    onSuccess: () => {
+      toast({ title: "تم حذف البطولة بنجاح" });
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments"] });
+    },
+    onError: () => {
+      toast({ title: "فشل حذف البطولة", variant: "destructive" });
+    },
+  });
+
+  const [tournamentToDelete, setTournamentToDelete] = useState<Tournament | null>(null);
 
   if (authLoading) {
     return (
@@ -521,6 +546,14 @@ export default function Admin() {
                             <Pencil className="h-4 w-4 ml-1" />
                             تعديل
                           </Button>
+                          <Button 
+                            variant="destructive" 
+                            size="icon"
+                            onClick={() => setTournamentToDelete(t)}
+                            data-testid={`button-delete-tournament-${t.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -534,6 +567,42 @@ export default function Admin() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Delete Tournament Confirmation Dialog */}
+            <AlertDialog open={!!tournamentToDelete} onOpenChange={(open) => !open && setTournamentToDelete(null)}>
+              <AlertDialogContent dir="rtl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>تأكيد حذف البطولة</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    هل أنت متأكد من حذف بطولة "{tournamentToDelete?.name}"؟ 
+                    سيتم حذف جميع البيانات المرتبطة بها (الفرق، المباريات، النتائج).
+                    هذا الإجراء لا يمكن التراجع عنه.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-row-reverse gap-2">
+                  <AlertDialogCancel data-testid="button-cancel-delete">إلغاء</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => {
+                      if (tournamentToDelete) {
+                        deleteTournamentMutation.mutate(tournamentToDelete.id);
+                        setTournamentToDelete(null);
+                      }
+                    }}
+                    data-testid="button-confirm-delete"
+                  >
+                    {deleteTournamentMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Trash2 className="h-4 w-4 ml-2" />
+                        حذف
+                      </>
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </TabsContent>
 
           {/* Matches Tab */}
