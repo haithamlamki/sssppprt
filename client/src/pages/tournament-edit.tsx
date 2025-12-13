@@ -39,6 +39,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Tournament, Team, MatchWithTeams, Referee } from "@shared/schema";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
+import KnockoutBracket from "@/components/KnockoutBracket";
 
 const sportLabels: Record<string, string> = {
   football: "كرة القدم",
@@ -1892,6 +1893,10 @@ function StagesTab({
     enabled: isGroupsTournament,
   });
 
+  const { data: matches = [] } = useQuery<MatchWithTeams[]>({
+    queryKey: ["/api/tournaments", tournamentId, "matches"],
+  });
+
   const assignGroupsMutation = useMutation({
     mutationFn: async () => {
       return await apiRequest("POST", `/api/tournaments/${tournamentId}/assign-groups`, {
@@ -2134,14 +2139,13 @@ function StagesTab({
               </p>
             )}
 
-            {tournament.knockoutBracket && (
-              <div className="mt-4 p-4 bg-muted/50 rounded-lg" data-testid="container-knockout-bracket">
-                <p className="text-sm text-muted-foreground mb-2">شجرة الأدوار الإقصائية:</p>
-                <pre className="text-xs overflow-x-auto" dir="ltr" data-testid="text-bracket-data">
-                  {JSON.stringify(tournament.knockoutBracket, null, 2)}
-                </pre>
-              </div>
-            )}
+            <div className="mt-4" data-testid="container-knockout-bracket">
+              <KnockoutBracket 
+                matches={matches} 
+                tournament={tournament}
+                groupStageComplete={tournament.groupStageComplete || !isGroupsTournament}
+              />
+            </div>
           </CardContent>
         </Card>
       )}
