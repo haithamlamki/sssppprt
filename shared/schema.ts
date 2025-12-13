@@ -464,6 +464,29 @@ export const insertPlayerSchema = createInsertSchema(players).omit({
 export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
 export type Player = typeof players.$inferSelect;
 
+// Referees Schema
+export const referees = pgTable("referees", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tournamentId: varchar("tournament_id").references(() => tournaments.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  phone: varchar("phone", { length: 20 }),
+  email: varchar("email", { length: 255 }),
+  level: text("level"), // beginner, intermediate, advanced, fifa
+  specialization: text("specialization"), // main, assistant, var
+  photoUrl: text("photo_url"),
+  notes: text("notes"),
+  matchesRefereed: integer("matches_refereed").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertRefereeSchema = createInsertSchema(referees).omit({ 
+  id: true,
+  matchesRefereed: true,
+  createdAt: true 
+});
+export type InsertReferee = z.infer<typeof insertRefereeSchema>;
+export type Referee = typeof referees.$inferSelect;
+
 // Matches Schema
 export const matches = pgTable("matches", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
