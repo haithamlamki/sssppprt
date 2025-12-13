@@ -135,6 +135,14 @@
   currentShiftStatus: string // available, on_shift, off_shift
   role: string // employee, admin, committee_member
   isActive: boolean
+  accountType: string // standard, player, committee
+  committeeTitle: string // المسمى في اللجنة (للأعضاء فقط)
+  profileImageUrl: string // صورة شخصية
+  employeeCardImageUrl: string // صورة بطاقة العمل
+  nationalIdImageUrl: string // صورة الهوية
+  playerInfo: string // JSON: { number, position, level, dateOfBirth, healthStatus, primaryJersey }
+  workStartDate: Date // تاريخ بداية الدوام
+  workEndDate: Date // تاريخ نهاية الدوام
 }
 ```
 
@@ -277,6 +285,14 @@
 - `npm run db:push` - تحديث قاعدة البيانات
 
 ## آخر التحديثات
+
+**ديسمبر 2025 - تحديث نموذج التسجيل**
+- نموذج تسجيل تفاعلي محسّن مع 3 أنواع حسابات
+- دعم حساب اللاعب مع حقول خاصة (رقم القميص، المركز، المستوى)
+- دعم حساب عضو اللجنة مع المسمى الإداري
+- رفع الصور (الصورة الشخصية، بطاقة العمل، الهوية)
+- تقويم لتحديد تواريخ العمل والتوافر
+- تخزين بيانات اللاعب كـ JSON في قاعدة البيانات
 
 **ديسمبر 2024 - Phase 2**
 - نظام المصادقة الكامل مع Passport.js
