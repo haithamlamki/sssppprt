@@ -1440,14 +1440,32 @@ export class DatabaseStorage implements IStorage {
     const generatedMatches: Match[] = [];
     const matchesPerDay = options?.matchesPerDay || 4;
     const hasSecondLeg = tournament.hasSecondLeg ?? true;
+    const dailyStartTime = options?.dailyStartTime || "16:00";
+    
+    // Parse start time
+    const [startHour, startMinute] = dailyStartTime.split(':').map(Number);
+    
+    // Calculate match duration from tournament settings
+    const halfDuration = tournament.halfDuration || 45;
+    const breakBetweenHalves = tournament.breakBetweenHalves || 15;
+    const matchDurationMinutes = (halfDuration * 2) + breakBetweenHalves + 15; // Add 15 min buffer
+    
+    // Get venues configuration
+    const venuesList = tournament.venues && tournament.venues.length > 0 
+      ? tournament.venues 
+      : ['الملعب الرئيسي'];
+    const numberOfVenues = venuesList.length;
     
     // Schedule settings
     let startDate = tournament.startDate ? new Date(tournament.startDate) : new Date();
     const endDate = tournament.endDate ? new Date(tournament.endDate) : null;
     let currentDate = new Date(startDate);
     let matchesScheduledToday = 0;
+    let currentVenueIndex = 0;
+    let currentTimeSlotInVenue = 0;
     
-    // Generate round-robin matches for each group
+    // Generate round-robin matches for each group - collect all pairs first
+    const allMatchPairs: { home: Team; away: Team; round: number; leg: number; groupNum: number }[] = [];
     const groups = Object.keys(groupedTeams).map(Number).sort((a, b) => a - b);
     
     for (const groupNum of groups) {
@@ -1455,59 +1473,71 @@ export class DatabaseStorage implements IStorage {
       if (groupTeams.length < 2) continue;
       
       // Generate round-robin pairs
-      const matchPairs: { home: Team; away: Team; round: number; leg: number }[] = [];
-      
       for (let i = 0; i < groupTeams.length; i++) {
         for (let j = i + 1; j < groupTeams.length; j++) {
-          matchPairs.push({ 
+          allMatchPairs.push({ 
             home: groupTeams[i], 
             away: groupTeams[j], 
-            round: matchPairs.length + 1, 
-            leg: 1 
+            round: allMatchPairs.length + 1, 
+            leg: 1,
+            groupNum 
           });
           
           if (hasSecondLeg) {
-            matchPairs.push({ 
+            allMatchPairs.push({ 
               home: groupTeams[j], 
               away: groupTeams[i], 
-              round: matchPairs.length + 1, 
-              leg: 2 
+              round: allMatchPairs.length + 1, 
+              leg: 2,
+              groupNum 
             });
           }
         }
       }
+    }
+    
+    // Create matches with venue-based time slots
+    for (const matchPair of allMatchPairs) {
+      // Calculate match time based on venue and time slot
+      const matchDate = new Date(currentDate);
+      const totalMinutesOffset = currentTimeSlotInVenue * matchDurationMinutes;
+      const slotHour = startHour + Math.floor(totalMinutesOffset / 60);
+      const slotMinute = startMinute + (totalMinutesOffset % 60);
+      matchDate.setHours(slotHour, slotMinute, 0, 0);
       
-      // Create matches for this group
-      for (const matchPair of matchPairs) {
-        const matchDate = new Date(currentDate);
+      const [match] = await db.insert(matches).values({
+        tournamentId,
+        homeTeamId: matchPair.home.id,
+        awayTeamId: matchPair.away.id,
+        round: matchPair.round,
+        leg: matchPair.leg,
+        stage: 'group',
+        groupNumber: matchPair.groupNum,
+        matchDate,
+        venue: venuesList[currentVenueIndex],
+        status: 'scheduled',
+      }).returning();
+      
+      generatedMatches.push(match);
+      matchesScheduledToday++;
+      
+      // Move to next venue for the same time slot, or next time slot
+      currentVenueIndex++;
+      if (currentVenueIndex >= numberOfVenues) {
+        currentVenueIndex = 0;
+        currentTimeSlotInVenue++;
+      }
+      
+      // Move to next day if needed
+      if (matchesScheduledToday >= matchesPerDay) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        matchesScheduledToday = 0;
+        currentVenueIndex = 0;
+        currentTimeSlotInVenue = 0;
         
-        const [match] = await db.insert(matches).values({
-          tournamentId,
-          homeTeamId: matchPair.home.id,
-          awayTeamId: matchPair.away.id,
-          round: matchPair.round,
-          leg: matchPair.leg,
-          stage: 'group',
-          groupNumber: groupNum,
-          matchDate,
-          venue: tournament.venues && tournament.venues.length > 0 
-            ? tournament.venues[generatedMatches.length % tournament.venues.length] 
-            : null,
-          status: 'scheduled',
-        }).returning();
-        
-        generatedMatches.push(match);
-        matchesScheduledToday++;
-        
-        // Move to next day if needed
-        if (matchesScheduledToday >= matchesPerDay) {
-          currentDate.setDate(currentDate.getDate() + 1);
-          matchesScheduledToday = 0;
-          
-          // Check if we exceeded end date
-          if (endDate && currentDate > endDate) {
-            currentDate = new Date(startDate);
-          }
+        // Check if we exceeded end date
+        if (endDate && currentDate > endDate) {
+          currentDate = new Date(startDate);
         }
       }
     }
