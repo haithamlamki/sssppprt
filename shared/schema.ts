@@ -93,9 +93,23 @@ export const users = pgTable("users", {
   position: text("position").notNull(),
   phoneNumber: varchar("phone_number", { length: 20 }),
   
+  // Account type (نوع الحساب)
+  accountType: text("account_type").notNull().default("standard"), // committee, player, standard
+  committeeTitle: text("committee_title"), // المسمى في اللجنة (للأعضاء فقط)
+  
+  // Images (الصور)
+  profileImageUrl: text("profile_image_url"), // صورة شخصية
+  employeeCardImageUrl: text("employee_card_image_url"), // صورة بطاقة العمل
+  nationalIdImageUrl: text("national_id_image_url"), // صورة الهوية
+  
+  // Player-specific fields (حقول اللاعب) - stored as JSON
+  playerInfo: text("player_info"), // JSON: { number, position, level, dateOfBirth, healthStatus, primaryJersey, etc. }
+  
   // Shift schedule information
   shiftPattern: text("shift_pattern").notNull().default("2weeks_on_2weeks_off"), // 2weeks_on_2weeks_off, normal, flexible
   currentShiftStatus: text("current_shift_status").default("available"), // available, on_shift, off_shift
+  workStartDate: timestamp("work_start_date"), // تاريخ بداية العمل
+  workEndDate: timestamp("work_end_date"), // تاريخ نهاية العمل
   nextShiftStart: timestamp("next_shift_start"),
   nextShiftEnd: timestamp("next_shift_end"),
   
