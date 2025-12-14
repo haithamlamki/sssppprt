@@ -2510,7 +2510,8 @@ function MatchesTab({
     if (data.matchDate) {
       const dateStr = data.matchDate;
       const timeStr = data.matchTime || "00:00";
-      matchDateISO = `${dateStr}T${timeStr}:00.000Z`;
+      // Use +04:00 (Asia/Muscat) offset to preserve entered time as wall-clock time
+      matchDateISO = `${dateStr}T${timeStr}:00+04:00`;
     }
     updateMatchMutation.mutate({ 
       matchId, 
@@ -2534,9 +2535,15 @@ function MatchesTab({
 
   const addMatchMutation = useMutation({
     mutationFn: async (data: typeof newMatch) => {
+      // Use +04:00 (Asia/Muscat) offset to preserve entered time as wall-clock time
+      let matchDateISO: string | null = null;
+      if (data.matchDate) {
+        // data.matchDate format: "YYYY-MM-DDTHH:mm" from datetime-local input
+        matchDateISO = `${data.matchDate}:00+04:00`;
+      }
       return await apiRequest("POST", `/api/tournaments/${tournamentId}/matches`, {
         ...data,
-        matchDate: data.matchDate ? new Date(data.matchDate).toISOString() : null,
+        matchDate: matchDateISO,
       });
     },
     onSuccess: () => {
