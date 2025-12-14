@@ -1076,7 +1076,7 @@ function ScheduleMatchRow({ match, showTime = true }: { match: MatchWithTeams; s
         {showTime && (
           <div className="min-w-[90px] text-center py-2 px-3 bg-primary/10 rounded-lg">
             <Clock className="h-4 w-4 mx-auto mb-1 text-primary" />
-            <span className="text-xs font-medium text-primary">{timeRange}</span>
+            <span dir="ltr" className="text-xs font-medium text-primary whitespace-nowrap">{timeRange}</span>
           </div>
         )}
         
@@ -1299,7 +1299,7 @@ function MatchesView({ matches }: { matches: MatchWithTeams[] }) {
                           {/* Time Column */}
                           <div className="text-center py-2 bg-primary/10 rounded-lg">
                             <Clock className="h-4 w-4 mx-auto mb-1 text-primary" />
-                            <span className="text-xs font-medium text-primary">{timeRange}</span>
+                            <span dir="ltr" className="text-xs font-medium text-primary whitespace-nowrap">{timeRange}</span>
                           </div>
                           
                           {/* Match for each venue */}
