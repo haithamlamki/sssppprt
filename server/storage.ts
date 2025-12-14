@@ -1180,18 +1180,63 @@ export class DatabaseStorage implements IStorage {
       : ['الملعب الرئيسي'];
     const numberOfVenues = venuesList.length;
     
-    // Calculate time slots per venue
-    const timeSlotsPerVenue = Math.ceil(matchesPerDay / numberOfVenues);
+    // Get per-venue match configs (if specified)
+    const venueMatchConfigs: Record<string, number> = scheduleConfig.venueMatchConfigs || {};
+    
+    // Helper to get matches per venue
+    const getMatchesPerVenue = (venue: string): number => {
+      return venueMatchConfigs[venue] || matchesPerDay;
+    };
     
     let currentDate = new Date(startDate);
     let matchesScheduledToday = 0;
     let currentVenueIndex = 0;
-    let currentTimeSlotInVenue = 0;
+    
+    // Track matches per venue per day
+    const venueMatchesToday: Record<string, number> = {};
+    for (const venue of venuesList) {
+      venueMatchesToday[venue] = 0;
+    }
 
     for (const matchPair of allMatchPairs) {
+      // Find a venue that hasn't reached its daily limit
+      let selectedVenueIndex = currentVenueIndex;
+      let foundVenue = false;
+      
+      for (let i = 0; i < numberOfVenues; i++) {
+        const venueIdx = (currentVenueIndex + i) % numberOfVenues;
+        const venue = venuesList[venueIdx];
+        const venueLimit = getMatchesPerVenue(venue);
+        
+        if (venueMatchesToday[venue] < venueLimit) {
+          selectedVenueIndex = venueIdx;
+          foundVenue = true;
+          break;
+        }
+      }
+      
+      // If no venue available, move to next day
+      if (!foundVenue) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        matchesScheduledToday = 0;
+        currentVenueIndex = 0;
+        for (const venue of venuesList) {
+          venueMatchesToday[venue] = 0;
+        }
+        selectedVenueIndex = 0;
+        
+        // Check if we exceeded end date
+        if (endDate && currentDate > endDate) {
+          currentDate = new Date(startDate);
+        }
+      }
+      
+      const selectedVenue = venuesList[selectedVenueIndex];
+      const timeSlotForVenue = venueMatchesToday[selectedVenue];
+      
       // Calculate match time based on venue and time slot
       const matchDate = new Date(currentDate);
-      const totalMinutesOffset = currentTimeSlotInVenue * matchDurationMinutes;
+      const totalMinutesOffset = timeSlotForVenue * matchDurationMinutes;
       const slotHour = startHour + Math.floor(totalMinutesOffset / 60);
       const slotMinute = startMinute + (totalMinutesOffset % 60);
       matchDate.setHours(slotHour, slotMinute, 0, 0);
@@ -1205,30 +1250,31 @@ export class DatabaseStorage implements IStorage {
         stage: tournament.hasGroupStage ? 'group' : 'league',
         groupNumber: matchPair.homeTeam.groupNumber,
         matchDate,
-        venue: venuesList[currentVenueIndex],
+        venue: selectedVenue,
         status: 'scheduled',
       }).returning();
       generatedMatches.push(match);
 
       matchesScheduledToday++;
+      venueMatchesToday[selectedVenue]++;
       
-      // Move to next venue for the same time slot, or next time slot
-      currentVenueIndex++;
-      if (currentVenueIndex >= numberOfVenues) {
-        currentVenueIndex = 0;
-        currentTimeSlotInVenue++;
-      }
+      // Move to next venue
+      currentVenueIndex = (selectedVenueIndex + 1) % numberOfVenues;
+      
+      // Calculate total daily capacity
+      const totalDailyCapacity = venuesList.reduce((sum, v) => sum + getMatchesPerVenue(v), 0);
 
-      // Move to next day if needed
-      if (matchesScheduledToday >= matchesPerDay) {
+      // Move to next day if all venues are full
+      if (matchesScheduledToday >= totalDailyCapacity) {
         currentDate.setDate(currentDate.getDate() + 1);
         matchesScheduledToday = 0;
         currentVenueIndex = 0;
-        currentTimeSlotInVenue = 0;
+        for (const venue of venuesList) {
+          venueMatchesToday[venue] = 0;
+        }
 
         // Check if we exceeded end date
         if (endDate && currentDate > endDate) {
-          // Reset to start and continue (wrap around)
           currentDate = new Date(startDate);
         }
       }
@@ -1497,10 +1543,8 @@ export class DatabaseStorage implements IStorage {
       );
     
     const generatedMatches: Match[] = [];
-    // For group stage tournaments (groups or groups_knockout), ALWAYS use single-leg round-robin
-    // regardless of hasSecondLeg setting - group stage should be one match per pairing
-    const isGroupStageTournament = tournament.type === 'groups' || tournament.type === 'groups_knockout';
-    const hasSecondLeg = isGroupStageTournament ? false : (tournament.hasSecondLeg ?? false);
+    // Respect the hasSecondLeg setting from tournament for group stage
+    const hasSecondLeg = tournament.hasSecondLeg ?? false;
     
     // Parse schedule config from tournament or options (same as generateLeagueMatches)
     let scheduleConfig: Record<string, any> = { matchesPerDay: 4, dailyStartTime: "16:00" };
@@ -1535,6 +1579,14 @@ export class DatabaseStorage implements IStorage {
       : ['الملعب الرئيسي'];
     const numberOfVenues = venuesList.length;
     
+    // Get per-venue match configs (if specified)
+    const venueMatchConfigs: Record<string, number> = scheduleConfig.venueMatchConfigs || {};
+    
+    // Calculate total matches per day based on per-venue configs
+    const getMatchesPerVenue = (venue: string): number => {
+      return venueMatchConfigs[venue] || matchesPerDay;
+    };
+    
     // Schedule settings
     let startDate = tournament.startDate ? new Date(tournament.startDate) : new Date();
     const endDate = tournament.endDate ? new Date(tournament.endDate) : null;
@@ -1542,6 +1594,12 @@ export class DatabaseStorage implements IStorage {
     let matchesScheduledToday = 0;
     let currentVenueIndex = 0;
     let currentTimeSlotInVenue = 0;
+    
+    // Track matches per venue per day
+    const venueMatchesToday: Record<string, number> = {};
+    for (const venue of venuesList) {
+      venueMatchesToday[venue] = 0;
+    }
     
     // Generate round-robin matches for each group using proper round-robin scheduling
     // For n teams: n-1 rounds, each round has n/2 matches (n must be even, add dummy if odd)
@@ -1610,11 +1668,47 @@ export class DatabaseStorage implements IStorage {
     // Sort matches by round first (so all round 1 matches are scheduled together, then round 2, etc.)
     allMatchPairs.sort((a, b) => a.round - b.round);
     
-    // Create matches with venue-based time slots
+    // Create matches with venue-based time slots respecting per-venue limits
     for (const matchPair of allMatchPairs) {
+      // Find a venue that hasn't reached its daily limit
+      let selectedVenueIndex = currentVenueIndex;
+      let foundVenue = false;
+      
+      for (let i = 0; i < numberOfVenues; i++) {
+        const venueIdx = (currentVenueIndex + i) % numberOfVenues;
+        const venue = venuesList[venueIdx];
+        const venueLimit = getMatchesPerVenue(venue);
+        
+        if (venueMatchesToday[venue] < venueLimit) {
+          selectedVenueIndex = venueIdx;
+          foundVenue = true;
+          break;
+        }
+      }
+      
+      // If no venue available, move to next day
+      if (!foundVenue) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        matchesScheduledToday = 0;
+        currentVenueIndex = 0;
+        currentTimeSlotInVenue = 0;
+        for (const venue of venuesList) {
+          venueMatchesToday[venue] = 0;
+        }
+        selectedVenueIndex = 0;
+        
+        // Check if we exceeded end date
+        if (endDate && currentDate > endDate) {
+          currentDate = new Date(startDate);
+        }
+      }
+      
+      const selectedVenue = venuesList[selectedVenueIndex];
+      const timeSlotForVenue = venueMatchesToday[selectedVenue];
+      
       // Calculate match time based on venue and time slot
       const matchDate = new Date(currentDate);
-      const totalMinutesOffset = currentTimeSlotInVenue * matchDurationMinutes;
+      const totalMinutesOffset = timeSlotForVenue * matchDurationMinutes;
       const slotHour = startHour + Math.floor(totalMinutesOffset / 60);
       const slotMinute = startMinute + (totalMinutesOffset % 60);
       matchDate.setHours(slotHour, slotMinute, 0, 0);
@@ -1628,26 +1722,29 @@ export class DatabaseStorage implements IStorage {
         stage: 'group',
         groupNumber: matchPair.groupNum,
         matchDate,
-        venue: venuesList[currentVenueIndex],
+        venue: selectedVenue,
         status: 'scheduled',
       }).returning();
       
       generatedMatches.push(match);
       matchesScheduledToday++;
+      venueMatchesToday[selectedVenue]++;
       
-      // Move to next venue for the same time slot, or next time slot
-      currentVenueIndex++;
-      if (currentVenueIndex >= numberOfVenues) {
-        currentVenueIndex = 0;
-        currentTimeSlotInVenue++;
-      }
+      // Move to next venue
+      currentVenueIndex = (selectedVenueIndex + 1) % numberOfVenues;
       
-      // Move to next day if needed
-      if (matchesScheduledToday >= matchesPerDay) {
+      // Calculate total daily capacity
+      const totalDailyCapacity = venuesList.reduce((sum, v) => sum + getMatchesPerVenue(v), 0);
+      
+      // Move to next day if all venues are full
+      if (matchesScheduledToday >= totalDailyCapacity) {
         currentDate.setDate(currentDate.getDate() + 1);
         matchesScheduledToday = 0;
         currentVenueIndex = 0;
         currentTimeSlotInVenue = 0;
+        for (const venue of venuesList) {
+          venueMatchesToday[venue] = 0;
+        }
         
         // Check if we exceeded end date
         if (endDate && currentDate > endDate) {

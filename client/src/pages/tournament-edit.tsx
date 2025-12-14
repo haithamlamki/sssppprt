@@ -286,7 +286,7 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
   const [uploadingImage, setUploadingImage] = useState(false);
   
   // Parse schedule config
-  const scheduleConfig = tournament.scheduleConfig ? JSON.parse(tournament.scheduleConfig) : { dailyStartTime: "16:00", matchesPerDayPerVenue: 3 };
+  const scheduleConfig = tournament.scheduleConfig ? JSON.parse(tournament.scheduleConfig) : { dailyStartTime: "16:00", matchesPerDayPerVenue: 3, venueMatchConfigs: {} };
   
   const [formData, setFormData] = useState({
     name: tournament.name,
@@ -318,7 +318,23 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
     hasThirdPlaceMatch: tournament.hasThirdPlaceMatch ?? false,
     dailyStartTime: scheduleConfig.dailyStartTime || "16:00",
     matchesPerDayPerVenue: scheduleConfig.matchesPerDayPerVenue || 3,
+    hasSecondLeg: tournament.hasSecondLeg ?? true,
+    venueMatchConfigs: (scheduleConfig.venueMatchConfigs || {}) as Record<string, string>,
   });
+  
+  // Parse venues list for per-venue config
+  const venuesList = formData.venues ? formData.venues.split("،").map(v => v.trim()).filter(v => v) : [];
+  
+  // Update venue match configs when venues change
+  const updateVenueMatchConfig = (venue: string, count: string) => {
+    setFormData(prev => ({
+      ...prev,
+      venueMatchConfigs: {
+        ...prev.venueMatchConfigs,
+        [venue]: count
+      }
+    }));
+  };
   
   const daysOfWeek = [
     { value: "friday", label: "الجمعة" },
@@ -420,9 +436,18 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
         isOpenForRegistration: data.isOpenForRegistration,
         hasThirdPlaceMatch: data.hasThirdPlaceMatch,
         hasGroupStage: data.type === "groups" || data.type === "groups_knockout",
+        hasSecondLeg: data.hasSecondLeg,
         scheduleConfig: JSON.stringify({
           dailyStartTime: data.dailyStartTime,
-          matchesPerDayPerVenue: data.matchesPerDayPerVenue
+          matchesPerDayPerVenue: data.matchesPerDayPerVenue,
+          venueMatchConfigs: (() => {
+            const configs: Record<string, number> = {};
+            const parsedVenues = data.venues ? data.venues.split("،").map((v: string) => v.trim()).filter((v: string) => v) : [];
+            parsedVenues.forEach((venue: string) => {
+              configs[venue] = parseInt(data.venueMatchConfigs[venue]) || data.matchesPerDayPerVenue || 3;
+            });
+            return configs;
+          })()
         }),
       };
       
@@ -990,22 +1015,47 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label>عدد الجولات</Label>
+          {(formData.type === "groups" || formData.type === "groups_knockout" || formData.type === "round_robin") && (
+            <div className="space-y-2">
+              <Label>عدد الجولات</Label>
+              {isEditing ? (
+                <Input
+                  type="number"
+                  value={formData.numberOfRounds}
+                  onChange={(e) => setFormData({ ...formData, numberOfRounds: parseInt(e.target.value) || 1 })}
+                  min={1}
+                  max={10}
+                  data-testid="input-number-of-rounds"
+                />
+              ) : (
+                <p className="font-medium">{tournament.numberOfRounds || 1} جولة</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ذهاب وعودة - للمجموعات والدوري فقط */}
+        {(formData.type === "groups" || formData.type === "groups_knockout" || formData.type === "round_robin") && (
+          <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
+            <div className="space-y-1">
+              <Label className="text-base font-semibold">ذهاب وعودة</Label>
+              <p className="text-sm text-muted-foreground">
+                كل فريقين يلعبان مباراتين (ذهاب وإياب)
+              </p>
+            </div>
             {isEditing ? (
-              <Input
-                type="number"
-                value={formData.numberOfRounds}
-                onChange={(e) => setFormData({ ...formData, numberOfRounds: parseInt(e.target.value) || 1 })}
-                min={1}
-                max={10}
-                data-testid="input-number-of-rounds"
+              <Switch
+                checked={formData.hasSecondLeg}
+                onCheckedChange={(checked) => setFormData({ ...formData, hasSecondLeg: checked })}
+                data-testid="switch-has-second-leg"
               />
             ) : (
-              <p className="font-medium">{tournament.numberOfRounds || 1} جولة</p>
+              <Badge variant={tournament.hasSecondLeg ? "default" : "secondary"}>
+                {tournament.hasSecondLeg ? "مفعّل" : "غير مفعّل"}
+              </Badge>
             )}
           </div>
-        </div>
+        )}
 
         {/* أسماء الملاعب */}
         <div className="space-y-2">
@@ -1023,6 +1073,35 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
             </p>
           )}
         </div>
+
+        {/* عدد المباريات لكل ملعب */}
+        {isEditing && venuesList.length > 0 && (
+          <div className="bg-muted/50 rounded-lg p-4 space-y-4">
+            <div>
+              <Label className="text-base font-semibold">عدد المباريات اليومية لكل ملعب</Label>
+              <p className="text-sm text-muted-foreground">حدد عدد المباريات التي يمكن إقامتها في كل ملعب يومياً</p>
+            </div>
+            <div className="space-y-3">
+              {venuesList.map((venue, index) => (
+                <div key={index} className="flex items-center gap-4 bg-background/50 rounded-lg p-3">
+                  <div className="flex-1 font-medium">{venue}</div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm text-muted-foreground">مباريات/يوم:</Label>
+                    <Input
+                      type="number"
+                      value={formData.venueMatchConfigs[venue] || formData.matchesPerDayPerVenue}
+                      onChange={(e) => updateVenueMatchConfig(venue, e.target.value)}
+                      min={1}
+                      max={20}
+                      className="w-20"
+                      data-testid={`input-venue-matches-${index}`}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* إعدادات الجدولة */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

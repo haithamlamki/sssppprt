@@ -1583,7 +1583,23 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
     isOpenForRegistration: true,
     dailyStartTime: "16:00",
     matchesPerDayPerVenue: "3",
+    hasSecondLeg: true, // ذهاب وعودة
+    venueMatchConfigs: {} as Record<string, string>, // عدد المباريات لكل ملعب
   });
+
+  // Parse venues list for per-venue config
+  const venuesList = formData.venues ? formData.venues.split("،").map(v => v.trim()).filter(v => v) : [];
+  
+  // Update venue match configs when venues change
+  const updateVenueMatchConfig = (venue: string, count: string) => {
+    setFormData(prev => ({
+      ...prev,
+      venueMatchConfigs: {
+        ...prev.venueMatchConfigs,
+        [venue]: count
+      }
+    }));
+  };
 
   const groupCountOptions = [2, 3, 4, 5, 6, 8, 10, 12, 16];
   const daysOfWeek = [
@@ -1669,6 +1685,8 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
         isOpenForRegistration: true,
         dailyStartTime: "16:00",
         matchesPerDayPerVenue: "3",
+        hasSecondLeg: true,
+        venueMatchConfigs: {},
       });
       setImagePreview(null);
     },
@@ -1679,6 +1697,14 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Build venue match configs - use per-venue if available, otherwise use default
+    const venueMatchConfigsData: Record<string, number> = {};
+    const parsedVenues = formData.venues ? formData.venues.split("،").map((v: string) => v.trim()).filter((v: string) => v) : [];
+    parsedVenues.forEach((venue: string) => {
+      venueMatchConfigsData[venue] = parseInt(formData.venueMatchConfigs[venue]) || parseInt(formData.matchesPerDayPerVenue) || 3;
+    });
+    
     const submitData: any = {
       name: formData.name,
       description: formData.description || undefined,
@@ -1697,14 +1723,18 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
       pointsForWin: parseInt(formData.pointsForWin) || 3,
       pointsForDraw: parseInt(formData.pointsForDraw) || 1,
       pointsForLoss: parseInt(formData.pointsForLoss) || 0,
-      numberOfRounds: parseInt(formData.numberOfRounds) || 1,
+      numberOfRounds: (formData.type === "groups" || formData.type === "groups_knockout" || formData.type === "round_robin") 
+        ? (parseInt(formData.numberOfRounds) || 1) 
+        : 1,
       halfDuration: parseInt(formData.halfDuration) || 45,
       breakBetweenHalves: parseInt(formData.breakBetweenHalves) || 15,
       isOpenForRegistration: formData.isOpenForRegistration,
       hasGroupStage: formData.type === "groups" || formData.type === "groups_knockout",
+      hasSecondLeg: formData.hasSecondLeg,
       scheduleConfig: JSON.stringify({
         dailyStartTime: formData.dailyStartTime,
-        matchesPerDayPerVenue: parseInt(formData.matchesPerDayPerVenue) || 3
+        matchesPerDayPerVenue: parseInt(formData.matchesPerDayPerVenue) || 3,
+        venueMatchConfigs: venueMatchConfigsData
       }),
     };
     
@@ -1715,7 +1745,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
       submitData.endDate = new Date(formData.endDate).toISOString();
     }
     if (formData.venues) {
-      submitData.venues = formData.venues.split("،").map((v: string) => v.trim()).filter((v: string) => v);
+      submitData.venues = parsedVenues;
     }
     
     mutation.mutate(submitData);
@@ -1991,6 +2021,21 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
       )}
 
+      {/* ذهاب وعودة - للمجموعات فقط */}
+      {(formData.type === "groups" || formData.type === "groups_knockout" || formData.type === "round_robin") && (
+        <div className="flex items-center justify-between bg-muted/50 rounded-lg p-4">
+          <div>
+            <Label className="text-base font-semibold">ذهاب وعودة</Label>
+            <p className="text-sm text-muted-foreground">كل فريقين يلعبان مباراتين (ذهاب وإياب)</p>
+          </div>
+          <Switch
+            checked={formData.hasSecondLeg}
+            onCheckedChange={(checked) => setFormData({ ...formData, hasSecondLeg: checked })}
+            data-testid="switch-has-second-leg"
+          />
+        </div>
+      )}
+
       {/* الأيام المستثناة */}
       <div>
         <Label className="text-base font-semibold mb-3 block">الأيام المستثناة</Label>
@@ -2083,18 +2128,21 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
       </div>
 
-      {/* عدد الجولات */}
-      <div>
-        <Label>عدد الجولات</Label>
-        <Input
-          type="number"
-          value={formData.numberOfRounds}
-          onChange={(e) => setFormData({ ...formData, numberOfRounds: e.target.value })}
-          min="1"
-          max="10"
-          data-testid="input-number-of-rounds"
-        />
-      </div>
+      {/* عدد الجولات - للمجموعات والدوري فقط */}
+      {(formData.type === "groups" || formData.type === "groups_knockout" || formData.type === "round_robin") && (
+        <div>
+          <Label>عدد الجولات</Label>
+          <p className="text-sm text-muted-foreground mb-2">عدد مرات مواجهة كل فريقين (بالإضافة لذهاب وعودة إن كانت مفعلة)</p>
+          <Input
+            type="number"
+            value={formData.numberOfRounds}
+            onChange={(e) => setFormData({ ...formData, numberOfRounds: e.target.value })}
+            min="1"
+            max="10"
+            data-testid="input-number-of-rounds"
+          />
+        </div>
+      )}
 
       {/* التواريخ */}
       <div className="grid grid-cols-2 gap-4">
@@ -2128,6 +2176,33 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
           data-testid="input-venues"
         />
       </div>
+
+      {/* عدد المباريات لكل ملعب */}
+      {venuesList.length > 0 && (
+        <div className="bg-muted/50 rounded-lg p-4">
+          <Label className="text-base font-semibold mb-3 block">عدد المباريات اليومية لكل ملعب</Label>
+          <p className="text-sm text-muted-foreground mb-4">حدد عدد المباريات التي يمكن إقامتها في كل ملعب يومياً</p>
+          <div className="space-y-3">
+            {venuesList.map((venue, index) => (
+              <div key={index} className="flex items-center gap-4 bg-background/50 rounded-lg p-3">
+                <div className="flex-1 font-medium">{venue}</div>
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm text-muted-foreground">مباريات/يوم:</Label>
+                  <Input
+                    type="number"
+                    value={formData.venueMatchConfigs[venue] || formData.matchesPerDayPerVenue}
+                    onChange={(e) => updateVenueMatchConfig(venue, e.target.value)}
+                    min="1"
+                    max="20"
+                    className="w-20"
+                    data-testid={`input-venue-matches-${index}`}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* مفتوح للتسجيل */}
       <div className="flex items-center justify-between bg-muted/50 rounded-lg p-4">
