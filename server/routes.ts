@@ -1008,7 +1008,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If groupNumber changed, regenerate group stage matches
       if (existingTeam && req.body.groupNumber !== undefined && 
-          existingTeam.groupNumber !== req.body.groupNumber) {
+          existingTeam.groupNumber !== req.body.groupNumber && team.tournamentId) {
         try {
           await storage.generateGroupStageMatches(team.tournamentId);
         } catch (e) {

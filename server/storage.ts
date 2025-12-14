@@ -1607,6 +1607,9 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
+    // Sort matches by round first (so all round 1 matches are scheduled together, then round 2, etc.)
+    allMatchPairs.sort((a, b) => a.round - b.round);
+    
     // Create matches with venue-based time slots
     for (const matchPair of allMatchPairs) {
       // Calculate match time based on venue and time slot

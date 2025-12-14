@@ -21,37 +21,81 @@ const stageLabels: Record<string, string> = {
   third_place: "المركز الثالث",
 };
 
+// Get knockout stage match label like "نصف النهائي 1" or "ربع النهائي 2"
+function getKnockoutMatchLabel(stage: string, matchIndex: number): string {
+  const stageLabel = stageLabels[stage] || stage;
+  if (stage === "final" || stage === "third_place") {
+    return stageLabel;
+  }
+  return `${stageLabel} ${matchIndex + 1}`;
+}
+
 // Arabic group letters
 const groupLetters: Record<number, string> = {
   1: "أ", 2: "ب", 3: "ج", 4: "د", 5: "هـ", 6: "و", 7: "ز", 8: "ح",
 };
 
-// Get position label like "أ1" (A1) or "ب2" (B2)
-function getPositionLabel(matchIndex: number, isHome: boolean, stage: string): string {
-  // For semi-finals with 2 groups: Semi 1 = A1 vs B2, Semi 2 = B1 vs A2
-  if (stage === "semi_final") {
-    if (matchIndex === 0) {
-      return isHome ? `${groupLetters[1]}1` : `${groupLetters[2]}2`; // أ1 vs ب2
-    } else {
-      return isHome ? `${groupLetters[2]}1` : `${groupLetters[1]}2`; // ب1 vs أ2
+// Generate knockout pairing patterns dynamically based on number of groups
+// Standard format: A1 vs B2, B1 vs A2, C1 vs D2, D1 vs C2, etc.
+function generateKnockoutPairings(numGroups: number): { home: string; away: string }[] {
+  const pairings: { home: string; away: string }[] = [];
+  
+  // Pair groups in twos: (A,B), (C,D), (E,F), etc.
+  for (let i = 0; i < numGroups; i += 2) {
+    const groupA = i + 1;
+    const groupB = i + 2;
+    
+    if (groupB <= numGroups) {
+      // A1 vs B2
+      pairings.push({
+        home: `${groupLetters[groupA] || groupA}1`,
+        away: `${groupLetters[groupB] || groupB}2`
+      });
+      // B1 vs A2
+      pairings.push({
+        home: `${groupLetters[groupB] || groupB}1`,
+        away: `${groupLetters[groupA] || groupA}2`
+      });
     }
   }
-  // For final
+  
+  return pairings;
+}
+
+// Get position label like "أ1" (A1) or "ب2" (B2)
+// Dynamically generates labels based on stage and match index
+function getPositionLabel(matchIndex: number, isHome: boolean, stage: string, numGroups: number = 2): string {
+  // For final - winners from semi-finals
   if (stage === "final") {
     return isHome ? "فائز 1" : "فائز 2";
   }
-  // For quarter finals with 4 groups
-  if (stage === "quarter_final") {
-    const patterns = [
-      { home: `${groupLetters[1]}1`, away: `${groupLetters[2]}2` }, // A1 vs B2
-      { home: `${groupLetters[2]}1`, away: `${groupLetters[1]}2` }, // B1 vs A2
-      { home: `${groupLetters[3]}1`, away: `${groupLetters[4]}2` }, // C1 vs D2
-      { home: `${groupLetters[4]}1`, away: `${groupLetters[3]}2` }, // D1 vs C2
-    ];
-    const pattern = patterns[matchIndex] || patterns[0];
-    return isHome ? pattern.home : pattern.away;
+  
+  // For third place match
+  if (stage === "third_place") {
+    return isHome ? "خاسر 1" : "خاسر 2";
   }
-  return "TBD";
+  
+  // For knockout stages (semi_final, quarter_final, round_of_16)
+  // Generate pairings dynamically based on number of groups
+  const pairings = generateKnockoutPairings(numGroups);
+  
+  if (matchIndex < pairings.length) {
+    return isHome ? pairings[matchIndex].home : pairings[matchIndex].away;
+  }
+  
+  // Fallback for matches beyond generated pairings
+  // This handles cases where there are more matches than groups can generate
+  const fallbackGroup = Math.floor(matchIndex / 2) * 2 + 1;
+  const isFirstInPair = matchIndex % 2 === 0;
+  if (isFirstInPair) {
+    return isHome 
+      ? `${groupLetters[fallbackGroup] || fallbackGroup}1` 
+      : `${groupLetters[fallbackGroup + 1] || (fallbackGroup + 1)}2`;
+  } else {
+    return isHome 
+      ? `${groupLetters[fallbackGroup + 1] || (fallbackGroup + 1)}1` 
+      : `${groupLetters[fallbackGroup] || fallbackGroup}2`;
+  }
 }
 
 const stageOrder = ["round_of_16", "quarter_final", "semi_final", "final"];
@@ -75,11 +119,13 @@ function CompactMatchCard({
   groupStageComplete = true,
   isRightSide = false,
   matchIndex = 0,
+  numGroups = 2,
 }: { 
   match: MatchWithTeams; 
   groupStageComplete?: boolean;
   isRightSide?: boolean;
   matchIndex?: number;
+  numGroups?: number;
 }) {
   const isCompleted = match.status === "completed";
   const isLive = match.status === "live";
@@ -90,10 +136,10 @@ function CompactMatchCard({
 
   const homeTeamName = groupStageComplete 
     ? (match.homeTeam?.name || "TBD") 
-    : getPositionLabel(matchIndex, true, match.stage || "semi_final");
+    : getPositionLabel(matchIndex, true, match.stage || "semi_final", numGroups);
   const awayTeamName = groupStageComplete 
     ? (match.awayTeam?.name || "TBD") 
-    : getPositionLabel(matchIndex, false, match.stage || "semi_final");
+    : getPositionLabel(matchIndex, false, match.stage || "semi_final", numGroups);
 
   const getShortName = (name: string) => {
     if (name === "TBD") return "TBD";
@@ -413,7 +459,7 @@ export function KnockoutBracket({ matches, tournament, groupStageComplete = true
 
   const hasR16 = knockoutMatches.some(m => m.stage === "round_of_16");
   const hasQF = knockoutMatches.some(m => m.stage === "quarter_final");
-  const trophyImageUrl = tournament?.trophyImageUrl;
+  const trophyImageUrl = tournament?.trophyImageUrl ?? undefined;
 
   return (
     <div className="space-y-6">
@@ -482,12 +528,12 @@ export function KnockoutBracket({ matches, tournament, groupStageComplete = true
                           {index + 1}
                         </span>
                         <Badge variant="outline" className="text-xs">
-                          {stageLabels[match.stage || ""] || match.stage}
+                          {getKnockoutMatchLabel(match.stage || "", matchIndex)}
                         </Badge>
                         <span className="font-medium">
                           {groupStageComplete 
                             ? `${match.homeTeam?.name || "TBD"} × ${match.awayTeam?.name || "TBD"}`
-                            : `${homeLabel} × ${awayLabel}`
+                            : `(${homeLabel}) × (${awayLabel})`
                           }
                         </span>
                       </div>
