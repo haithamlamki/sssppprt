@@ -82,6 +82,60 @@ const groupLabels: Record<number, string> = {
   8: "المجموعة ح",
 };
 
+const stageLabels: Record<string, string> = {
+  group: "مرحلة المجموعات",
+  league: "الدوري",
+  round_of_16: "دور الـ 16",
+  quarter_final: "ربع النهائي",
+  semi_final: "نصف النهائي",
+  final: "النهائي",
+  third_place: "المركز الثالث",
+};
+
+function getMatchLabel(match: MatchWithTeams): string {
+  const stage = match.stage;
+  
+  // For knockout stages, show stage name instead of round
+  if (stage === "final" || stage === "third_place") {
+    return stageLabels[stage];
+  }
+  
+  if (stage === "semi_final" || stage === "quarter_final" || stage === "round_of_16") {
+    const stageLabel = stageLabels[stage];
+    if (match.round && match.round > 1) {
+      return `${stageLabel} ${match.round}`;
+    }
+    return stageLabel;
+  }
+  
+  // For group/league matches, show round
+  if (match.round) {
+    return `الجولة ${match.round}${match.leg === 2 ? " - إياب" : ""}`;
+  }
+  
+  return "";
+}
+
+function getKnockoutTeamLabel(match: MatchWithTeams, isHome: boolean): string {
+  // For knockout matches without teams assigned yet
+  if (match.stage === "final") {
+    return isHome ? "فائز نصف النهائي 1" : "فائز نصف النهائي 2";
+  }
+  if (match.stage === "third_place") {
+    return isHome ? "خاسر نصف النهائي 1" : "خاسر نصف النهائي 2";
+  }
+  if (match.stage === "semi_final") {
+    const groupLetters: Record<number, string> = { 1: "أ", 2: "ب", 3: "ج", 4: "د" };
+    const matchNum = match.round || 1;
+    if (matchNum === 1) {
+      return isHome ? "أول المجموعة أ" : "ثاني المجموعة ب";
+    } else {
+      return isHome ? "أول المجموعة ب" : "ثاني المجموعة أ";
+    }
+  }
+  return "يحدد لاحقاً";
+}
+
 interface GroupStandingsData {
   groupNumber: number;
   teams: Team[];
@@ -991,7 +1045,7 @@ function ScheduleMatchCell({ match }: { match: MatchWithTeams }) {
         </div>
         
         <div className="text-center mt-2 text-xs text-muted-foreground">
-          الجولة {match.round}
+          {getMatchLabel(match)}
           {match.leg === 2 && " - إياب"}
         </div>
       </motion.div>
@@ -1062,7 +1116,7 @@ function ScheduleMatchRow({ match, showTime = true }: { match: MatchWithTeams; s
         
         {/* Info Column */}
         <div className="text-right min-w-[80px]">
-          <div className="text-xs text-muted-foreground">الجولة {match.round}</div>
+          <div className="text-xs text-muted-foreground">{getMatchLabel(match)}</div>
           {match.venue && (
             <div className="text-xs text-muted-foreground flex items-center gap-1 justify-end mt-1">
               <MapPin className="h-3 w-3" />
@@ -1401,7 +1455,7 @@ function CompletedMatchCard({ match }: { match: MatchWithTeams }) {
       >
         <div className="flex items-center gap-4">
           <div className={`flex-1 flex items-center gap-3 justify-end ${homeWon ? "font-bold" : ""}`} data-testid={`completed-match-home-${match.id}`}>
-            <span className={homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}>{match.homeTeam?.name}</span>
+            <span className={homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}>{match.homeTeam?.name || getKnockoutTeamLabel(match, true)}</span>
             {homeWon && <Trophy className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
           </div>
           
@@ -1417,7 +1471,7 @@ function CompletedMatchCard({ match }: { match: MatchWithTeams }) {
 
           <div className={`flex-1 flex items-center gap-3 ${awayWon ? "font-bold" : ""}`} data-testid={`completed-match-away-${match.id}`}>
             {awayWon && <Trophy className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
-            <span className={awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}>{match.awayTeam?.name}</span>
+            <span className={awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}>{match.awayTeam?.name || getKnockoutTeamLabel(match, false)}</span>
           </div>
         </div>
         
@@ -1434,7 +1488,7 @@ function CompletedMatchCard({ match }: { match: MatchWithTeams }) {
                 <span>{match.venue}</span>
               </>
             )}
-            <span className="text-xs">الجولة {match.round}</span>
+            <span className="text-xs">{getMatchLabel(match)}</span>
           </div>
         </div>
       </motion.div>
@@ -1465,7 +1519,7 @@ function MatchCard({ match }: { match: MatchWithTeams }) {
 
         <div className="flex items-center justify-between">
           <div className="flex-1 text-right">
-            <div className="font-bold text-lg">{match.homeTeam?.name}</div>
+            <div className="font-bold text-lg">{match.homeTeam?.name || getKnockoutTeamLabel(match, true)}</div>
             <div className="text-xs text-muted-foreground">الفريق المضيف</div>
           </div>
           
@@ -1482,7 +1536,7 @@ function MatchCard({ match }: { match: MatchWithTeams }) {
           </div>
 
           <div className="flex-1 text-left">
-            <div className="font-bold text-lg">{match.awayTeam?.name}</div>
+            <div className="font-bold text-lg">{match.awayTeam?.name || getKnockoutTeamLabel(match, false)}</div>
             <div className="text-xs text-muted-foreground">الفريق الضيف</div>
           </div>
         </div>
@@ -1495,8 +1549,7 @@ function MatchCard({ match }: { match: MatchWithTeams }) {
         )}
 
         <div className="mt-2 flex items-center justify-center gap-4 text-xs text-muted-foreground">
-          <span>الجولة {match.round}</span>
-          {match.leg === 2 && <Badge variant="outline" className="text-xs">إياب</Badge>}
+          <span>{getMatchLabel(match)}</span>
           {match.stage === "group" && match.groupNumber && (
             <Badge variant="outline" className="text-xs">{groupLabels[match.groupNumber]}</Badge>
           )}
