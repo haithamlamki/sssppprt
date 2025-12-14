@@ -1101,10 +1101,16 @@ export class DatabaseStorage implements IStorage {
     await db.delete(matches).where(eq(matches.tournamentId, tournamentId));
 
     // Parse schedule config from tournament or options
-    let scheduleConfig = { matchesPerDay: 2, dailyStartTime: "16:00" };
+    let scheduleConfig: Record<string, any> = { matchesPerDay: 2, dailyStartTime: "16:00" };
     if (tournament.scheduleConfig) {
       try {
-        scheduleConfig = { ...scheduleConfig, ...JSON.parse(tournament.scheduleConfig) };
+        const parsed = JSON.parse(tournament.scheduleConfig);
+        // Merge all fields first, then normalize field names
+        scheduleConfig = { ...scheduleConfig, ...parsed };
+        // Support both matchesPerDay and matchesPerDayPerVenue (legacy compatibility)
+        if (parsed.matchesPerDayPerVenue && !parsed.matchesPerDay) {
+          scheduleConfig.matchesPerDay = parsed.matchesPerDayPerVenue;
+        }
       } catch (e) {}
     }
     if (options?.matchesPerDay) scheduleConfig.matchesPerDay = options.matchesPerDay;
@@ -1444,9 +1450,26 @@ export class DatabaseStorage implements IStorage {
       );
     
     const generatedMatches: Match[] = [];
-    const matchesPerDay = options?.matchesPerDay || 4;
     const hasSecondLeg = tournament.hasSecondLeg ?? true;
-    const dailyStartTime = options?.dailyStartTime || "16:00";
+    
+    // Parse schedule config from tournament or options (same as generateLeagueMatches)
+    let scheduleConfig: Record<string, any> = { matchesPerDay: 4, dailyStartTime: "16:00" };
+    if (tournament.scheduleConfig) {
+      try {
+        const parsed = JSON.parse(tournament.scheduleConfig);
+        // Merge all fields first, then normalize field names
+        scheduleConfig = { ...scheduleConfig, ...parsed };
+        // Support both matchesPerDay and matchesPerDayPerVenue (legacy compatibility)
+        if (parsed.matchesPerDayPerVenue && !parsed.matchesPerDay) {
+          scheduleConfig.matchesPerDay = parsed.matchesPerDayPerVenue;
+        }
+      } catch (e) {}
+    }
+    if (options?.matchesPerDay) scheduleConfig.matchesPerDay = options.matchesPerDay;
+    if (options?.dailyStartTime) scheduleConfig.dailyStartTime = options.dailyStartTime;
+    
+    const matchesPerDay = scheduleConfig.matchesPerDay;
+    const dailyStartTime = scheduleConfig.dailyStartTime;
     
     // Parse start time
     const [startHour, startMinute] = dailyStartTime.split(':').map(Number);

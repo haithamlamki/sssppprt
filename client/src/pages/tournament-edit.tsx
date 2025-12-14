@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
 import { 
@@ -267,7 +267,7 @@ export default function TournamentEdit() {
           </TabsContent>
 
           <TabsContent value="matches">
-            <MatchesTab tournamentId={tournamentId!} matches={matches} teams={teams} />
+            <MatchesTab tournamentId={tournamentId!} tournament={tournament} matches={matches} teams={teams} />
           </TabsContent>
 
           <TabsContent value="stages">
@@ -2298,10 +2298,12 @@ function EditRefereeDialog({
 
 function MatchesTab({ 
   tournamentId, 
+  tournament,
   matches, 
   teams 
 }: { 
   tournamentId: string; 
+  tournament: Tournament;
   matches: MatchWithTeams[]; 
   teams: Team[];
 }) {
@@ -2310,10 +2312,23 @@ function MatchesTab({
   const [editingDataMap, setEditingDataMap] = useState<Record<string, Record<string, any>>>({});
   const [isAddMatchOpen, setIsAddMatchOpen] = useState(false);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+  
+  // Parse tournament schedule config and sync with state
   const [scheduleConfig, setScheduleConfig] = useState({
     matchesPerDay: 2,
     dailyStartTime: "16:00",
   });
+  
+  // Sync scheduleConfig when tournament changes
+  useEffect(() => {
+    const config = tournament.scheduleConfig 
+      ? JSON.parse(tournament.scheduleConfig) 
+      : { dailyStartTime: "16:00", matchesPerDayPerVenue: 3 };
+    setScheduleConfig({
+      matchesPerDay: config.matchesPerDayPerVenue || config.matchesPerDay || 2,
+      dailyStartTime: config.dailyStartTime || "16:00",
+    });
+  }, [tournament.scheduleConfig]);
   const [newMatch, setNewMatch] = useState({
     homeTeamId: "",
     awayTeamId: "",
@@ -2341,10 +2356,12 @@ function MatchesTab({
     } else {
       setExpandedMatchId(match.id);
       if (!editingDataMap[match.id]) {
-        const isoDate = match.matchDate ? match.matchDate : null;
         let dateStr = "";
         let timeStr = "";
-        if (isoDate) {
+        if (match.matchDate) {
+          const isoDate = typeof match.matchDate === 'string' 
+            ? match.matchDate 
+            : new Date(match.matchDate).toISOString();
           const parts = isoDate.split('T');
           dateStr = parts[0];
           timeStr = parts[1] ? parts[1].slice(0, 5) : "";
@@ -2478,9 +2495,24 @@ function MatchesTab({
                   <DialogTitle>إعدادات توليد جدول المباريات</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                  <p className="text-sm text-muted-foreground">
-                    سيتم توليد المباريات بناءً على تاريخ بداية ونهاية البطولة المحددين في معلومات البطولة
-                  </p>
+                  {/* Tournament Info */}
+                  <div className="bg-muted p-3 rounded-lg text-sm space-y-1">
+                    <p className="font-semibold mb-2">معلومات البطولة:</p>
+                    <p><strong>تاريخ البداية:</strong> {tournament.startDate ? format(new Date(tournament.startDate), "yyyy/MM/dd", { locale: ar }) : "غير محدد"}</p>
+                    <p><strong>تاريخ النهاية:</strong> {tournament.endDate ? format(new Date(tournament.endDate), "yyyy/MM/dd", { locale: ar }) : "غير محدد"}</p>
+                    <p><strong>عدد الفرق:</strong> {teams.length}</p>
+                    <p><strong>عدد المباريات المتوقع:</strong> {teams.length * (teams.length - 1) / 2}</p>
+                    {tournament.venues && tournament.venues.length > 0 && (
+                      <p><strong>الملاعب:</strong> {tournament.venues.join("، ")}</p>
+                    )}
+                  </div>
+                  
+                  {(!tournament.startDate || !tournament.endDate) && (
+                    <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 p-3 rounded-lg text-sm">
+                      تنبيه: يرجى تحديد تاريخ البداية والنهاية من تبويب "المعلومات" أولاً
+                    </div>
+                  )}
+                  
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>عدد المباريات في اليوم</Label>
@@ -2502,10 +2534,6 @@ function MatchesTab({
                         data-testid="input-daily-start-time"
                       />
                     </div>
-                  </div>
-                  <div className="bg-muted p-3 rounded-lg text-sm">
-                    <p><strong>عدد الفرق:</strong> {teams.length}</p>
-                    <p><strong>عدد المباريات المتوقع:</strong> {teams.length * (teams.length - 1) / 2}</p>
                   </div>
                 </div>
                 <DialogFooter>
@@ -3198,9 +3226,17 @@ function StagesTab({
     },
   });
 
+  // Parse tournament schedule config
+  const tournamentScheduleConfig = tournament.scheduleConfig 
+    ? JSON.parse(tournament.scheduleConfig) 
+    : { dailyStartTime: "16:00", matchesPerDayPerVenue: 3 };
+  
   const generateGroupMatchesMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("POST", `/api/tournaments/${tournamentId}/generate-group-matches`);
+      return await apiRequest("POST", `/api/tournaments/${tournamentId}/generate-group-matches`, {
+        matchesPerDay: tournamentScheduleConfig.matchesPerDayPerVenue || tournamentScheduleConfig.matchesPerDay || 4,
+        dailyStartTime: tournamentScheduleConfig.dailyStartTime || "16:00",
+      });
     },
     onSuccess: () => {
       toast({ title: "تم توليد مباريات المجموعات" });
