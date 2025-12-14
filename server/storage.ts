@@ -1471,7 +1471,9 @@ export class DatabaseStorage implements IStorage {
   async generateGroupStageMatches(tournamentId: string, options?: { matchesPerDay?: number; dailyStartTime?: string }): Promise<Match[]> {
     const tournament = await this.getTournamentById(tournamentId);
     if (!tournament) throw new Error("Tournament not found");
-    if (!tournament.hasGroupStage) throw new Error("Tournament doesn't have group stage");
+    // Check if tournament has group stage (either by flag or type)
+    const isGroupTournament = tournament.hasGroupStage || tournament.type === 'groups' || tournament.type === 'groups_knockout';
+    if (!isGroupTournament) throw new Error("Tournament doesn't have group stage");
     
     const tournamentTeams = await this.getTeamsByTournament(tournamentId);
     
@@ -1495,7 +1497,8 @@ export class DatabaseStorage implements IStorage {
       );
     
     const generatedMatches: Match[] = [];
-    const hasSecondLeg = tournament.hasSecondLeg ?? true;
+    // Default to single-leg round-robin (false) unless explicitly set to true
+    const hasSecondLeg = tournament.hasSecondLeg ?? false;
     
     // Parse schedule config from tournament or options (same as generateLeagueMatches)
     let scheduleConfig: Record<string, any> = { matchesPerDay: 4, dailyStartTime: "16:00" };

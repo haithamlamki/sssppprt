@@ -1234,6 +1234,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         tournamentId: req.params.tournamentId,
       });
+      
+      // Validate that group stage matches are between teams in the same group
+      // Only validate if both teams have been assigned to groups (groupNumber > 0)
+      if (matchData.stage === 'group' && matchData.homeTeamId && matchData.awayTeamId) {
+        const homeTeam = await storage.getTeamById(matchData.homeTeamId);
+        const awayTeam = await storage.getTeamById(matchData.awayTeamId);
+        
+        if (homeTeam && awayTeam) {
+          const homeGroup = homeTeam.groupNumber;
+          const awayGroup = awayTeam.groupNumber;
+          
+          // Only validate if BOTH teams have valid group assignments (not null/undefined/0)
+          if (homeGroup && homeGroup > 0 && awayGroup && awayGroup > 0 && homeGroup !== awayGroup) {
+            return res.status(400).json({ 
+              error: "لا يمكن إنشاء مباراة بين فريقين من مجموعتين مختلفتين في مرحلة المجموعات"
+            });
+          }
+        }
+      }
+      
       const match = await storage.createMatch(matchData);
       res.status(201).json(match);
     } catch (error) {

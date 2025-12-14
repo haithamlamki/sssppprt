@@ -2530,6 +2530,12 @@ function MatchesTab({
                   <DialogTitle>إعدادات توليد جدول المباريات</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
+                  {/* Warning if matches already exist */}
+                  {matches.length > 0 && (
+                    <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-200 p-3 rounded-lg text-sm">
+                      <strong>تحذير:</strong> يوجد {matches.length} مباراة حالياً. سيتم حذف جميع المباريات الموجودة وإعادة توليدها من جديد!
+                    </div>
+                  )}
                   {/* Tournament Info */}
                   <div className="bg-muted p-3 rounded-lg text-sm space-y-1">
                     <p className="font-semibold mb-2">معلومات البطولة:</p>
