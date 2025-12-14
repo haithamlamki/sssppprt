@@ -1497,8 +1497,10 @@ export class DatabaseStorage implements IStorage {
       );
     
     const generatedMatches: Match[] = [];
-    // Default to single-leg round-robin (false) unless explicitly set to true
-    const hasSecondLeg = tournament.hasSecondLeg ?? false;
+    // For group stage tournaments (groups or groups_knockout), ALWAYS use single-leg round-robin
+    // regardless of hasSecondLeg setting - group stage should be one match per pairing
+    const isGroupStageTournament = tournament.type === 'groups' || tournament.type === 'groups_knockout';
+    const hasSecondLeg = isGroupStageTournament ? false : (tournament.hasSecondLeg ?? false);
     
     // Parse schedule config from tournament or options (same as generateLeagueMatches)
     let scheduleConfig: Record<string, any> = { matchesPerDay: 4, dailyStartTime: "16:00" };
