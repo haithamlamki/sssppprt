@@ -1354,6 +1354,51 @@ export class DatabaseStorage implements IStorage {
       generatedMatches.push(match);
     }
 
+    // If this is semi-final stage, create final and optionally third place match placeholders
+    if (stage === 'semi_final') {
+      const finalDate = new Date(baseDate);
+      finalDate.setDate(finalDate.getDate() + 7); // A week after semi-finals
+      
+      // Create final placeholder
+      const [finalMatch] = await db.insert(matches).values({
+        tournamentId,
+        homeTeamId: null,
+        awayTeamId: null,
+        round: 1,
+        leg: 1,
+        stage: 'final',
+        matchDate: finalDate,
+        venue: tournament.venues && tournament.venues.length > 0 
+          ? tournament.venues[0] 
+          : null,
+        status: 'scheduled',
+      }).returning();
+      
+      generatedMatches.push(finalMatch);
+      
+      // Create third place match placeholder if enabled
+      if (tournament.hasThirdPlaceMatch) {
+        const thirdPlaceDate = new Date(finalDate);
+        thirdPlaceDate.setHours(thirdPlaceDate.getHours() - 2); // Before the final
+        
+        const [thirdPlaceMatch] = await db.insert(matches).values({
+          tournamentId,
+          homeTeamId: null,
+          awayTeamId: null,
+          round: 1,
+          leg: 1,
+          stage: 'third_place',
+          matchDate: thirdPlaceDate,
+          venue: tournament.venues && tournament.venues.length > 0 
+            ? tournament.venues[0] 
+            : null,
+          status: 'scheduled',
+        }).returning();
+        
+        generatedMatches.push(thirdPlaceMatch);
+      }
+    }
+
     return generatedMatches;
   }
 

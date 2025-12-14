@@ -367,6 +367,9 @@ export const tournaments = pgTable("tournaments", {
   // Registration
   isOpenForRegistration: boolean("is_open_for_registration").notNull().default(true),
   
+  // Third place match - مباراة تحديد المركز الثالث
+  hasThirdPlaceMatch: boolean("has_third_place_match").notNull().default(false),
+  
   // Schedule configuration - JSON: { matchesPerDay, dailyStartTime, dailyEndTime }
   scheduleConfig: text("schedule_config"),
   

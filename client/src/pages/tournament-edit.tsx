@@ -315,6 +315,7 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
     policy: tournament.policy || "public",
     numberOfRounds: tournament.numberOfRounds || 1,
     isOpenForRegistration: tournament.isOpenForRegistration ?? true,
+    hasThirdPlaceMatch: tournament.hasThirdPlaceMatch ?? false,
     dailyStartTime: scheduleConfig.dailyStartTime || "16:00",
     matchesPerDayPerVenue: scheduleConfig.matchesPerDayPerVenue || 3,
   });
@@ -417,6 +418,7 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
         policy: data.policy,
         numberOfRounds: data.numberOfRounds,
         isOpenForRegistration: data.isOpenForRegistration,
+        hasThirdPlaceMatch: data.hasThirdPlaceMatch,
         hasGroupStage: data.type === "groups" || data.type === "groups_knockout",
         scheduleConfig: JSON.stringify({
           dailyStartTime: data.dailyStartTime,
@@ -1101,6 +1103,27 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
           ) : (
             <Badge variant={tournament.isOpenForRegistration ? "default" : "secondary"}>
               {tournament.isOpenForRegistration ? "مفتوح" : "مغلق"}
+            </Badge>
+          )}
+        </div>
+
+        {/* مباراة تحديد المركز الثالث */}
+        <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="space-y-1">
+            <Label>مباراة تحديد المركز الثالث</Label>
+            <p className="text-sm text-muted-foreground">
+              إضافة مباراة لتحديد المركز الثالث بين خاسري الدور نصف النهائي
+            </p>
+          </div>
+          {isEditing ? (
+            <Switch
+              checked={formData.hasThirdPlaceMatch}
+              onCheckedChange={(checked) => setFormData({ ...formData, hasThirdPlaceMatch: checked })}
+              data-testid="switch-third-place"
+            />
+          ) : (
+            <Badge variant={tournament.hasThirdPlaceMatch ? "default" : "secondary"}>
+              {tournament.hasThirdPlaceMatch ? "مفعّل" : "غير مفعّل"}
             </Badge>
           )}
         </div>
