@@ -1543,35 +1543,67 @@ export class DatabaseStorage implements IStorage {
     let currentVenueIndex = 0;
     let currentTimeSlotInVenue = 0;
     
-    // Generate round-robin matches for each group - collect all pairs first
+    // Generate round-robin matches for each group using proper round-robin scheduling
+    // For n teams: n-1 rounds, each round has n/2 matches (n must be even, add dummy if odd)
     const allMatchPairs: { home: Team; away: Team; round: number; leg: number; groupNum: number }[] = [];
     const groups = Object.keys(groupedTeams).map(Number).sort((a, b) => a - b);
     
     for (const groupNum of groups) {
-      const groupTeams = groupedTeams[groupNum];
+      const groupTeams = [...groupedTeams[groupNum]];
       if (groupTeams.length < 2) continue;
       
-      // Generate round-robin pairs
-      for (let i = 0; i < groupTeams.length; i++) {
-        for (let j = i + 1; j < groupTeams.length; j++) {
-          allMatchPairs.push({ 
-            home: groupTeams[i], 
-            away: groupTeams[j], 
-            round: allMatchPairs.length + 1, 
-            leg: 1,
-            groupNum 
-          });
+      // Round-robin algorithm - generates proper rounds where each team plays once per round
+      // For 4 teams: 3 rounds with 2 matches each = 6 total matches
+      const n = groupTeams.length;
+      const numRounds = n - 1; // For n teams, we need n-1 rounds
+      
+      // If odd number of teams, add a "bye" placeholder
+      const teamsForScheduling = [...groupTeams];
+      if (n % 2 !== 0) {
+        teamsForScheduling.push(null as any); // Bye team
+      }
+      
+      const scheduleSize = teamsForScheduling.length;
+      const halfSize = scheduleSize / 2;
+      
+      // Generate each round
+      for (let round = 1; round <= numRounds; round++) {
+        // Create pairings for this round
+        const homeTeamsThisRound = teamsForScheduling.slice(0, halfSize);
+        const awayTeamsThisRound = teamsForScheduling.slice(halfSize).reverse();
+        
+        for (let i = 0; i < halfSize; i++) {
+          const home = homeTeamsThisRound[i];
+          const away = awayTeamsThisRound[i];
           
-          if (hasSecondLeg) {
+          // Skip if either is a bye (null)
+          if (home && away) {
             allMatchPairs.push({ 
-              home: groupTeams[j], 
-              away: groupTeams[i], 
-              round: allMatchPairs.length + 1, 
-              leg: 2,
+              home, 
+              away, 
+              round, 
+              leg: 1,
               groupNum 
             });
+            
+            if (hasSecondLeg) {
+              allMatchPairs.push({ 
+                home: away, 
+                away: home, 
+                round: round + numRounds, 
+                leg: 2,
+                groupNum 
+              });
+            }
           }
         }
+        
+        // Rotate teams for next round (keep first team fixed)
+        const fixed = teamsForScheduling[0];
+        const toRotate = teamsForScheduling.slice(1);
+        const last = toRotate.pop()!;
+        toRotate.unshift(last);
+        teamsForScheduling.splice(0, scheduleSize, fixed, ...toRotate);
       }
     }
     
