@@ -2466,8 +2466,20 @@ function MatchesTab({
     },
   });
 
-  const scheduledMatches = matches.filter(m => m.status === "scheduled" || m.status === "live");
-  const completedMatches = matches.filter(m => m.status === "completed");
+  const scheduledMatches = matches
+    .filter(m => m.status === "scheduled" || m.status === "live")
+    .sort((a, b) => {
+      const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
+      const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
+      return dateA - dateB;
+    });
+  const completedMatches = matches
+    .filter(m => m.status === "completed")
+    .sort((a, b) => {
+      const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
+      const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
+      return dateB - dateA;
+    });
 
   return (
     <div className="space-y-6">
