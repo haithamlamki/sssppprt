@@ -775,7 +775,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         matchesPerDay: matchesPerDay ? parseInt(matchesPerDay) : undefined,
         dailyStartTime: dailyStartTime || undefined
       };
-      const generatedMatches = await storage.generateLeagueMatches(req.params.id, options);
+      
+      // Check tournament type to decide which generator to use
+      const tournament = await storage.getTournamentById(req.params.id);
+      if (!tournament) {
+        return res.status(404).json({ error: "Tournament not found" });
+      }
+      
+      let generatedMatches;
+      if (tournament.hasGroupStage || tournament.type === 'groups' || tournament.type === 'groups_knockout') {
+        // For group-stage tournaments, generate matches within each group
+        generatedMatches = await storage.generateGroupStageMatches(req.params.id, options);
+      } else {
+        // For round-robin or knockout, generate league matches
+        generatedMatches = await storage.generateLeagueMatches(req.params.id, options);
+      }
+      
       await storage.updateTournament(req.params.id, { status: "ongoing" });
       res.json({ matches: generatedMatches, count: generatedMatches.length });
     } catch (error: any) {

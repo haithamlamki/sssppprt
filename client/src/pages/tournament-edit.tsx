@@ -2719,6 +2719,14 @@ function MatchesTab({
                     <div className="flex items-center gap-4">
                       {isExpanded ? <ChevronUp className="h-4 w-4 text-primary" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                       <Badge variant="outline">الجولة {match.round}</Badge>
+                      {match.groupNumber && (
+                        <Badge className="bg-blue-500 text-white">
+                          مجموعة {groupLetterMap[match.groupNumber] || match.groupNumber}
+                        </Badge>
+                      )}
+                      {match.stage === 'knockout' && (
+                        <Badge className="bg-orange-500 text-white">خروج المغلوب</Badge>
+                      )}
                       <span className="font-medium">{match.homeTeam?.name || "TBD"}</span>
                       <span className="text-muted-foreground">vs</span>
                       <span className="font-medium">{match.awayTeam?.name || "TBD"}</span>
@@ -2854,6 +2862,14 @@ function MatchesTab({
                     <div className="flex items-center gap-4">
                       {isExpanded ? <ChevronUp className="h-4 w-4 text-primary" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                       <Badge variant="outline">الجولة {match.round}</Badge>
+                      {match.groupNumber && (
+                        <Badge className="bg-blue-500 text-white">
+                          مجموعة {groupLetterMap[match.groupNumber] || match.groupNumber}
+                        </Badge>
+                      )}
+                      {match.stage === 'knockout' && (
+                        <Badge className="bg-orange-500 text-white">خروج المغلوب</Badge>
+                      )}
                       <span className="font-medium">{match.homeTeam?.name}</span>
                       <span className="font-bold text-lg px-2">{match.homeScore} - {match.awayScore}</span>
                       <span className="font-medium">{match.awayTeam?.name}</span>
