@@ -975,7 +975,7 @@ export default function LeagueDetail() {
   );
 }
 
-// Format time range for match (e.g., "4:10-4:45 م")
+// Format time range for match (e.g., "4:10–4:45 م")
 // Default duration: 2 halves of 20 min + 5 min break = 45 min (typical for company tournaments)
 function formatMatchTimeRange(matchDate: Date, durationMinutes: number = 45): string {
   const startHour = matchDate.getHours();
@@ -991,12 +991,13 @@ function formatMatchTimeRange(matchDate: Date, durationMinutes: number = 45): st
   const endMin = endDate.getMinutes();
   
   const formatTime = (h: number, m: number) => {
-    const period = h >= 12 ? "م" : "ص";
     const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return `${hour12}:${m.toString().padStart(2, "0")} ${period}`;
+    return `${hour12}:${m.toString().padStart(2, "0")}`;
   };
   
-  return `${formatTime(startHour, startMin)} - ${formatTime(endHour, endMin)}`;
+  // Use LRM (\u200E) to fix RTL issues, en-dash (–), and NBSP (\u00A0) before م
+  const period = endHour >= 12 ? "م" : "ص";
+  return `\u200E${formatTime(startHour, startMin)}–${formatTime(endHour, endMin)}\u00A0${period}`;
 }
 
 // Schedule Match Cell - for grid layout with multiple venues
@@ -1269,7 +1270,7 @@ function MatchesView({ matches }: { matches: MatchWithTeams[] }) {
                 
                 {/* Venue Headers */}
                 {venues.length > 1 && (
-                  <div className="grid gap-4" style={{ gridTemplateColumns: `80px repeat(${venues.length}, 1fr)` }}>
+                  <div className="grid gap-4" style={{ gridTemplateColumns: `100px repeat(${venues.length}, 1fr)` }}>
                     <div></div>
                     {venues.map((venue, idx) => (
                       <div key={venue} className="text-center py-2 bg-muted/50 rounded-lg font-bold text-sm">
@@ -1294,7 +1295,7 @@ function MatchesView({ matches }: { matches: MatchWithTeams[] }) {
                         <div 
                           key={timeKey} 
                           className="grid gap-4 items-center"
-                          style={{ gridTemplateColumns: `80px repeat(${venues.length}, 1fr)` }}
+                          style={{ gridTemplateColumns: `100px repeat(${venues.length}, 1fr)` }}
                         >
                           {/* Time Column */}
                           <div className="text-center py-2 bg-primary/10 rounded-lg">
