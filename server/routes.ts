@@ -1254,6 +1254,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Prevent duplicate matches between same teams in same stage
+      if (matchData.homeTeamId && matchData.awayTeamId && matchData.stage) {
+        const existingMatches = await storage.getMatchesByTournament(req.params.tournamentId);
+        const isDuplicate = existingMatches.some(m => 
+          m.stage === matchData.stage && (
+            (m.homeTeamId === matchData.homeTeamId && m.awayTeamId === matchData.awayTeamId) ||
+            (m.homeTeamId === matchData.awayTeamId && m.awayTeamId === matchData.homeTeamId)
+          )
+        );
+        if (isDuplicate) {
+          return res.status(400).json({ 
+            error: "يوجد مباراة مسجلة مسبقاً بين هذين الفريقين في نفس المرحلة"
+          });
+        }
+      }
+      
       const match = await storage.createMatch(matchData);
       res.status(201).json(match);
     } catch (error) {
