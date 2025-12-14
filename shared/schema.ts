@@ -520,8 +520,8 @@ export type Referee = typeof referees.$inferSelect;
 export const matches = pgTable("matches", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id, { onDelete: "cascade" }),
-  homeTeamId: varchar("home_team_id").notNull().references(() => teams.id),
-  awayTeamId: varchar("away_team_id").notNull().references(() => teams.id),
+  homeTeamId: varchar("home_team_id").references(() => teams.id), // Nullable for placeholder matches
+  awayTeamId: varchar("away_team_id").references(() => teams.id), // Nullable for placeholder matches
   
   // Match info
   round: integer("round").notNull(), // الجولة

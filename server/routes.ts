@@ -999,10 +999,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/teams/:id", isAuthenticated, async (req, res) => {
     try {
+      // Get existing team to check if groupNumber is changing
+      const existingTeam = await storage.getTeamById(req.params.id);
       const team = await storage.updateTeam(req.params.id, req.body);
       if (!team) {
         return res.status(404).json({ error: "Team not found" });
       }
+      
+      // If groupNumber changed, regenerate group stage matches
+      if (existingTeam && req.body.groupNumber !== undefined && 
+          existingTeam.groupNumber !== req.body.groupNumber) {
+        try {
+          await storage.generateGroupStageMatches(team.tournamentId);
+        } catch (e) {
+          // Ignore if tournament doesn't have group stage
+          console.log("Could not regenerate group matches:", e);
+        }
+      }
+      
       res.json(team);
     } catch (error) {
       res.status(500).json({ error: "Failed to update team" });
