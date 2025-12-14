@@ -1830,8 +1830,59 @@ export class DatabaseStorage implements IStorage {
         knockoutMatchesToCreate.push({ stage: 'final', round: 1 });
       }
       
-      // Create knockout matches with null team IDs
+      // Calculate knockout match dates
+      const lastGroupMatch = generatedMatches
+        .filter(m => m.stage === 'group')
+        .sort((a, b) => new Date(b.matchDate || 0).getTime() - new Date(a.matchDate || 0).getTime())[0];
+      
+      const lastGroupDate = lastGroupMatch?.matchDate 
+        ? new Date(lastGroupMatch.matchDate) 
+        : new Date(startDate);
+      
+      // Semi-finals: day after last group match
+      const semiFinalDate = new Date(lastGroupDate);
+      semiFinalDate.setDate(semiFinalDate.getDate() + 1);
+      semiFinalDate.setHours(startHour, startMinute, 0, 0);
+      
+      // Final and third place: tournament end date or 4 days after semi-final
+      const finalDate = tournament.endDate 
+        ? new Date(tournament.endDate) 
+        : new Date(semiFinalDate);
+      if (!tournament.endDate) {
+        finalDate.setDate(finalDate.getDate() + 4);
+      }
+      finalDate.setHours(startHour, startMinute, 0, 0);
+      
+      const thirdPlaceDate = new Date(finalDate);
+      
+      // Create knockout matches with null team IDs but with dates
       for (const knockoutMatch of knockoutMatchesToCreate) {
+        let matchDate: Date;
+        let venue = venuesList[0];
+        
+        if (knockoutMatch.stage === 'round_of_16') {
+          // Round of 16: 2 days before quarter finals
+          matchDate = new Date(semiFinalDate);
+          matchDate.setDate(matchDate.getDate() - 3);
+          matchDate.setMinutes(matchDate.getMinutes() + (knockoutMatch.round - 1) * matchDurationMinutes);
+        } else if (knockoutMatch.stage === 'quarter_final') {
+          // Quarter finals: day before semi-finals
+          matchDate = new Date(semiFinalDate);
+          matchDate.setDate(matchDate.getDate() - 1);
+          matchDate.setMinutes(matchDate.getMinutes() + (knockoutMatch.round - 1) * matchDurationMinutes);
+        } else if (knockoutMatch.stage === 'semi_final') {
+          matchDate = new Date(semiFinalDate);
+          matchDate.setMinutes(matchDate.getMinutes() + (knockoutMatch.round - 1) * matchDurationMinutes);
+        } else if (knockoutMatch.stage === 'third_place') {
+          matchDate = new Date(thirdPlaceDate);
+        } else {
+          // Final: after third place match if it exists, otherwise at start time
+          matchDate = new Date(finalDate);
+          if (tournament.hasThirdPlaceMatch !== false) {
+            matchDate.setMinutes(matchDate.getMinutes() + matchDurationMinutes);
+          }
+        }
+        
         const [match] = await db.insert(matches).values({
           tournamentId,
           homeTeamId: null,
@@ -1839,6 +1890,8 @@ export class DatabaseStorage implements IStorage {
           round: knockoutMatch.round,
           stage: knockoutMatch.stage,
           status: 'scheduled',
+          matchDate,
+          venue,
         }).returning();
         
         generatedMatches.push(match);
