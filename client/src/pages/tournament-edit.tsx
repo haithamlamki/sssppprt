@@ -2461,12 +2461,22 @@ function MatchesTab({
         let dateStr = "";
         let timeStr = "";
         if (match.matchDate) {
-          const isoDate = typeof match.matchDate === 'string' 
-            ? match.matchDate 
-            : new Date(match.matchDate).toISOString();
-          const parts = isoDate.split('T');
-          dateStr = parts[0];
-          timeStr = parts[1] ? parts[1].slice(0, 5) : "";
+          // Use Intl.DateTimeFormat with Asia/Muscat timezone to get correct wall-clock values
+          const date = new Date(match.matchDate);
+          const dateFormatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Muscat',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          });
+          const timeFormatter = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Muscat',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          });
+          dateStr = dateFormatter.format(date); // YYYY-MM-DD format
+          timeStr = timeFormatter.format(date); // HH:mm format
         }
         setMatchEditingData(match.id, {
           homeTeamId: match.homeTeamId || "",
