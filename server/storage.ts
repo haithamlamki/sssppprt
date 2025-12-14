@@ -1039,11 +1039,22 @@ export class DatabaseStorage implements IStorage {
 
     const matchesWithTeams: MatchWithTeams[] = [];
     for (const match of matchesList) {
-      const [homeTeam] = await db.select().from(teams).where(eq(teams.id, match.homeTeamId));
-      const [awayTeam] = await db.select().from(teams).where(eq(teams.id, match.awayTeamId));
-      if (homeTeam && awayTeam) {
-        matchesWithTeams.push({ ...match, homeTeam, awayTeam });
+      // Handle matches with null team IDs (knockout matches before teams are assigned)
+      let homeTeam = null;
+      let awayTeam = null;
+      
+      if (match.homeTeamId) {
+        const [team] = await db.select().from(teams).where(eq(teams.id, match.homeTeamId));
+        homeTeam = team || null;
       }
+      
+      if (match.awayTeamId) {
+        const [team] = await db.select().from(teams).where(eq(teams.id, match.awayTeamId));
+        awayTeam = team || null;
+      }
+      
+      // Include all matches (even those with null teams for knockout placeholders)
+      matchesWithTeams.push({ ...match, homeTeam, awayTeam } as MatchWithTeams);
     }
     return matchesWithTeams;
   }
@@ -1052,11 +1063,21 @@ export class DatabaseStorage implements IStorage {
     const [match] = await db.select().from(matches).where(eq(matches.id, id));
     if (!match) return undefined;
 
-    const [homeTeam] = await db.select().from(teams).where(eq(teams.id, match.homeTeamId));
-    const [awayTeam] = await db.select().from(teams).where(eq(teams.id, match.awayTeamId));
-    if (!homeTeam || !awayTeam) return undefined;
+    // Handle matches with null team IDs (knockout matches before teams are assigned)
+    let homeTeam = null;
+    let awayTeam = null;
+    
+    if (match.homeTeamId) {
+      const [team] = await db.select().from(teams).where(eq(teams.id, match.homeTeamId));
+      homeTeam = team || null;
+    }
+    
+    if (match.awayTeamId) {
+      const [team] = await db.select().from(teams).where(eq(teams.id, match.awayTeamId));
+      awayTeam = team || null;
+    }
 
-    return { ...match, homeTeam, awayTeam };
+    return { ...match, homeTeam, awayTeam } as MatchWithTeams;
   }
 
   async createMatch(insertMatch: InsertMatch): Promise<Match> {
@@ -1750,6 +1771,77 @@ export class DatabaseStorage implements IStorage {
         if (endDate && currentDate > endDate) {
           currentDate = new Date(startDate);
         }
+      }
+    }
+    
+    // For groups_knockout tournaments, generate empty knockout stage matches
+    // This allows the knockout bracket to display with placeholder labels (like أ1, ب2)
+    if (tournament.type === 'groups_knockout') {
+      // Delete existing knockout matches first
+      await db.delete(matches)
+        .where(
+          and(
+            eq(matches.tournamentId, tournamentId),
+            sql`${matches.stage} IN ('semi_final', 'final', 'third_place', 'quarter_final', 'round_of_16')`
+          )
+        );
+      
+      const numGroups = tournament.numberOfGroups || 2;
+      const teamsAdvancing = tournament.teamsAdvancingPerGroup || 2;
+      const qualifyingTeams = numGroups * teamsAdvancing;
+      
+      // Dynamically determine knockout structure
+      // Find the next power of 2 that can accommodate all qualifying teams
+      // e.g., 6 teams → 8 bracket, 5 teams → 8 bracket, 3 teams → 4 bracket
+      const getNextPowerOf2 = (n: number): number => {
+        if (n <= 2) return 2;
+        return Math.pow(2, Math.ceil(Math.log2(n)));
+      };
+      
+      const bracketSize = getNextPowerOf2(qualifyingTeams);
+      const knockoutMatchesToCreate: { stage: string; round: number }[] = [];
+      
+      // Define knockout stages based on bracket size
+      const stageDefinitions: { minBracket: number; stage: string; matchCount: number }[] = [
+        { minBracket: 16, stage: 'round_of_16', matchCount: 8 },
+        { minBracket: 8, stage: 'quarter_final', matchCount: 4 },
+        { minBracket: 4, stage: 'semi_final', matchCount: 2 },
+      ];
+      
+      // Generate matches for each applicable stage
+      for (const def of stageDefinitions) {
+        if (bracketSize >= def.minBracket) {
+          for (let i = 1; i <= def.matchCount; i++) {
+            knockoutMatchesToCreate.push({ stage: def.stage, round: i });
+          }
+        }
+      }
+      
+      // Always add final for brackets of 4 or more
+      if (bracketSize >= 4) {
+        knockoutMatchesToCreate.push({ stage: 'final', round: 1 });
+        
+        // Third place match (if enabled)
+        if (tournament.hasThirdPlaceMatch !== false) {
+          knockoutMatchesToCreate.push({ stage: 'third_place', round: 1 });
+        }
+      } else if (bracketSize === 2) {
+        // Just a final for 2 teams
+        knockoutMatchesToCreate.push({ stage: 'final', round: 1 });
+      }
+      
+      // Create knockout matches with null team IDs
+      for (const knockoutMatch of knockoutMatchesToCreate) {
+        const [match] = await db.insert(matches).values({
+          tournamentId,
+          homeTeamId: null,
+          awayTeamId: null,
+          round: knockoutMatch.round,
+          stage: knockoutMatch.stage,
+          status: 'scheduled',
+        }).returning();
+        
+        generatedMatches.push(match);
       }
     }
     
