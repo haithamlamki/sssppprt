@@ -37,6 +37,47 @@ const matchStatusLabels: Record<string, string> = {
   postponed: "مؤجلة",
 };
 
+const stageLabels: Record<string, string> = {
+  group: "مرحلة المجموعات",
+  league: "مرحلة الدوري",
+  round_of_16: "دور الـ 16",
+  quarter_final: "ربع النهائي",
+  semi_final: "نصف النهائي",
+  final: "النهائي",
+  third_place: "المركز الثالث",
+};
+
+function getMatchStageLabel(stage?: string | null, round?: number | null, leg?: number | null, groupNumber?: number | null): string {
+  // Fallback for missing stage - show round info
+  if (!stage) {
+    if (round) {
+      return `الجولة ${round}${leg === 2 ? " - إياب" : ""}`;
+    }
+    return "";
+  }
+  
+  const stageLabel = stageLabels[stage] || stage;
+  
+  if (stage === "group" && groupNumber) {
+    const groupLetters: Record<number, string> = { 1: "أ", 2: "ب", 3: "ج", 4: "د", 5: "هـ", 6: "و", 7: "ز", 8: "ح" };
+    return `${stageLabel} - المجموعة ${groupLetters[groupNumber] || groupNumber}`;
+  }
+  
+  if (stage === "league" && round) {
+    return `الجولة ${round}${leg === 2 ? " - إياب" : ""}`;
+  }
+  
+  if (stage === "final" || stage === "third_place") {
+    return stageLabel;
+  }
+  
+  if (round && (stage === "semi_final" || stage === "quarter_final" || stage === "round_of_16")) {
+    return `${stageLabel} ${round}`;
+  }
+  
+  return stageLabel;
+}
+
 const eventTypeLabels: Record<string, string> = {
   goal: "هدف",
   own_goal: "هدف عكسي",
@@ -168,7 +209,7 @@ export default function MatchDetail() {
                 {matchStatusLabels[match.status]}
               </Badge>
               <div className="text-sm opacity-80">
-                الجولة {match.round} {match.leg === 2 && "- إياب"}
+                {getMatchStageLabel(match.stage, match.round, match.leg, match.groupNumber)}
               </div>
             </div>
 
