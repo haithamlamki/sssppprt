@@ -977,27 +977,29 @@ export default function LeagueDetail() {
 
 // Format time range for match (e.g., "4:10–4:45 م")
 // Default duration: 2 halves of 20 min + 5 min break = 45 min (typical for company tournaments)
+// Uses Asia/Muscat timezone to display correct Muscat wall-clock time
 function formatMatchTimeRange(matchDate: Date, durationMinutes: number = 45): string {
-  const startHour = matchDate.getHours();
-  const startMin = matchDate.getMinutes();
-  
   // Ensure valid duration
   const duration = typeof durationMinutes === 'number' && !isNaN(durationMinutes) && durationMinutes > 0 
     ? durationMinutes 
     : 45;
   
   const endDate = new Date(matchDate.getTime() + duration * 60 * 1000);
-  const endHour = endDate.getHours();
-  const endMin = endDate.getMinutes();
   
-  const formatTime = (h: number, m: number) => {
-    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return `${hour12}:${m.toString().padStart(2, "0")}`;
-  };
+  // Use Intl.DateTimeFormat with Asia/Muscat timezone and 12-hour format
+  const timeFormatter = new Intl.DateTimeFormat('ar-SA', {
+    timeZone: 'Asia/Muscat',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
   
-  // Use LRM (\u200E) to fix RTL issues, en-dash (–), and NBSP (\u00A0) before م
-  const period = endHour >= 12 ? "م" : "ص";
-  return `\u200E${formatTime(startHour, startMin)}–${formatTime(endHour, endMin)}\u00A0${period}`;
+  // Get formatted strings and extract just the time and period
+  const startFormatted = timeFormatter.format(matchDate);
+  const endFormatted = timeFormatter.format(endDate);
+  
+  // Use LRM (\u200E) to fix RTL issues, en-dash (–)
+  return `\u200E${startFormatted}–${endFormatted}`;
 }
 
 // Schedule Match Cell - for grid layout with multiple venues

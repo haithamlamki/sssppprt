@@ -70,6 +70,50 @@ import {
 import { db } from "./db";
 import { eq, desc, sql, and, asc } from "drizzle-orm";
 
+// Helper to create a Date with proper Muscat timezone (UTC+4)
+// This ensures the entered wall-clock time is preserved when stored/displayed
+function createMuscatDate(dateStr: string, hour: number, minute: number): Date {
+  // Format: YYYY-MM-DDTHH:mm:ss+04:00
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const isoString = `${dateStr}T${pad(hour)}:${pad(minute)}:00+04:00`;
+  return new Date(isoString);
+}
+
+// Helper to get date components in Muscat timezone using Intl.DateTimeFormat
+function getMuscatDateComponents(date: Date): { year: number; month: number; day: number; hour: number; minute: number } {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Muscat',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(date);
+  const get = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    hour: get('hour'),
+    minute: get('minute')
+  };
+}
+
+// Helper to get date string (YYYY-MM-DD) from a Date object in Muscat timezone
+function getMuscatDateString(date: Date): string {
+  const { year, month, day } = getMuscatDateComponents(date);
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// Helper to add days to a date string and return new date string
+function addDaysToDateString(dateStr: string, days: number): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day + days));
+  return d.toISOString().split('T')[0];
+}
+
 export interface IStorage {
   // Events
   getAllEvents(): Promise<Event[]>;
@@ -1256,11 +1300,12 @@ export class DatabaseStorage implements IStorage {
       const timeSlotForVenue = venueMatchesToday[selectedVenue];
       
       // Calculate match time based on venue and time slot
-      const matchDate = new Date(currentDate);
       const totalMinutesOffset = timeSlotForVenue * matchDurationMinutes;
       const slotHour = startHour + Math.floor(totalMinutesOffset / 60);
       const slotMinute = startMinute + (totalMinutesOffset % 60);
-      matchDate.setHours(slotHour, slotMinute, 0, 0);
+      // Use Muscat timezone (UTC+4) to preserve wall-clock time
+      const dateStr = getMuscatDateString(currentDate);
+      const matchDate = createMuscatDate(dateStr, slotHour, slotMinute);
 
       const [match] = await db.insert(matches).values({
         tournamentId,
@@ -1728,11 +1773,12 @@ export class DatabaseStorage implements IStorage {
       const timeSlotForVenue = venueMatchesToday[selectedVenue];
       
       // Calculate match time based on venue and time slot
-      const matchDate = new Date(currentDate);
       const totalMinutesOffset = timeSlotForVenue * matchDurationMinutes;
       const slotHour = startHour + Math.floor(totalMinutesOffset / 60);
       const slotMinute = startMinute + (totalMinutesOffset % 60);
-      matchDate.setHours(slotHour, slotMinute, 0, 0);
+      // Use Muscat timezone (UTC+4) to preserve wall-clock time
+      const dateStr = getMuscatDateString(currentDate);
+      const matchDate = createMuscatDate(dateStr, slotHour, slotMinute);
       
       const [match] = await db.insert(matches).values({
         tournamentId,
@@ -1840,18 +1886,25 @@ export class DatabaseStorage implements IStorage {
         : new Date(startDate);
       
       // Semi-finals: day after last group match
-      const semiFinalDate = new Date(lastGroupDate);
-      semiFinalDate.setDate(semiFinalDate.getDate() + 1);
-      semiFinalDate.setHours(startHour, startMinute, 0, 0);
+      // Use getMuscatDateString to get the date in Muscat timezone, then add 1 day
+      const lastGroupDateStr = getMuscatDateString(lastGroupDate);
+      const semiFinalDateStr = addDaysToDateString(lastGroupDateStr, 1);
+      const semiFinalDate = createMuscatDate(semiFinalDateStr, startHour, startMinute);
       
       // Final and third place: tournament end date or 4 days after semi-final
-      const finalDate = tournament.endDate 
-        ? new Date(tournament.endDate) 
-        : new Date(semiFinalDate);
-      if (!tournament.endDate) {
-        finalDate.setDate(finalDate.getDate() + 4);
+      let finalDateStr: string;
+      let finalHour = startHour;
+      let finalMinute = startMinute;
+      if (tournament.endDate) {
+        // Preserve both date and time from tournament.endDate
+        const endDateComponents = getMuscatDateComponents(new Date(tournament.endDate));
+        finalDateStr = `${endDateComponents.year}-${String(endDateComponents.month).padStart(2, '0')}-${String(endDateComponents.day).padStart(2, '0')}`;
+        finalHour = endDateComponents.hour;
+        finalMinute = endDateComponents.minute;
+      } else {
+        finalDateStr = addDaysToDateString(semiFinalDateStr, 4);
       }
-      finalDate.setHours(startHour, startMinute, 0, 0);
+      const finalDate = createMuscatDate(finalDateStr, finalHour, finalMinute);
       
       const thirdPlaceDate = new Date(finalDate);
       
@@ -1861,25 +1914,39 @@ export class DatabaseStorage implements IStorage {
         let venue = venuesList[0];
         
         if (knockoutMatch.stage === 'round_of_16') {
-          // Round of 16: 2 days before quarter finals
-          matchDate = new Date(semiFinalDate);
-          matchDate.setDate(matchDate.getDate() - 3);
-          matchDate.setMinutes(matchDate.getMinutes() + (knockoutMatch.round - 1) * matchDurationMinutes);
+          // Round of 16: 3 days before semi-finals
+          const ro16DateStr = addDaysToDateString(semiFinalDateStr, -3);
+          const extraMinutes = (knockoutMatch.round - 1) * matchDurationMinutes;
+          const totalMinutes = startMinute + extraMinutes;
+          const adjustedHour = startHour + Math.floor(totalMinutes / 60);
+          const adjustedMinute = totalMinutes % 60;
+          matchDate = createMuscatDate(ro16DateStr, adjustedHour, adjustedMinute);
         } else if (knockoutMatch.stage === 'quarter_final') {
           // Quarter finals: day before semi-finals
-          matchDate = new Date(semiFinalDate);
-          matchDate.setDate(matchDate.getDate() - 1);
-          matchDate.setMinutes(matchDate.getMinutes() + (knockoutMatch.round - 1) * matchDurationMinutes);
+          const qfDateStr = addDaysToDateString(semiFinalDateStr, -1);
+          const extraMinutes = (knockoutMatch.round - 1) * matchDurationMinutes;
+          const totalMinutes = startMinute + extraMinutes;
+          const adjustedHour = startHour + Math.floor(totalMinutes / 60);
+          const adjustedMinute = totalMinutes % 60;
+          matchDate = createMuscatDate(qfDateStr, adjustedHour, adjustedMinute);
         } else if (knockoutMatch.stage === 'semi_final') {
-          matchDate = new Date(semiFinalDate);
-          matchDate.setMinutes(matchDate.getMinutes() + (knockoutMatch.round - 1) * matchDurationMinutes);
+          const extraMinutes = (knockoutMatch.round - 1) * matchDurationMinutes;
+          const totalMinutes = startMinute + extraMinutes;
+          const adjustedHour = startHour + Math.floor(totalMinutes / 60);
+          const adjustedMinute = totalMinutes % 60;
+          matchDate = createMuscatDate(semiFinalDateStr, adjustedHour, adjustedMinute);
         } else if (knockoutMatch.stage === 'third_place') {
           matchDate = new Date(thirdPlaceDate);
         } else {
           // Final: after third place match if it exists, otherwise at start time
-          matchDate = new Date(finalDate);
           if (tournament.hasThirdPlaceMatch !== false) {
-            matchDate.setMinutes(matchDate.getMinutes() + matchDurationMinutes);
+            const extraMinutes = matchDurationMinutes;
+            const totalMinutes = finalMinute + extraMinutes;
+            const adjustedHour = finalHour + Math.floor(totalMinutes / 60);
+            const adjustedMinute = totalMinutes % 60;
+            matchDate = createMuscatDate(finalDateStr, adjustedHour, adjustedMinute);
+          } else {
+            matchDate = new Date(finalDate);
           }
         }
         
