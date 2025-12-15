@@ -41,5 +41,37 @@ if (fs.existsSync(sharedSrc)) {
   console.log('✓ Copied shared/ to api/shared/');
 }
 
-console.log('✓ Server files copied successfully');
+// Update imports in copied server files to use relative paths
+function updateImportsInFile(filePath) {
+  let content = fs.readFileSync(filePath, 'utf8');
+  // Replace @shared/ with ../shared/ (handle both single and double quotes)
+  content = content.replace(/from ["']@shared\//g, (match) => {
+    const quote = match.includes('"') ? '"' : "'";
+    return `from ${quote}../shared/`;
+  });
+  content = content.replace(/from ["']@shared["']/g, (match) => {
+    const quote = match.includes('"') ? '"' : "'";
+    return `from ${quote}../shared${quote}`;
+  });
+  fs.writeFileSync(filePath, content, 'utf8');
+}
+
+function updateImportsInDir(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      updateImportsInDir(fullPath);
+    } else if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) {
+      updateImportsInFile(fullPath);
+    }
+  }
+}
+
+if (fs.existsSync(serverDest)) {
+  updateImportsInDir(serverDest);
+  console.log('✓ Updated imports in api/server/ to use relative paths');
+}
+
+console.log('✓ Server files copied and updated successfully');
 
