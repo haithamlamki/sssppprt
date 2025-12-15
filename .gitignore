@@ -63,6 +63,10 @@ replit.nix
 # Server files
 server/public
 
+# Copied server files for Vercel (generated during build)
+api/server
+api/shared
+
 # Database
 *.db
 *.sqlite

@@ -1,0 +1,11 @@
+DATABASE_URL للنسخ واللصق في Vercel:
+
+postgresql://postgres.ganuizvmmozagyzotohx:vRHVi8BFfddL9DEd@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
+
+---
+ملاحظات:
+- استخدم Session pooler (IPv4 compatible)
+- Port: 5432
+- User: postgres.ganuizvmmozagyzotohx
+- Host: aws-1-ap-southeast-1.pooler.supabase.com
+

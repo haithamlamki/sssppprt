@@ -2,8 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { registerRoutes } from '../server/routes';
-import { storage } from '../server/storage';
+import { registerRoutes } from './server/routes';
+import { storage } from './server/storage';
 
 // Cache the Express app instance
 let cachedApp: express.Express | null = null;
