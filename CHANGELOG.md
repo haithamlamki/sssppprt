@@ -4,6 +4,17 @@
 
 ## [غير محدد] - 2025-01-XX
 
+### تم التعديل
+- **تحسين معالجة الأخطاء و logging في Vercel deployment**:
+  - إضافة logging مفصل في `api/index.ts` للتحقق من وجود ملفات server و shared
+  - إضافة logging في `api/server/db.ts` للتحقق من اتصال قاعدة البيانات
+  - تحسين معالجة أخطاء اتصال قاعدة البيانات مع إضافة connection pool settings
+  - إضافة test connection على startup للتحقق من اتصال قاعدة البيانات
+  - تحسين `scripts/copy-server-files.js` مع logging أفضل و error handling
+  - إضافة verification steps للتحقق من نسخ الملفات بشكل صحيح
+
+## [غير محدد] - 2025-01-XX
+
 ### تم الإضافة
 - **إعداد كامل لـ Git و Vercel**:
   - تحديث `.gitignore` شامل لتجاهل الملفات الحساسة والبناء

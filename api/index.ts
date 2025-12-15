@@ -13,6 +13,25 @@ async function createApp(): Promise<express.Express> {
     return cachedApp;
   }
 
+  console.log('🚀 Creating Express app...');
+  console.log('📁 Current working directory:', process.cwd());
+  console.log('🔍 Checking for server files...');
+  
+  // Verify server files exist
+  const serverRoutesPath = path.join(process.cwd(), 'api', 'server', 'routes.ts');
+  const serverStoragePath = path.join(process.cwd(), 'api', 'server', 'storage.ts');
+  const sharedSchemaPath = path.join(process.cwd(), 'api', 'shared', 'schema.ts');
+  
+  console.log('📄 server/routes.ts exists:', fs.existsSync(serverRoutesPath));
+  console.log('📄 server/storage.ts exists:', fs.existsSync(serverStoragePath));
+  console.log('📄 shared/schema.ts exists:', fs.existsSync(sharedSchemaPath));
+  
+  // Check DATABASE_URL
+  console.log('🔐 DATABASE_URL exists:', !!process.env.DATABASE_URL);
+  if (!process.env.DATABASE_URL) {
+    console.error('❌ ERROR: DATABASE_URL is not set!');
+  }
+
   const app = express();
   
   app.use(express.json());
