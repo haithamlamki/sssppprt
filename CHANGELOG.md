@@ -5,6 +5,13 @@
 ## [غير محدد] - 2025-01-XX
 
 ### تم الإصلاح
+- **إصلاح مشكلة .vercelignore مع api/server و api/shared**:
+  - إزالة `api/server/**` و `api/shared/**` من `.vercelignore`
+  - هذه الملفات ضرورية للتطبيق ويجب تضمينها في deployment
+  - `includeFiles` في `vercel.json` يضمن تضمينها في serverless function
+  - Vercel يتعامل تلقائياً مع الملفات بدون default exports كـ modules وليس functions
+
+### تم الإصلاح
 - **إصلاح مشكلة 404 في Vercel**:
   - تحديث rewrite في `vercel.json` لتجاهل الملفات الثابتة (assets, images, etc.)
   - تحسين `api/index.ts` للتعامل مع Vercel's static file serving

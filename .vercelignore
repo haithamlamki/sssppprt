@@ -11,10 +11,8 @@ dist
 *.swp
 *.swo
 *~
-# Ignore api/server and api/shared from being treated as separate serverless functions
-# These are imported by api/index.ts, not standalone functions
-# Note: Vercel only treats files with default exports as functions
-# Files without default exports are ignored automatically
-api/server/**
-api/shared/**
+# Note: api/server and api/shared are NOT ignored
+# They are included via includeFiles in vercel.json
+# Vercel only treats files with default exports as serverless functions
+# Files without default exports (like routes.ts, storage.ts) are not treated as functions
 
