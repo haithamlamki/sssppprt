@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
+  "buildCommand": "node scripts/copy-server-files.js && npm run build",
   "outputDirectory": "dist/public",
   "installCommand": "npm install",
   "framework": null,
