@@ -5,6 +5,11 @@
 ## [غير محدد] - 2025-01-XX
 
 ### تم التعديل
+- **إصلاح مشكلة FUNCTION_INVOCATION_FAILED في Vercel**:
+  - إعادة كتابة `api/server/vite.ts` لاستخدام dynamic imports بدلاً من static imports
+  - منع تحميل `vite` package في runtime على Vercel (يُستخدم فقط في development)
+  - تحسين `serveStatic` function للتعامل مع Vercel's static file serving
+  - إضافة `.vercelignore` لتجاهل `api/server/**` و `api/shared/**` من أن تكون functions منفصلة
 - **إصلاح مشكلة MODULE_NOT_FOUND في Vercel runtime**:
   - إزالة `api/server` و `api/shared` من `.gitignore` لإتاحة الملفات في Vercel runtime
   - إضافة `includeFiles` في `vercel.json` لتضمين `api/server/**` و `api/shared/**` في deployment
