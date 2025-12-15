@@ -1567,7 +1567,7 @@ function MatchesView({ matches, tournament }: { matches: MatchWithTeams[]; tourn
                             <ScheduleMatchCell key={venueMatch.id} match={venueMatch} tournament={tournament} />
                           );
                         })}
-                      </div>
+                      </DynamicGridColumns>
                     );
                   } else {
                     // Single venue - show all matches in row, time shown inside match cards
