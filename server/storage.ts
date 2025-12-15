@@ -1140,6 +1140,18 @@ export class DatabaseStorage implements IStorage {
         ));
     }
 
+    // Get all match events (any type) to calculate matches played
+    let allPlayerEvents: typeof matchEvents.$inferSelect[] = [];
+    if (matchIds.length > 0) {
+      allPlayerEvents = await db
+        .select()
+        .from(matchEvents)
+        .where(and(
+          inArray(matchEvents.matchId, matchIds),
+          sql`${matchEvents.playerId} IS NOT NULL`
+        ));
+    }
+
     // Count goals by player (only count events with playerId and eventType 'goal')
     const goalsByPlayer: Record<string, number> = {};
     for (const event of goalEvents) {
@@ -1149,22 +1161,35 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    // Count unique matches played by each player (from all events, not just goals)
+    const matchesByPlayer: Record<string, Set<string>> = {};
+    for (const event of allPlayerEvents) {
+      if (event.playerId && event.matchId) {
+        if (!matchesByPlayer[event.playerId]) {
+          matchesByPlayer[event.playerId] = new Set();
+        }
+        matchesByPlayer[event.playerId].add(event.matchId);
+      }
+    }
+
     // Get all players from tournament teams
     const allPlayers = await db
       .select()
       .from(players)
       .where(inArray(players.teamId, teamIds));
 
-    // Create scorer entries with actual goal counts from events
+    // Create scorer entries with actual goal counts and matches played from events
     const scorers: PlayerWithTeam[] = [];
     for (const player of allPlayers) {
       const actualGoals = goalsByPlayer[player.id] || 0;
       if (actualGoals > 0 && player.teamId) {
         const team = tournamentTeams.find(t => t.id === player.teamId);
         if (team) {
+          const actualMatchesPlayed = matchesByPlayer[player.id]?.size || 0;
           scorers.push({ 
             ...player, 
             goals: actualGoals, // Use actual count from events
+            matchesPlayed: actualMatchesPlayed, // Use actual count from events
             team 
           });
         }

@@ -701,11 +701,11 @@ export default function LeagueDetail() {
 
           <TabsContent value="scorers">
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2" dir="rtl">
+              <CardHeader className="p-3 sm:p-4">
+                <div className="flex items-center justify-between" dir="rtl">
+                  <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base" dir="rtl">
                     <span>قائمة الهدافين</span>
-                    <Target className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                    <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-orange-500 flex-shrink-0" />
                   </CardTitle>
                   {isAdmin && (
                     <Button
@@ -713,74 +713,73 @@ export default function LeagueDetail() {
                       size="sm"
                       onClick={() => recalculateStatsMutation.mutate()}
                       disabled={recalculateStatsMutation.isPending}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-1.5 text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
                     >
-                      <RefreshCw className={`h-4 w-4 ${recalculateStatsMutation.isPending ? "animate-spin" : ""}`} />
-                      إعادة حساب الإحصائيات
+                      <RefreshCw className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${recalculateStatsMutation.isPending ? "animate-spin" : ""}`} />
+                      <span className="hidden sm:inline">إعادة حساب الإحصائيات</span>
+                      <span className="sm:hidden">إعادة حساب</span>
                     </Button>
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-2 sm:p-3 md:p-4">
                 {topScorers && topScorers.length > 0 ? (
                   <div className="overflow-x-auto">
-                    <Table>
+                    <Table dir="ltr">
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-right w-12">#</TableHead>
-                          <TableHead className="text-right">اللاعب</TableHead>
-                          <TableHead className="text-right">الفريق</TableHead>
-                          <TableHead className="text-center">الأهداف</TableHead>
-                          <TableHead className="text-center">التمريرات</TableHead>
-                          <TableHead className="text-center">المباريات</TableHead>
+                          <TableHead className="text-left w-6 sm:w-8 md:w-10 text-[9px] sm:text-[10px] md:text-xs p-1.5 sm:p-2 md:p-3">#</TableHead>
+                          <TableHead className="text-left text-[9px] sm:text-[10px] md:text-xs p-1.5 sm:p-2 md:p-3">اللاعب</TableHead>
+                          <TableHead className="text-left text-[9px] sm:text-[10px] md:text-xs p-1.5 sm:p-2 md:p-3 max-w-[80px] sm:max-w-[120px] md:max-w-none">الفريق</TableHead>
+                          <TableHead className="text-center text-[9px] sm:text-[10px] md:text-xs p-1.5 sm:p-2 md:p-3 w-12 sm:w-16">الأهداف</TableHead>
+                          <TableHead className="text-center text-[9px] sm:text-[10px] md:text-xs p-1.5 sm:p-2 md:p-3 w-12 sm:w-16">المباريات</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {topScorers.map((player, index) => (
                           <TableRow key={player.id} data-testid={`row-scorer-${player.id}`}>
-                            <TableCell className="font-bold">
+                            <TableCell className="font-bold text-[9px] sm:text-[10px] md:text-xs p-1.5 sm:p-2 md:p-3">
                               {index === 0 && "🥇"}
                               {index === 1 && "🥈"}
                               {index === 2 && "🥉"}
                               {index > 2 && index + 1}
                             </TableCell>
-                            <TableCell className="font-medium text-right">
-                              <div className="flex items-center gap-2 justify-end">
-                                <Badge variant="outline" className="text-sm flex-shrink-0">
+                            <TableCell className="font-medium text-left text-[9px] sm:text-[10px] md:text-xs p-1.5 sm:p-2 md:p-3">
+                              <div className="flex items-center gap-1 sm:gap-1.5 justify-start min-w-0">
+                                <User className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
+                                <span className="truncate min-w-0">{player.name}</span>
+                                <Badge variant="outline" className="text-[8px] sm:text-[9px] md:text-[10px] flex-shrink-0 px-0.5 sm:px-1 md:px-1.5 py-0">
                                   #{player.number}
                                 </Badge>
-                                <span className="truncate">{player.name}</span>
-                                <User className="h-4 w-4 flex-shrink-0" />
                               </div>
                             </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center gap-2 justify-end">
-                                <span className="truncate">{player.team?.name || "غير محدد"}</span>
+                            <TableCell className="text-left text-[9px] sm:text-[10px] md:text-xs p-1.5 sm:p-2 md:p-3 max-w-[80px] sm:max-w-[120px] md:max-w-none">
+                              <div className="flex items-center gap-1 sm:gap-1.5 justify-start min-w-0">
                                 {player.team?.logoUrl ? (
                                   <img 
                                     src={player.team.logoUrl} 
                                     alt={player.team.name || "فريق"} 
-                                    className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                                    className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 rounded-full object-cover flex-shrink-0"
                                   />
                                 ) : (
-                                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                    <Users className="h-3 w-3 text-primary" />
+                                  <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                    <Users className="h-2 w-2 sm:h-2.5 sm:w-2.5 md:h-2.5 md:w-2.5 text-primary" />
                                   </div>
                                 )}
+                                <span className="truncate min-w-0">{player.team?.name || "غير محدد"}</span>
                               </div>
                             </TableCell>
-                            <TableCell className="text-center font-bold text-xs sm:text-sm md:text-base">{player.goals}</TableCell>
-                            <TableCell className="text-center">{player.assists}</TableCell>
-                            <TableCell className="text-center">{player.matchesPlayed}</TableCell>
+                            <TableCell className="text-center font-bold text-[9px] sm:text-[10px] md:text-xs p-1.5 sm:p-2 md:p-3">{player.goals}</TableCell>
+                            <TableCell className="text-center text-[9px] sm:text-[10px] md:text-xs p-1.5 sm:p-2 md:p-3">{player.matchesPlayed}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
                 ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>لا يوجد هدافون حتى الآن</p>
+                  <div className="text-center py-8 sm:py-12 text-muted-foreground">
+                    <Target className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 opacity-50" />
+                    <p className="text-xs sm:text-sm">لا يوجد هدافون حتى الآن</p>
                   </div>
                 )}
               </CardContent>
