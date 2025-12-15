@@ -73,5 +73,28 @@ if (fs.existsSync(serverDest)) {
   console.log('✓ Updated imports in api/server/ to use relative paths');
 }
 
+// Verify that critical files were copied successfully
+const criticalFiles = [
+  path.join(serverDest, 'routes.ts'),
+  path.join(serverDest, 'storage.ts'),
+  path.join(serverDest, 'db.ts'),
+  path.join(serverDest, 'auth.ts'),
+  path.join(sharedDest, 'schema.ts')
+];
+
+let allFilesExist = true;
+for (const file of criticalFiles) {
+  if (!fs.existsSync(file)) {
+    console.error(`❌ ERROR: Critical file not found: ${file}`);
+    allFilesExist = false;
+  }
+}
+
+if (!allFilesExist) {
+  console.error('❌ Failed to copy all required files!');
+  process.exit(1);
+}
+
+console.log('✓ Verified: All critical files copied successfully');
 console.log('✓ Server files copied and updated successfully');
 
