@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express from 'express';
+import path from 'path';
+import fs from 'fs';
 import { registerRoutes } from '../server/routes';
 import { storage } from '../server/storage';
 
@@ -24,8 +26,27 @@ async function createApp(): Promise<express.Express> {
     // Continue even if initialization fails
   }
   
-  // Register routes
+  // Register API routes
   await registerRoutes(app);
+  
+  // Serve static files from dist/public in production
+  const distPath = path.join(process.cwd(), 'dist', 'public');
+  if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    
+    // Fallback to index.html for SPA routing (but not for API routes)
+    app.use('*', (req, res, next) => {
+      if (req.originalUrl.startsWith('/api/')) {
+        return next();
+      }
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        next();
+      }
+    });
+  }
   
   // Store the app for reuse
   cachedApp = app;
