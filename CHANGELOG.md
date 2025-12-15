@@ -5,6 +5,11 @@
 ## [غير محدد] - 2025-01-XX
 
 ### تم التعديل
+- **إصلاح مشكلة MODULE_NOT_FOUND في Vercel runtime**:
+  - إزالة `api/server` و `api/shared` من `.gitignore` لإتاحة الملفات في Vercel runtime
+  - إضافة `includeFiles` في `vercel.json` لتضمين `api/server/**` و `api/shared/**` في deployment
+  - إضافة ملفات `api/server/` و `api/shared/` إلى Git repository
+  - هذا يحل مشكلة `Cannot find module '/var/task/api/server/routes'` في Vercel
 - **تحسين معالجة الأخطاء و logging في Vercel deployment**:
   - إضافة logging مفصل في `api/index.ts` للتحقق من وجود ملفات server و shared
   - إضافة logging في `api/server/db.ts` للتحقق من اتصال قاعدة البيانات
