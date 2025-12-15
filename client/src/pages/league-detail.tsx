@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
@@ -96,6 +96,34 @@ const stageLabels: Record<string, string> = {
   final: "النهائي",
   third_place: "المركز الثالث",
 };
+
+// Dynamic Grid Columns Component - uses refs to set CSS variables
+function DynamicGridColumns({ 
+  columns, 
+  className, 
+  children 
+}: { 
+  columns: number; 
+  className?: string; 
+  children: React.ReactNode;
+}) {
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (gridRef.current) {
+      gridRef.current.style.setProperty('--grid-columns', columns.toString());
+    }
+  }, [columns]);
+
+  return (
+    <div 
+      ref={gridRef}
+      className={`dynamic-grid-columns ${className || ''}`}
+    >
+      {children}
+    </div>
+  );
+}
 
 function getMatchLabel(match: MatchWithTeams): string {
   const stage = match.stage;
@@ -467,20 +495,32 @@ export default function LeagueDetail() {
   const heroImage = tournament.heroImageUrl || tournament.imageUrl;
   const hasCustomTheme = themeConfig.primaryColor && themeConfig.secondaryColor;
   
-  const heroStyle = hasCustomTheme 
-    ? { background: `linear-gradient(135deg, ${themeConfig.primaryColor}, ${themeConfig.secondaryColor})` }
-    : {};
+  const heroRef = useRef<HTMLDivElement>(null);
+  const heroImageRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (heroRef.current && hasCustomTheme) {
+      heroRef.current.style.setProperty('--tournament-primary-color', themeConfig.primaryColor || '');
+      heroRef.current.style.setProperty('--tournament-secondary-color', themeConfig.secondaryColor || '');
+    }
+  }, [hasCustomTheme, themeConfig.primaryColor, themeConfig.secondaryColor]);
+
+  useEffect(() => {
+    if (heroImageRef.current && heroImage) {
+      heroImageRef.current.style.setProperty('--hero-image-url', `url(${heroImage})`);
+    }
+  }, [heroImage]);
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <div 
-        className={`relative text-white py-8 ${!hasCustomTheme ? 'bg-gradient-to-br from-primary via-primary/90 to-primary/80' : ''}`}
-        style={heroStyle}
+        ref={heroRef}
+        className={`relative text-white py-8 ${!hasCustomTheme ? 'bg-gradient-to-br from-primary via-primary/90 to-primary/80' : 'tournament-hero-custom-gradient'}`}
       >
         {heroImage && (
           <div 
-            className="absolute inset-0 bg-cover bg-center" 
-            style={{ backgroundImage: `url(${heroImage})` }}
+            ref={heroImageRef}
+            className="absolute inset-0 bg-cover bg-center tournament-hero-bg-image"
           />
         )}
         <div className="absolute inset-0 bg-black/40" />
@@ -1505,10 +1545,10 @@ function MatchesView({ matches, tournament }: { matches: MatchWithTeams[]; tourn
                   if (venues.length > 1) {
                     // Multi-venue grid layout - time shown inside match cards
                     return (
-                      <div 
+                      <DynamicGridColumns 
                         key={timeKey} 
+                        columns={venues.length}
                         className="grid gap-2 sm:gap-4 items-center"
-                        style={{ gridTemplateColumns: `repeat(${venues.length}, 1fr)` }}
                       >
                         {/* Match for each venue */}
                         {venues.map((venue) => {

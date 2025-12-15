@@ -368,4 +368,51 @@
   .animate-marquee:hover {
     animation-play-state: paused;
   }
+
+  /* Team box dynamic colors using CSS variables */
+  .team-box-bg {
+    background-color: var(--team-bg-color, #6b7280);
+  }
+
+  .team-box-text {
+    color: var(--team-text-color, #ffffff);
+  }
+
+  .team-color-picker-btn {
+    background-color: var(--picker-color, #6b7280);
+  }
+
+  /* Tournament hero section with custom gradient */
+  .tournament-hero-custom-gradient {
+    background: linear-gradient(135deg, var(--tournament-primary-color), var(--tournament-secondary-color));
+  }
+
+  /* Tournament hero background image */
+  .tournament-hero-bg-image {
+    background-image: var(--hero-image-url);
+  }
+
+  /* Dynamic grid columns */
+  .dynamic-grid-columns {
+    grid-template-columns: repeat(var(--grid-columns), 1fr);
+  }
+
+  /* Draggable player positioning */
+  .draggable-player {
+    left: var(--player-x, 50%);
+    top: var(--player-y, 50%);
+    transform: var(--player-transform, translate(-50%, -50%));
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .draggable-player.dragging {
+    opacity: 0.5;
+    z-index: 100;
+  }
+
+  .draggable-player:not(.dragging) {
+    opacity: 1;
+    z-index: 10;
+  }
 }

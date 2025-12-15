@@ -1,0 +1,14 @@
+node_modules
+.cursor
+.git
+.env.local
+.env.development
+*.log
+debug.log
+dist
+.vscode
+.idea
+*.swp
+*.swo
+*~
+

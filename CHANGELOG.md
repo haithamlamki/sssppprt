@@ -5,6 +5,76 @@
 ## [غير محدد] - 2025-01-XX
 
 ### تم الإضافة
+- **إعداد كامل لـ Git و Vercel**:
+  - تحديث `.gitignore` شامل لتجاهل الملفات الحساسة والبناء
+  - إنشاء `GIT_SETUP.md` - دليل شامل لإعداد Git
+  - إنشاء `QUICK_START.md` - دليل سريع للبدء
+  - تحديث `README.md` - توثيق شامل للمشروع
+  - إضافة `.gitattributes` لضمان توحيد line endings
+  - إنشاء `uploads/.gitkeep` للحفاظ على بنية المجلد
+  - تحديث `tsconfig.json` لتضمين مجلد `api/`
+  - تحديث `vercel.json` لإضافة routes للـ SPA routing
+- **إعداد النشر على Vercel**:
+  - إضافة ملف `vercel.json` لتكوين إعدادات النشر على Vercel
+  - إنشاء `api/index.ts` كمعالج serverless function لجميع طلبات API
+  - إنشاء `api/uploads/[filename].ts` لخدمة الملفات المرفوعة
+  - إضافة `serverless-http` كاعتماد لتغليف Express app في serverless functions
+  - إنشاء `.vercelignore` لتجاهل الملفات غير الضرورية أثناء النشر
+  - إنشاء `VERCEL_DEPLOYMENT.md` كدليل شامل لنشر المشروع على Vercel
+  - تحديث إعدادات رفع الملفات لدعم `/tmp` directory في بيئة Vercel (ephemeral filesystem)
+  - تحديث `package.json`:
+    - إضافة `serverless-http` dependency
+    - تبسيط build script لإزالة esbuild bundling (Vercel يتعامل معه تلقائياً)
+  - ملاحظات مهمة:
+    - الملفات المرفوعة في `/tmp` مؤقتة وستُحذف بعد انتهاء function execution
+    - يُنصح باستخدام external storage (S3, Cloudinary, Supabase Storage) للإنتاج
+    - جميع متغيرات البيئة يجب تعيينها في Vercel dashboard
+
+### تم التعديل
+- **إصلاح مشاكل إمكانية الوصول في team-wizard.tsx**:
+  - تحسين إمكانية الوصول لحقول رفع الملفات (file inputs):
+    - تحويل حاويات رفع الصور من `<div>` إلى `<label>` لتوفير ربط صحيح بين التسمية وحقل الإدخال
+    - إضافة `htmlFor` و `id` لربط التسميات بحقول الإدخال بشكل صحيح
+    - إضافة `aria-label` و `title` لجميع حقول رفع الملفات
+    - إضافة عنصر `<span className="sr-only">` داخل التسميات لتوفير نص مخفي للقارئات الشاشة
+    - تطبيق التغييرات على:
+      - حقل رفع صورة اللاعب في نموذج إنشاء اللاعب
+      - حقل رفع شعار الفريق في نموذج إنشاء الفريق
+  - ملاحظة: قد تظهر بعض أخطاء linter كإيجابيات خاطئة حيث أن الكود يتبع أفضل ممارسات إمكانية الوصول
+- **إصلاح أخطاء linting في team-wizard.tsx**:
+  - إضافة `aria-label` لجميع عناصر إدخال الملفات المخفية لتحسين إمكانية الوصول:
+    - حقل رفع صورة اللاعب
+    - حقل رفع شعار الفريق
+  - استبدال الأنماط المضمنة (inline styles) في مكون `DraggablePlayer` بـ CSS variables باستخدام refs و useEffect
+  - إضافة CSS classes في `index.css` للاستفادة من CSS variables:
+    - `.draggable-player` للموضع والتحويل
+    - `.draggable-player.dragging` لحالة السحب
+  - استخدام `useRef` و `useEffect` لتعيين CSS variables ديناميكياً (--player-x، --player-y، --player-transform) دون استخدام inline styles
+- **إصلاح أخطاء linting في admin.tsx**:
+  - إضافة `aria-label` لجميع عناصر إدخال الملفات المخفية لتحسين إمكانية الوصول
+  - إصلاح 4 أخطاء linting متعلقة بعناصر النماذج بدون تسميات:
+    - حقل رفع صورة الصفحة الرئيسية
+    - حقل رفع صورة الفعالية (في AddEventDialog و EditEventDialog)
+    - حقل رفع صورة البطولة
+- **إصلاح أخطاء linting في league-detail.tsx**:
+  - استبدال الأنماط المضمنة (inline styles) بـ CSS variables باستخدام refs و useEffect
+  - إضافة CSS classes في `index.css` للاستفادة من CSS variables:
+    - `.tournament-hero-custom-gradient` للتدرج اللوني المخصص للبطولة
+    - `.tournament-hero-bg-image` لصورة الخلفية
+    - `.dynamic-grid-columns` للشبكة الديناميكية
+  - استخدام `useRef` و `useEffect` لتعيين CSS variables ديناميكياً دون استخدام inline styles
+  - إنشاء مكون `DynamicGridColumns` لمعالجة عدد الأعمدة الديناميكي في عرض المباريات
+  - تطبيق التغييرات على جميع العناصر التي تستخدم أنماط ديناميكية (hero section، background image، grid columns)
+- **إصلاح أخطاء linting في TeamBox component**:
+  - استبدال الأنماط المضمنة (inline styles) بـ CSS variables باستخدام refs و useEffect
+  - إضافة CSS classes في `index.css` للاستفادة من CSS variables
+  - إصلاح مشكلة عدم وجود label لحقل اختيار اللون المخصص
+  - استخدام `useRef` و `useEffect` لتعيين CSS variables ديناميكياً دون استخدام inline styles
+  - تطبيق التغييرات على جميع العناصر التي تستخدم ألوان ديناميكية (TeamBox، TeamColorPicker)
+
+## [غير محدد] - 2025-01-XX
+
+### تم الإضافة
 - نظام تعليقات ومحادثات تفاعلي شامل:
   - **تعليقات البطولات**: إضافة نظام تعليقات للبطولات مع تحديثات فورية (كل 10 ثوانٍ)
     - مكون `TournamentComments` قابل لإعادة الاستخدام

@@ -11,7 +11,11 @@ import path from "path";
 import fs from "fs";
 
 // Configure multer for file uploads
-const uploadDir = path.join(process.cwd(), "uploads");
+// Use /tmp for Vercel (ephemeral) or local uploads directory for development
+const uploadDir = process.env.VERCEL 
+  ? path.join("/tmp", "uploads")
+  : path.join(process.cwd(), "uploads");
+
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }

@@ -1,4 +1,5 @@
 import { Shield } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { TeamNameDisplay } from "@/utils/teamNameUtils";
 
 export interface TeamBoxProps {
@@ -107,6 +108,28 @@ export function TeamBox({
 }: TeamBoxProps) {
   const bgColor = getTeamColor(team);
   const textColor = isLightColor(bgColor) ? "#1f2937" : "#ffffff";
+  const boxRef = useRef<HTMLDivElement>(null);
+  const shieldRef = useRef<SVGSVGElement>(null);
+  const nameRef = useRef<HTMLDivElement | HTMLSpanElement>(null);
+  const scoreRef = useRef<HTMLSpanElement>(null);
+  
+  useEffect(() => {
+    if (boxRef.current) {
+      boxRef.current.style.setProperty("--team-bg-color", bgColor);
+    }
+  }, [bgColor]);
+  
+  useEffect(() => {
+    if (shieldRef.current) {
+      shieldRef.current.style.setProperty("--team-text-color", textColor);
+    }
+    if (nameRef.current) {
+      nameRef.current.style.setProperty("--team-text-color", textColor);
+    }
+    if (scoreRef.current) {
+      scoreRef.current.style.setProperty("--team-text-color", textColor);
+    }
+  }, [textColor]);
   
   const sizeClasses = {
     sm: "px-2 py-1.5 min-h-[50px] w-full max-w-[140px]",
@@ -134,8 +157,8 @@ export function TeamBox({
   
   return (
     <div 
-      className={`flex items-center gap-1.5 rounded-lg ${sizeClasses[size]} ${isWinner ? "ring-2 ring-yellow-400 ring-offset-1" : ""} ${className}`}
-      style={{ backgroundColor: bgColor }}
+      ref={boxRef}
+      className={`flex items-center gap-1.5 rounded-lg team-box-bg ${sizeClasses[size]} ${isWinner ? "ring-2 ring-yellow-400 ring-offset-1" : ""} ${className}`}
       data-testid={`team-box-${team?.id}`}
     >
       {showLogo && (
@@ -143,20 +166,23 @@ export function TeamBox({
           {team?.logoUrl ? (
             <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
           ) : (
-            <Shield className={iconSizes[size]} style={{ color: textColor }} />
+            <Shield ref={shieldRef} className={`${iconSizes[size]} team-box-text`} />
           )}
         </div>
       )}
-      <TeamNameDisplay 
-        name={team?.name}
-        className="font-bold flex-1 text-center"
-        fontSizeClass={fontSizeClasses[size]}
-        style={{ color: textColor, wordBreak: 'break-word', overflowWrap: 'break-word' }}
-      />
+      <div 
+        ref={nameRef as React.RefObject<HTMLDivElement>}
+        className="font-bold flex-1 text-center team-box-text break-words"
+      >
+        <TeamNameDisplay 
+          name={team?.name}
+          className={fontSizeClasses[size]}
+        />
+      </div>
       {score !== undefined && score !== null && (
         <span 
-          className={`font-bold min-w-[20px] text-center flex-shrink-0 self-start ${fontSizeClasses[size]}`}
-          style={{ color: textColor }}
+          ref={scoreRef}
+          className={`font-bold min-w-[20px] text-center flex-shrink-0 self-start team-box-text ${fontSizeClasses[size]}`}
         >
           {score}
         </span>
@@ -180,27 +206,43 @@ export function TeamColorPicker({
     <div className="space-y-2">
       <label className="text-base font-medium">{label}</label>
       <div className="flex flex-wrap gap-2">
-        {TEAM_COLORS.map((color) => (
-          <button
-            key={color.value}
-            type="button"
-            onClick={() => onChange(color.value)}
-            className={`w-8 h-8 rounded-full border-2 transition-all ${
-              currentColor === color.value ? "ring-2 ring-offset-2 ring-primary scale-110" : "hover:scale-105"
-            }`}
-            style={{ backgroundColor: color.value }}
-            title={color.name}
-            data-testid={`color-picker-${color.value}`}
-          />
-        ))}
+        {TEAM_COLORS.map((color) => {
+          const buttonRef = useRef<HTMLButtonElement>(null);
+          
+          useEffect(() => {
+            if (buttonRef.current) {
+              buttonRef.current.style.setProperty("--picker-color", color.value);
+            }
+          }, [color.value]);
+          
+          return (
+            <button
+              key={color.value}
+              ref={buttonRef}
+              type="button"
+              onClick={() => onChange(color.value)}
+              className={`w-8 h-8 rounded-full border-2 transition-all team-color-picker-btn ${
+                currentColor === color.value ? "ring-2 ring-offset-2 ring-primary scale-110" : "hover:scale-105"
+              }`}
+              title={color.name}
+              data-testid={`color-picker-${color.value}`}
+            />
+          );
+        })}
       </div>
-      <input
-        type="color"
-        value={currentColor.startsWith("#") ? currentColor : "#6b7280"}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full h-8 rounded cursor-pointer"
-        data-testid="color-picker-custom"
-      />
+      <div className="space-y-1">
+        <label htmlFor="color-picker-custom" className="text-sm text-muted-foreground">
+          لون مخصص
+        </label>
+        <input
+          id="color-picker-custom"
+          type="color"
+          value={currentColor.startsWith("#") ? currentColor : "#6b7280"}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full h-8 rounded cursor-pointer"
+          data-testid="color-picker-custom"
+        />
+      </div>
     </div>
   );
 }

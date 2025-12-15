@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
@@ -153,18 +153,22 @@ function CreatePlayerForm() {
           {/* Player Image and Basic Info */}
           <div className="grid md:grid-cols-2 gap-6">
             {/* Left: Image upload */}
-            <div 
+            <label 
+              htmlFor="player-image-upload"
               className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
-              onClick={() => fileInputRef.current?.click()}
               data-testid="upload-player-image"
             >
               <input
+                id="player-image-upload"
                 ref={fileInputRef}
                 type="file"
+                title="رفع صورة اللاعب"
                 accept="image/*"
                 className="hidden"
                 onChange={handleImageUpload}
+                aria-label="رفع صورة اللاعب"
               />
+              <span className="sr-only">رفع صورة اللاعب</span>
               {isUploading ? (
                 <div className="w-32 h-32 rounded-lg bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center mb-4">
                   <Loader2 className="w-8 h-8 text-white animate-spin" />
@@ -184,7 +188,7 @@ function CreatePlayerForm() {
                 <Upload className="w-4 h-4" />
                 <span>{imageUrl ? "تغيير الصورة" : "رفع صورة اللاعب"}</span>
               </div>
-            </div>
+            </label>
 
             {/* Right: Form fields */}
             <div className="space-y-4">
@@ -520,18 +524,22 @@ function CreateTeamForm() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             {/* Left: Logo upload */}
-            <div 
+            <label 
+              htmlFor="team-logo-upload"
               className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
-              onClick={() => fileInputRef.current?.click()}
               data-testid="upload-team-logo"
             >
               <input
+                id="team-logo-upload"
                 ref={fileInputRef}
                 type="file"
+                title="رفع شعار الفريق"
                 accept="image/*"
                 className="hidden"
                 onChange={handleLogoUpload}
+                aria-label="رفع شعار الفريق"
               />
+              <span className="sr-only">رفع شعار الفريق</span>
               {isUploading ? (
                 <div className="w-32 h-32 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center mb-4">
                   <Loader2 className="w-8 h-8 text-white animate-spin" />
@@ -551,7 +559,7 @@ function CreateTeamForm() {
                 <Upload className="w-4 h-4" />
                 <span>{logoUrl ? "تغيير الشعار" : "رفع شعار الفريق"}</span>
               </div>
-            </div>
+            </label>
 
             {/* Right: Fields */}
             <div className="space-y-4">
@@ -743,26 +751,31 @@ function DraggablePlayer({ id, name, number, position, isDragging }: DraggablePl
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: id,
   });
+  const playerRef = useRef<HTMLDivElement>(null);
 
-  const style: React.CSSProperties = {
-    left: `${position.x}%`,
-    top: `${position.y}%`,
-    transform: transform 
-      ? `translate3d(${transform.x}px, ${transform.y}px, 0) translate(-50%, -50%)`
-      : 'translate(-50%, -50%)',
-    cursor: 'grab',
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 100 : 10,
-    touchAction: 'none',
-  };
+  // Set CSS variables for positioning and transform
+  useEffect(() => {
+    if (playerRef.current) {
+      playerRef.current.style.setProperty('--player-x', `${position.x}%`);
+      playerRef.current.style.setProperty('--player-y', `${position.y}%`);
+      const transformValue = transform 
+        ? `translate3d(${transform.x}px, ${transform.y}px, 0) translate(-50%, -50%)`
+        : 'translate(-50%, -50%)';
+      playerRef.current.style.setProperty('--player-transform', transformValue);
+    }
+  }, [position.x, position.y, transform]);
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => {
+        setNodeRef(node);
+        if (node) {
+          playerRef.current = node;
+        }
+      }}
       {...listeners}
       {...attributes}
-      className="absolute group"
-      style={style}
+      className={`absolute group draggable-player ${isDragging ? 'dragging' : ''}`}
       data-testid={`draggable-player-${id}`}
     >
       <div className="relative">

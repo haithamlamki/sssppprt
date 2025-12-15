@@ -1053,6 +1053,7 @@ export default function Admin() {
                       ref={heroFileInputRef}
                       onChange={handleHeroFileChange}
                       data-testid="input-hero-file"
+                      aria-label="رفع صورة الصفحة الرئيسية"
                     />
                     <Button
                       type="button"
@@ -1397,6 +1398,7 @@ function AddEventDialog() {
                   className="hidden"
                   onChange={handleImageUpload}
                   disabled={isUploading}
+                  aria-label="رفع صورة الفعالية"
                 />
                 {isUploading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1602,6 +1604,7 @@ function EditEventDialog({ event }: { event: Event }) {
                   className="hidden"
                   onChange={handleImageUpload}
                   disabled={isUploading}
+                  aria-label="رفع صورة الفعالية"
                 />
                 {isUploading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -2171,6 +2174,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
             className="hidden"
             onChange={handleImageUpload}
             data-testid="input-tournament-image"
+            aria-label="رفع صورة البطولة"
           />
         </div>
       </div>
