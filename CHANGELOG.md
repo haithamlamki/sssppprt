@@ -5,6 +5,27 @@
 ## [غير محدد] - 2025-01-XX
 
 ### تم الإضافة
+- **توثيق Environment Variables**:
+  - إنشاء `ENVIRONMENT_VARIABLES.md` - دليل شامل لجميع متغيرات البيئة
+  - توثيق Environment Variables في Local Development (.env) و Vercel
+  - قائمة تحقق للمتغيرات المطلوبة
+  - تعليمات كيفية تحديث Environment Variables في Vercel
+
+### تم اكتشاف المشكلة
+- **مشكلة DATABASE_URL في .env**:
+  - `DATABASE_URL` يستخدم port 5432 (Direct connection) بدلاً من 6543 (Connection Pooler)
+  - الخطأ: `getaddrinfo ENOTFOUND db.ganuizvmmozagyzotohx.supabase.co`
+  - الحل: تحديث `DATABASE_URL` لاستخدام Connection Pooler على port 6543
+  - إنشاء `FIX_DATABASE_URL.md` مع التعليمات
+
+### تم التشغيل
+- **تشغيل التطبيق في وضع التطوير**:
+  - تشغيل `npm run dev` للبدء في وضع التطوير
+  - التطبيق يعمل على المنفذ 3000 (افتراضي)
+  - Vite dev server يعمل للتطوير السريع
+  - الخادم يستمع على `0.0.0.0:3000`
+
+### تم الإضافة
 - **تقرير حالة قاعدة البيانات**:
   - إنشاء `DATABASE_STATUS_REPORT.md` - تقرير شامل عن حالة قاعدة البيانات
   - التحقق من قاعدة البيانات باستخدام Supabase MCP
