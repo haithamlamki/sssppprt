@@ -27,7 +27,12 @@ async function createApp(): Promise<express.Express> {
   }
   
   // Register API routes
-  await registerRoutes(app);
+  try {
+    await registerRoutes(app);
+  } catch (error) {
+    console.error('Error registering routes:', error);
+    throw error; // Re-throw to see the actual error
+  }
   
   // Serve static files from dist/public in production
   const distPath = path.join(process.cwd(), 'dist', 'public');
@@ -71,9 +76,11 @@ export default async function handler(
     return handler(req, res);
   } catch (error: any) {
     console.error('Error in Vercel handler:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ 
       error: 'Internal Server Error',
-      message: error.message 
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
