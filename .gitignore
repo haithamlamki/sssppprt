@@ -64,7 +64,13 @@ replit.nix
 server/public
 
 # Copied server files for Vercel (generated during build)
-# Note: api/server and api/shared are now tracked in Git to ensure they're available in Vercel runtime
+# lib/ contains server files copied during build - should not be in Git
+lib/
+
+# api/server and api/shared should not be in Git (they cause Vercel to treat them as functions)
+# Files are copied to lib/ during build instead
+api/server/
+api/shared/
 
 # Database
 *.db

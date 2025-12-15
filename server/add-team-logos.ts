@@ -48,9 +48,9 @@ async function addTeamLogos() {
     for (const dir of possibleSourceDirs) {
       if (fs.existsSync(dir)) {
         // Check if any logo files exist in this directory
-        const files = fs.readdirSync(dir, { recursive: true });
-        const hasLogoFiles = files.some((file: string) => 
-          typeof file === 'string' && file.includes('image-') && file.endsWith('.png')
+        const files = fs.readdirSync(dir, { recursive: true }) as string[];
+        const hasLogoFiles = files.some((file) => 
+          file.includes('image-') && file.endsWith('.png')
         );
         if (hasLogoFiles) {
           sourceDir = dir;

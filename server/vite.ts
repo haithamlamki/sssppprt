@@ -3,7 +3,9 @@ import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
-import viteConfig from "../vite.config";
+// vite.ts is only used in development, not in Vercel production
+// In Vercel, we serve static files from dist/public
+// This file is not imported in production builds
 import { nanoid } from "nanoid";
 
 const viteLogger = createLogger();
@@ -27,7 +29,6 @@ export async function setupVite(app: Express, server: Server) {
   };
 
   const vite = await createViteServer({
-    ...viteConfig,
     configFile: false,
     customLogger: {
       ...viteLogger,
