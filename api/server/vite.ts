@@ -3,7 +3,17 @@ import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
-import viteConfig from "../vite.config";
+// vite.ts is only used in development, not in Vercel production
+// In Vercel, we serve static files from dist/public
+// This file is not imported in production builds
+import type { UserConfig } from "vite";
+
+// Use a type-only import or provide a default config
+// Since this is only used in dev, we can provide a minimal config
+const viteConfig: UserConfig = {
+  // Minimal config for development only
+  // This file is not used in Vercel serverless functions
+};
 import { nanoid } from "nanoid";
 
 const viteLogger = createLogger();
