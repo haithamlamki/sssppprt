@@ -6,9 +6,10 @@
 
 ### تم الإصلاح
 - **إصلاح مشكلة 404 في Vercel**:
-  - إضافة rewrite للصفحة الرئيسية `/` في `vercel.json`
-  - الآن جميع الطلبات (بما في ذلك الصفحة الرئيسية) تُوجه إلى `/api/index`
-  - هذا يضمن أن Express app يخدم الملفات الثابتة و index.html بشكل صحيح
+  - تحديث rewrite في `vercel.json` لتجاهل الملفات الثابتة (assets, images, etc.)
+  - تحسين `api/index.ts` للتعامل مع Vercel's static file serving
+  - الآن Vercel يخدم الملفات الثابتة تلقائياً، و Express app يخدم SPA routing فقط
+  - استخدام regex pattern `/((?!api|uploads|_next|assets|.*\\..*).*)` لتجاهل الملفات الثابتة
 
 ### تم الفحص
 - **فحص قاعدة البيانات باستخدام Supabase MCP**:
