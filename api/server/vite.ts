@@ -1,11 +1,12 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
+import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
+import viteConfig from "../vite.config";
+import { nanoid } from "nanoid";
 
-// vite.ts is only used in development, not in Vercel production
-// In Vercel, we serve static files from dist/public
-// This file is not imported in production builds
+const viteLogger = createLogger();
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -19,27 +20,18 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
-  // Only load vite in development
-  if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
-    throw new Error('setupVite should not be called in production/Vercel');
-  }
-
-  // Lazy load vite dependencies only when needed (development)
-  const vite = await import("vite");
-  const { nanoid } = await import("nanoid");
-  const viteLogger = vite.createLogger();
-  
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
     allowedHosts: true as const,
   };
 
-  const viteServer = await vite.createServer({
+  const vite = await createViteServer({
+    ...viteConfig,
     configFile: false,
     customLogger: {
       ...viteLogger,
-      error: (msg: any, options?: any) => {
+      error: (msg, options) => {
         viteLogger.error(msg, options);
         process.exit(1);
       },
@@ -48,7 +40,7 @@ export async function setupVite(app: Express, server: Server) {
     appType: "custom",
   });
 
-  app.use(viteServer.middlewares);
+  app.use(vite.middlewares);
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
@@ -61,7 +53,6 @@ export async function setupVite(app: Express, server: Server) {
       const clientTemplate = path.resolve(
         import.meta.dirname,
         "..",
-        "..",
         "client",
         "index.html",
       );
@@ -72,25 +63,22 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
-      const page = await viteServer.transformIndexHtml(url, template);
+      const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
-      viteServer.ssrFixStacktrace(e as Error);
+      vite.ssrFixStacktrace(e as Error);
       next(e);
     }
   });
 }
 
 export function serveStatic(app: Express) {
-  // In Vercel, static files are served from dist/public
-  // This function is not used in serverless functions
-  // Static files are handled by Vercel's static file serving
-  const distPath = path.resolve(process.cwd(), "dist", "public");
+  const distPath = path.resolve(import.meta.dirname, "public");
 
   if (!fs.existsSync(distPath)) {
-    // In Vercel, this is expected - static files are served separately
-    console.log('Static files directory not found, skipping static file serving');
-    return;
+    throw new Error(
+      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+    );
   }
 
   app.use(express.static(distPath));
@@ -101,11 +89,6 @@ export function serveStatic(app: Express) {
     if (req.originalUrl.startsWith("/api/")) {
       return res.status(404).json({ error: "API endpoint not found" });
     }
-    const indexPath = path.resolve(distPath, "index.html");
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
-    } else {
-      next();
-    }
+    res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
