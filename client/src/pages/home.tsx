@@ -1,4 +1,4 @@
-import { Trophy, Users, Calendar, Award, TrendingUp, Heart, Target, Zap } from "lucide-react";
+﻿import { Trophy, Users, Calendar, Award, TrendingUp, Heart, Target, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -99,25 +99,29 @@ export default function Home() {
         </div>
         
         <div className="relative z-10 container mx-auto px-4 md:px-6 text-center space-y-6">
-          <Badge className="text-base px-4 py-2 bg-primary/90 backdrop-blur-sm" data-testid="badge-hero">
+          <Badge 
+            className="text-sm px-4 py-2 bg-primary/90 backdrop-blur-sm" 
+            data-testid="badge-hero"
+            style={{ position: 'absolute', left: '485px', top: '-197px' }}
+          >
             اللجنة الرياضية - شركة أبراج لخدمات الطاقة
           </Badge>
-          <h1 className="text-5xl md:text-7xl font-display font-bold text-foreground drop-shadow-lg">
+          <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground drop-shadow-lg">
             معاً نبني مجتمعاً رياضياً متميزاً
           </h1>
-          <p className="text-xl md:text-2xl text-foreground/90 max-w-3xl mx-auto leading-relaxed drop-shadow">
+          <p className="text-base md:text-lg text-foreground/90 max-w-3xl mx-auto leading-relaxed drop-shadow">
             تعزيز الصحة وروح الفريق من خلال الأنشطة الرياضية والترفيهية
           </p>
           <div className="flex flex-wrap gap-4 justify-center pt-4">
             <Link href="/events">
-              <Button size="lg" className="text-lg px-8" data-testid="button-view-events">
-                <Calendar className="ml-2 h-5 w-5" />
+              <Button size="lg" className="text-base px-8" data-testid="button-view-events">
+                <Calendar className="mr-2 h-5 w-5" />
                 استعرض الفعاليات
               </Button>
             </Link>
             <Link href="/about">
-              <Button size="lg" variant="outline" className="text-lg px-8 backdrop-blur-sm bg-background/80" data-testid="button-about">
-                <TrendingUp className="ml-2 h-5 w-5" />
+              <Button size="lg" variant="outline" className="text-base px-8 backdrop-blur-sm bg-background/80" data-testid="button-about">
+                <TrendingUp className="mr-2 h-5 w-5" />
                 تعرف علينا
               </Button>
             </Link>
@@ -132,40 +136,40 @@ export default function Home() {
             <Card className="text-center hover-elevate transition-all">
               <CardContent className="p-8 space-y-3">
                 <Calendar className="h-12 w-12 mx-auto text-primary" />
-                <div className="text-4xl md:text-5xl font-display font-bold text-primary" data-testid="stat-events">
+                <div className="text-base md:text-base font-display font-bold text-primary" data-testid="stat-events">
                   {stats.events}+
                 </div>
-                <p className="text-sm md:text-base text-muted-foreground font-medium">فعالية منظمة</p>
+                <p className="text-base md:text-lg text-muted-foreground font-medium">فعالية منظمة</p>
               </CardContent>
             </Card>
 
             <Card className="text-center hover-elevate transition-all">
               <CardContent className="p-8 space-y-3">
                 <Users className="h-12 w-12 mx-auto text-victory" />
-                <div className="text-4xl md:text-5xl font-display font-bold text-victory" data-testid="stat-participants">
+                <div className="text-base md:text-base font-display font-bold text-victory" data-testid="stat-participants">
                   {stats.participants}+
                 </div>
-                <p className="text-sm md:text-base text-muted-foreground font-medium">مشارك نشط</p>
+                <p className="text-base md:text-lg text-muted-foreground font-medium">مشارك نشط</p>
               </CardContent>
             </Card>
 
             <Card className="text-center hover-elevate transition-all">
               <CardContent className="p-8 space-y-3">
                 <Award className="h-12 w-12 mx-auto text-gold" />
-                <div className="text-4xl md:text-5xl font-display font-bold text-gold" data-testid="stat-achievements">
+                <div className="text-base md:text-base font-display font-bold text-gold" data-testid="stat-achievements">
                   {stats.achievements}+
                 </div>
-                <p className="text-sm md:text-base text-muted-foreground font-medium">إنجاز محقق</p>
+                <p className="text-base md:text-lg text-muted-foreground font-medium">إنجاز محقق</p>
               </CardContent>
             </Card>
 
             <Card className="text-center hover-elevate transition-all">
               <CardContent className="p-8 space-y-3">
                 <Trophy className="h-12 w-12 mx-auto text-success" />
-                <div className="text-4xl md:text-5xl font-display font-bold text-success" data-testid="stat-sports">
+                <div className="text-base md:text-base font-display font-bold text-success" data-testid="stat-sports">
                   {stats.sports}+
                 </div>
-                <p className="text-sm md:text-base text-muted-foreground font-medium">رياضة متنوعة</p>
+                <p className="text-base md:text-lg text-muted-foreground font-medium">رياضة متنوعة</p>
               </CardContent>
             </Card>
           </div>
@@ -176,13 +180,13 @@ export default function Home() {
       <section className="py-20">
         <div className="container mx-auto px-4 md:px-6">
           <div className="text-center space-y-4 mb-16">
-            <Badge variant="outline" className="text-base px-4 py-2" data-testid="badge-services">
+            <Badge variant="outline" className="text-sm px-4 py-2" data-testid="badge-services">
               خدماتنا
             </Badge>
-            <h2 className="text-4xl md:text-5xl font-display font-bold">
+            <h2 className="text-2xl md:text-3xl font-display font-bold">
               ماذا نقدم لموظفينا
             </h2>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">
               مجموعة متنوعة من الأنشطة والخدمات الرياضية لتعزيز الصحة والتفاعل
             </p>
           </div>
@@ -206,13 +210,13 @@ export default function Home() {
       {/* News Ticker */}
       <section className="py-8 bg-primary text-primary-foreground overflow-hidden">
         <div className="flex items-center gap-8">
-          <div className="flex-shrink-0 px-6 flex items-center gap-2 font-bold text-lg">
+          <div className="flex-shrink-0 px-6 flex items-center gap-2 font-bold text-base">
             <Zap className="h-5 w-5" />
             آخر الأخبار
           </div>
           <div className="flex gap-12 animate-marquee">
             {[...newsItems, ...newsItems].map((news, index) => (
-              <div key={index} className="flex-shrink-0 text-lg font-medium">
+              <div key={index} className="flex-shrink-0 text-base font-medium">
                 {news}
               </div>
             ))}
@@ -230,9 +234,9 @@ export default function Home() {
                   <div className="w-14 h-14 rounded-md bg-primary text-primary-foreground flex items-center justify-center">
                     <Target className="h-8 w-8" />
                   </div>
-                  <h3 className="text-3xl font-display font-bold">رؤيتنا</h3>
+                  <h3 className="text-xl font-display font-bold">رؤيتنا</h3>
                 </div>
-                <p className="text-lg text-muted-foreground leading-relaxed">
+                <p className="text-base text-muted-foreground leading-relaxed">
                   أن نكون المنصة الرياضية الأولى التي تجمع موظفي الشركة وأسرهم في بيئة رياضية محفزة وممتعة، نساهم من خلالها في بناء مجتمع صحي ومتماسك يعزز روح الانتماء والولاء للشركة.
                 </p>
               </CardContent>
@@ -244,9 +248,9 @@ export default function Home() {
                   <div className="w-14 h-14 rounded-md bg-victory text-victory-foreground flex items-center justify-center">
                     <Heart className="h-8 w-8" />
                   </div>
-                  <h3 className="text-3xl font-display font-bold">رسالتنا</h3>
+                  <h3 className="text-xl font-display font-bold">رسالتنا</h3>
                 </div>
-                <p className="text-lg text-muted-foreground leading-relaxed">
+                <p className="text-base text-muted-foreground leading-relaxed">
                   تنظيم فعاليات رياضية وترفيهية متنوعة على مدار العام، توفير المرافق الرياضية المناسبة، وتشجيع المشاركة الفعالة من جميع الموظفين بما يعزز الصحة البدنية والنفسية ويقوي روح الفريق.
                 </p>
               </CardContent>
@@ -260,16 +264,16 @@ export default function Home() {
         <div className="container mx-auto px-4 md:px-6">
           <Card className="bg-gradient-to-l from-primary via-primary to-victory text-primary-foreground border-0">
             <CardContent className="p-12 md:p-16 text-center space-y-6">
-              <h2 className="text-4xl md:text-5xl font-display font-bold">
+              <h2 className="text-2xl md:text-3xl font-display font-bold">
                 انضم لمجتمعنا الرياضي
               </h2>
-              <p className="text-xl md:text-2xl max-w-2xl mx-auto leading-relaxed opacity-95">
+              <p className="text-base md:text-lg max-w-2xl mx-auto leading-relaxed opacity-95">
                 ابدأ رحلتك الرياضية معنا واستمتع بفعاليات متنوعة طوال العام
               </p>
               <div className="pt-4">
                 <Link href="/events">
-                  <Button size="lg" variant="outline" className="text-lg px-8 bg-background text-foreground hover:bg-background/90 border-2" data-testid="button-cta-events">
-                    <Calendar className="ml-2 h-5 w-5" />
+                  <Button size="lg" variant="outline" className="text-base px-8 bg-background text-foreground hover:bg-background/90 border-2" data-testid="button-cta-events">
+                    <Calendar className="mr-2 h-5 w-5" />
                     اكتشف الفعاليات القادمة
                   </Button>
                 </Link>

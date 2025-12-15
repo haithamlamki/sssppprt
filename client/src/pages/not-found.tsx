@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/components/ui/card";
+﻿import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Home } from "lucide-react";
 import { Link } from "wouter";
@@ -15,7 +15,7 @@ export default function NotFound() {
           </div>
           
           <div className="space-y-2">
-            <h1 className="text-6xl font-display font-bold text-primary">404</h1>
+            <h1 className="text-3xl font-display font-bold text-primary">404</h1>
             <h2 className="text-2xl font-display font-bold">الصفحة غير موجودة</h2>
             <p className="text-muted-foreground">
               عذراً، الصفحة التي تبحث عنها غير موجودة أو تم نقلها

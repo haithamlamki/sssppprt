@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, Loader2 } from "lucide-react";
+﻿import { Bell, Check, CheckCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -76,7 +76,7 @@ export function NotificationsDropdown() {
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <Badge 
-              className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+              className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-sm"
             >
               {unreadCount > 9 ? "9+" : unreadCount}
             </Badge>
@@ -94,7 +94,7 @@ export function NotificationsDropdown() {
               disabled={markAllReadMutation.isPending}
               data-testid="button-mark-all-read"
             >
-              <CheckCheck className="h-4 w-4 ml-1" />
+              <CheckCheck className="h-4 w-4 mr-1" />
               قراءة الكل
             </Button>
           )}
@@ -107,7 +107,7 @@ export function NotificationsDropdown() {
           ) : notifications.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">لا توجد إشعارات</p>
+              <p className="text-base">لا توجد إشعارات</p>
             </div>
           ) : (
             <div className="divide-y">
@@ -123,11 +123,11 @@ export function NotificationsDropdown() {
                   <div className="flex items-start gap-3">
                     <div className={`w-2 h-2 rounded-full mt-2 ${getNotificationIcon(notification.type)}`} />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{notification.title}</p>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
+                      <p className="font-medium text-base">{notification.title}</p>
+                      <p className="text-base text-muted-foreground line-clamp-2">
                         {notification.message}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-base text-muted-foreground mt-1">
                         {new Date(notification.createdAt).toLocaleDateString('ar-SA')}
                       </p>
                     </div>

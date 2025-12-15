@@ -1,4 +1,4 @@
-import { Trophy, Medal, Award, Crown, Star } from "lucide-react";
+﻿import { Trophy, Medal, Award, Crown, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import awardsImage from "@assets/generated_images/Championship_awards_display_421aecd4.png";
@@ -97,13 +97,13 @@ export default function Results() {
       <div className="container mx-auto px-4 md:px-6">
         {/* Header */}
         <div className="text-center space-y-4 mb-16">
-          <Badge variant="outline" className="text-base px-4 py-2" data-testid="badge-results">
+          <Badge variant="outline" className="text-sm px-4 py-2" data-testid="badge-results">
             النتائج والإنجازات
           </Badge>
-          <h1 className="text-4xl md:text-6xl font-display font-bold">
+          <h1 className="text-3xl md:text-4xl font-display font-bold">
             لوحة الشرف والبطولات
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">
             نتائج البطولات وتكريم الأبطال والمتميزين رياضياً
           </p>
         </div>
@@ -117,7 +117,7 @@ export default function Results() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
           <div className="absolute bottom-8 left-0 right-0 text-center">
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground drop-shadow-lg">
+            <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground drop-shadow-lg">
               احتفاء بالتميز الرياضي
             </h2>
           </div>
@@ -127,7 +127,7 @@ export default function Results() {
         <section className="mb-20">
           <div className="flex items-center gap-3 mb-8">
             <Trophy className="h-8 w-8 text-primary" />
-            <h2 className="text-3xl md:text-4xl font-display font-bold">نتائج البطولات</h2>
+            <h2 className="text-2xl md:text-3xl font-display font-bold">نتائج البطولات</h2>
           </div>
           
           <div className="space-y-6">
@@ -136,7 +136,7 @@ export default function Results() {
                 <CardHeader className="bg-card border-b">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                      <CardTitle className="text-2xl font-display mb-2">{tournament.name}</CardTitle>
+                      <CardTitle className="text-xl font-display mb-2">{tournament.name}</CardTitle>
                       <div className="flex flex-wrap gap-2">
                         <Badge variant="secondary">{tournament.category}</Badge>
                         <Badge variant="outline">{tournament.date}</Badge>
@@ -144,12 +144,12 @@ export default function Results() {
                     </div>
                     <div className="flex gap-6 text-center">
                       <div>
-                        <div className="text-2xl font-bold text-primary">{tournament.stats.teams}</div>
-                        <div className="text-xs text-muted-foreground">فريق</div>
+                        <div className="text-base font-bold text-primary">{tournament.stats.teams}</div>
+                        <div className="text-base text-muted-foreground">فريق</div>
                       </div>
                       <div>
-                        <div className="text-2xl font-bold text-victory">{tournament.stats.matches}</div>
-                        <div className="text-xs text-muted-foreground">مباراة</div>
+                        <div className="text-base font-bold text-victory">{tournament.stats.matches}</div>
+                        <div className="text-base text-muted-foreground">مباراة</div>
                       </div>
                     </div>
                   </div>
@@ -162,7 +162,7 @@ export default function Results() {
                         <Crown className="h-10 w-10" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground mb-1">البطل</p>
+                        <p className="text-base text-muted-foreground mb-1">البطل</p>
                         <h3 className="text-xl font-display font-bold">{tournament.winner}</h3>
                       </div>
                       <Badge className="bg-gold text-gold-foreground">المركز الأول</Badge>
@@ -174,7 +174,7 @@ export default function Results() {
                         <Medal className="h-10 w-10" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground mb-1">الوصيف</p>
+                        <p className="text-base text-muted-foreground mb-1">الوصيف</p>
                         <h3 className="text-xl font-display font-bold">{tournament.runnerUp}</h3>
                       </div>
                       <Badge variant="secondary">المركز الثاني</Badge>
@@ -186,7 +186,7 @@ export default function Results() {
                         <Award className="h-10 w-10" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground mb-1">المركز الثالث</p>
+                        <p className="text-base text-muted-foreground mb-1">المركز الثالث</p>
                         <h3 className="text-xl font-display font-bold">{tournament.thirdPlace}</h3>
                       </div>
                       <Badge className="bg-victory text-victory-foreground">المركز الثالث</Badge>
@@ -202,7 +202,7 @@ export default function Results() {
         <section className="mb-20">
           <div className="flex items-center gap-3 mb-8">
             <Star className="h-8 w-8 text-primary" />
-            <h2 className="text-3xl md:text-4xl font-display font-bold">لوحة الصدارة - الأقسام</h2>
+            <h2 className="text-2xl md:text-3xl font-display font-bold">لوحة الصدارة - الأقسام</h2>
           </div>
 
           <Card>
@@ -233,10 +233,10 @@ export default function Results() {
                           </div>
                         </td>
                         <td className="p-4">
-                          <p className="font-display font-bold text-lg">{item.department}</p>
+                          <p className="font-display font-bold text-base">{item.department}</p>
                         </td>
                         <td className="p-4 text-center">
-                          <Badge variant="secondary" className="text-base font-mono">{item.points}</Badge>
+                          <Badge variant="secondary" className="text-sm font-mono">{item.points}</Badge>
                         </td>
                         <td className="p-4 text-center">
                           <div className="flex items-center justify-center gap-1">
@@ -257,24 +257,24 @@ export default function Results() {
         <section>
           <div className="flex items-center gap-3 mb-8">
             <Award className="h-8 w-8 text-primary" />
-            <h2 className="text-3xl md:text-4xl font-display font-bold">اللاعبون المميزون</h2>
+            <h2 className="text-2xl md:text-3xl font-display font-bold">اللاعبون المميزون</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredAthletes.map((athlete) => (
               <Card key={athlete.id} className="text-center hover-elevate active-elevate-2 transition-all" data-testid={`athlete-${athlete.id}`}>
                 <CardContent className="p-6 space-y-4">
-                  <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-primary to-victory flex items-center justify-center text-4xl font-display font-bold text-primary-foreground">
+                  <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-primary to-victory flex items-center justify-center text-base font-display font-bold text-primary-foreground">
                     {athlete.name.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div>
                     <h3 className="text-xl font-display font-bold mb-1">{athlete.name}</h3>
-                    <p className="text-sm text-muted-foreground">{athlete.position}</p>
+                    <p className="text-base text-muted-foreground">{athlete.position}</p>
                     <Badge variant="outline" className="mt-2">{athlete.department}</Badge>
                   </div>
                   <div className="pt-4 border-t">
                     <Trophy className="h-6 w-6 mx-auto text-gold mb-2" />
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+                    <p className="text-base text-muted-foreground leading-relaxed">
                       {athlete.achievements}
                     </p>
                   </div>

@@ -13,11 +13,11 @@ export function Footer() {
                 <Trophy className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="font-display font-bold text-lg">اللجنة الرياضية</h3>
-                <p className="text-sm text-muted-foreground">شركة أبراج لخدمات الطاقة</p>
+                <h3 className="font-display font-bold text-xl">اللجنة الرياضية</h3>
+                <p className="text-base text-muted-foreground">شركة أبراج لخدمات الطاقة</p>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-base text-muted-foreground leading-relaxed">
               نسعى لتعزيز الصحة وروح الفريق من خلال تنظيم الأنشطة الرياضية والترفيهية للموظفين وأسرهم.
             </p>
             <div className="flex gap-2">
@@ -36,7 +36,9 @@ export function Footer() {
                 <Twitter className="h-4 w-4" />
               </a>
               <a
-                href="#"
+                href="https://www.instagram.com/abrajenergy.sports/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center justify-center w-9 h-9 rounded-md hover-elevate active-elevate-2 bg-secondary text-secondary-foreground"
                 data-testid="link-instagram"
               >
@@ -47,39 +49,39 @@ export function Footer() {
 
           {/* Quick Links */}
           <div className="space-y-4">
-            <h3 className="font-display font-bold text-lg">روابط سريعة</h3>
+            <h3 className="font-display font-bold text-xl">روابط سريعة</h3>
             <ul className="space-y-3">
               <li>
                 <Link href="/" data-testid="footer-link-home">
-                  <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+                  <span className="text-base text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
                     الصفحة الرئيسية
                   </span>
                 </Link>
               </li>
               <li>
                 <Link href="/events" data-testid="footer-link-events">
-                  <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+                  <span className="text-base text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
                     الفعاليات القادمة
                   </span>
                 </Link>
               </li>
               <li>
                 <Link href="/gallery" data-testid="footer-link-gallery">
-                  <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+                  <span className="text-base text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
                     معرض الصور
                   </span>
                 </Link>
               </li>
               <li>
                 <Link href="/results" data-testid="footer-link-results">
-                  <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+                  <span className="text-base text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
                     النتائج والإنجازات
                   </span>
                 </Link>
               </li>
               <li>
                 <Link href="/about" data-testid="footer-link-about">
-                  <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+                  <span className="text-base text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
                     من نحن
                   </span>
                 </Link>
@@ -89,27 +91,27 @@ export function Footer() {
 
           {/* Contact Info */}
           <div className="space-y-4">
-            <h3 className="font-display font-bold text-lg">تواصل معنا</h3>
+            <h3 className="font-display font-bold text-xl">تواصل معنا</h3>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
                 <Phone className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium">الهاتف</p>
-                  <p className="text-sm text-muted-foreground" dir="ltr">+966 XX XXX XXXX</p>
+                  <p className="text-base font-medium">الهاتف</p>
+                  <p className="text-base text-muted-foreground" dir="ltr">+968 99371775</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <Mail className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium">البريد الإلكتروني</p>
-                  <p className="text-sm text-muted-foreground" dir="ltr">sports@abrajenergy.com</p>
+                  <p className="text-base font-medium">البريد الإلكتروني</p>
+                  <p className="text-base text-muted-foreground" dir="ltr">sports@abrajenergy.com</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <MapPin className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium">العنوان</p>
-                  <p className="text-sm text-muted-foreground">المملكة العربية السعودية</p>
+                  <p className="text-base font-medium">العنوان</p>
+                  <p className="text-base text-muted-foreground">سلطنة عمان</p>
                 </div>
               </li>
             </ul>
@@ -118,7 +120,7 @@ export function Footer() {
 
         {/* Copyright */}
         <div className="border-t mt-12 pt-8 text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             © {new Date().getFullYear()} اللجنة الرياضية - شركة أبراج لخدمات الطاقة. جميع الحقوق محفوظة.
           </p>
         </div>

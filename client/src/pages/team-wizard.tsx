@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, UserPlus, Shield, Trophy, Settings, ChevronLeft, ChevronRight,
-  Save, Plus, Trash2, GripVertical, User, Phone, Mail, Calendar, Move, Upload, Loader2, ImageIcon
+  Save, Plus, Trash2, GripVertical, User, Phone, Mail, Calendar, Move, Upload, Loader2, ImageIcon, FileSpreadsheet, Pencil
 } from "lucide-react";
 import {
   DndContext,
@@ -25,8 +25,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Team, Player, Tournament } from "@shared/schema";
 
 // ========== PLAYER CREATION FORM ==========
@@ -178,7 +180,7 @@ function CreatePlayerForm() {
                   <User className="w-16 h-16 text-white" />
                 </div>
               )}
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-base text-muted-foreground">
                 <Upload className="w-4 h-4" />
                 <span>{imageUrl ? "تغيير الصورة" : "رفع صورة اللاعب"}</span>
               </div>
@@ -266,11 +268,11 @@ function CreatePlayerForm() {
               />
             </div>
             <div>
-              <Label>الممثل</Label>
+              <Label>الكابتن</Label>
               <Input
                 value={formData.representativeName}
                 onChange={(e) => setFormData({ ...formData, representativeName: e.target.value })}
-                placeholder="اسم الممثل"
+                placeholder="اسم الكابتن"
                 data-testid="input-player-representative"
               />
             </div>
@@ -316,7 +318,7 @@ function CreatePlayerForm() {
                       <Settings className="w-3 h-3" />
                     </Button>
                   </div>
-                  <span className="text-sm text-muted-foreground">قميص {index + 1}</span>
+                  <span className="text-base text-muted-foreground">قميص {index + 1}</span>
                 </div>
               ))}
             </div>
@@ -384,7 +386,7 @@ function CreatePlayerForm() {
                     </SelectItem>
                   ))
                 ) : (
-                  <div className="py-2 px-3 text-sm text-muted-foreground text-center">
+                  <div className="py-2 px-3 text-base text-muted-foreground text-center">
                     {!linkableUsers ? "جاري التحميل..." : "لا يوجد مستخدمين متاحين للربط"}
                   </div>
                 )}
@@ -494,7 +496,7 @@ function CreateTeamForm() {
       <CardHeader className="bg-gradient-to-l from-primary/10 to-transparent rounded-t-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white font-bold text-xl">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white font-bold text-base">
               FC
             </div>
             <div>
@@ -541,11 +543,11 @@ function CreateTeamForm() {
                   className="w-32 h-32 rounded-lg object-cover mb-4"
                 />
               ) : (
-                <div className="w-32 h-32 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center mb-4 text-white text-3xl font-bold">
+                <div className="w-32 h-32 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center mb-4 text-white text-base font-bold">
                   FC
                 </div>
               )}
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-base text-muted-foreground">
                 <Upload className="w-4 h-4" />
                 <span>{logoUrl ? "تغيير الشعار" : "رفع شعار الفريق"}</span>
               </div>
@@ -633,11 +635,11 @@ function CreateTeamForm() {
               />
             </div>
             <div>
-              <Label>الممثل</Label>
+              <Label>الكابتن</Label>
               <Input
                 value={formData.representativeName}
                 onChange={(e) => setFormData({ ...formData, representativeName: e.target.value })}
-                placeholder="اسم الممثل"
+                placeholder="اسم الكابتن"
                 data-testid="input-team-representative"
               />
             </div>
@@ -681,7 +683,7 @@ function CreateTeamForm() {
                       <Settings className="w-3 h-3" />
                     </Button>
                   </div>
-                  <span className="text-sm text-muted-foreground">قميص {num}</span>
+                  <span className="text-base text-muted-foreground">قميص {num}</span>
                 </div>
               ))}
             </div>
@@ -764,10 +766,10 @@ function DraggablePlayer({ id, name, number, position, isDragging }: DraggablePl
       data-testid={`draggable-player-${id}`}
     >
       <div className="relative">
-        <div className="w-10 h-12 bg-gradient-to-b from-red-500 to-red-600 rounded-t-full flex items-center justify-center text-white font-bold text-xs shadow-lg transition-transform group-hover:scale-110 group-active:scale-95">
+        <div className="w-10 h-12 bg-gradient-to-b from-red-500 to-red-600 rounded-t-full flex items-center justify-center text-white font-bold text-base shadow-lg transition-transform group-hover:scale-110 group-active:scale-95">
           {number}
         </div>
-        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-white bg-black/50 px-1 rounded">
+        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-base text-white bg-black/50 px-1 rounded">
           {name}
         </div>
         <div className="absolute -top-1 -right-1 w-4 h-4 bg-white/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -939,7 +941,7 @@ function LineupBuilder() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-base">
               <thead>
                 <tr className="border-b">
                   <th className="py-2 text-right"></th>
@@ -1051,7 +1053,7 @@ function LineupBuilder() {
               ))}
 
               {/* Hint text */}
-              <div className="absolute top-2 right-2 text-xs text-white/70 flex items-center gap-1">
+              <div className="absolute top-2 right-2 text-base text-white/70 flex items-center gap-1">
                 <Move className="w-3 h-3" />
                 اسحب اللاعبين لتغيير مواقعهم
               </div>
@@ -1061,10 +1063,10 @@ function LineupBuilder() {
             <DragOverlay>
               {activeId ? (
                 <div className="relative">
-                  <div className="w-10 h-12 bg-gradient-to-b from-red-500 to-red-600 rounded-t-full flex items-center justify-center text-white font-bold text-xs shadow-xl scale-110">
+                  <div className="w-10 h-12 bg-gradient-to-b from-red-500 to-red-600 rounded-t-full flex items-center justify-center text-white font-bold text-base shadow-xl scale-110">
                     {lineupPlayers.find(p => p.id === activeId)?.number}
                   </div>
-                  <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-white bg-black/70 px-1 rounded">
+                  <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-base text-white bg-black/70 px-1 rounded">
                     {lineupPlayers.find(p => p.id === activeId)?.name}
                   </div>
                 </div>
@@ -1274,7 +1276,7 @@ function CreateLeagueWizard() {
               <div className="w-32 h-32 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center mb-4">
                 <Trophy className="w-16 h-16 text-white" />
               </div>
-              <p className="text-sm text-muted-foreground">صورة الدوري</p>
+              <p className="text-base text-muted-foreground">صورة الدوري</p>
             </div>
 
             <div className="space-y-4">
@@ -1369,7 +1371,7 @@ function CreateLeagueWizard() {
                   onClick={() => setFormData({ ...formData, numberOfGroups: opt.count })}
                 >
                   <Users className="w-5 h-5" />
-                  <span className="text-xs">{opt.count}</span>
+                  <span className="text-base">{opt.count}</span>
                 </Button>
               ))}
             </div>
@@ -1406,10 +1408,10 @@ function CreateLeagueWizard() {
           {/* Points System */}
           <div>
             <Label className="mb-3 block">* عدد المرحلة الثانية</Label>
-            <p className="text-sm text-muted-foreground mb-2">عدد جميع الفرق المسموح لها بالتقدم إلى المرحلة المريح لجميع المجموعات</p>
+            <p className="text-base text-muted-foreground mb-2">عدد جميع الفرق المسموح لها بالتقدم إلى المرحلة المريح لجميع المجموعات</p>
             <div className="grid grid-cols-4 gap-4">
               <div>
-                <Label className="text-xs">نقاط الفوز</Label>
+                <Label className="text-base">نقاط الفوز</Label>
                 <Input
                   type="number"
                   value={formData.winPoints}
@@ -1418,7 +1420,7 @@ function CreateLeagueWizard() {
                 />
               </div>
               <div>
-                <Label className="text-xs">نقاط التعادل</Label>
+                <Label className="text-base">نقاط التعادل</Label>
                 <Input
                   type="number"
                   value={formData.drawPoints}
@@ -1427,7 +1429,7 @@ function CreateLeagueWizard() {
                 />
               </div>
               <div>
-                <Label className="text-xs">نقاط الخسارة</Label>
+                <Label className="text-base">نقاط الخسارة</Label>
                 <Input
                   type="number"
                   value={formData.lossPoints}
@@ -1436,7 +1438,7 @@ function CreateLeagueWizard() {
                 />
               </div>
               <div>
-                <Label className="text-xs">عدد التأهل</Label>
+                <Label className="text-base">عدد التأهل</Label>
                 <Input
                   type="number"
                   value={formData.teamsAdvancing}
@@ -1492,7 +1494,7 @@ function CreateLeagueWizard() {
               />
               <Label htmlFor="isOpen">
                 هذا الدوري مفتوح للتسجيل
-                <span className="text-xs text-muted-foreground mr-2">
+                <span className="text-base text-muted-foreground mr-2">
                   (بالاشتراك مع MyLeague، يتم تشغيل هذا الدوري دائما من قبل الإدارة ولا يسمح للفرق الأخرى)
                 </span>
               </Label>
@@ -1584,29 +1586,29 @@ function TeamsListView() {
                         className="w-16 h-16 rounded-lg object-cover"
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white font-bold text-lg">
+                      <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white font-bold text-base">
                         {team.name.slice(0, 2)}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-lg truncate" data-testid={`text-team-name-${team.id}`}>{team.name}</h3>
+                      <h3 className="font-bold text-xl truncate" data-testid={`text-team-name-${team.id}`}>{team.name}</h3>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        <Badge variant="secondary" className="text-xs">{getLevelLabel(team.level)}</Badge>
+                        <Badge variant="secondary" className="text-sm">{getLevelLabel(team.level)}</Badge>
                         {team.tournamentId && (
-                          <Badge variant="outline" className="text-xs">
-                            <Trophy className="w-3 h-3 ml-1" />
+                          <Badge variant="outline" className="text-sm">
+                            <Trophy className="w-3 h-3 mr-1" />
                             {getTournamentName(team.tournamentId)}
                           </Badge>
                         )}
                       </div>
                       {team.representativeName && (
-                        <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1">
+                        <p className="text-base text-muted-foreground mt-2 flex items-center gap-1">
                           <User className="w-3 h-3" />
                           {team.representativeName}
                         </p>
                       )}
                       {team.contactPhone && (
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <p className="text-base text-muted-foreground flex items-center gap-1">
                           <Phone className="w-3 h-3" />
                           {team.contactPhone}
                         </p>
@@ -1623,6 +1625,437 @@ function TeamsListView() {
   );
 }
 
+// ========== BULK PLAYER IMPORT FORM ==========
+function BulkPlayerImportForm() {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [playersText, setPlayersText] = useState<string>("");
+  const [isImporting, setIsImporting] = useState(false);
+
+  const isAdmin = user?.role === "admin" || user?.role === "committee_member";
+
+  const { data: teams } = useQuery<Team[]>({
+    queryKey: ["/api/teams"],
+  });
+
+  // Use /api/users for admin, /api/users/linkable for others
+  const { data: allUsers } = useQuery<{ id: string; fullName: string; employeeId: string }[]>({
+    queryKey: isAdmin ? ["/api/users"] : ["/api/users/linkable"],
+    enabled: true,
+    select: (data: any) => {
+      if (isAdmin && Array.isArray(data)) {
+        // For admin, filter to get only id, fullName, employeeId
+        return data.map((u: any) => ({
+          id: u.id,
+          fullName: u.fullName,
+          employeeId: u.employeeId
+        }));
+      }
+      return data || [];
+    },
+  });
+
+  const importMutation = useMutation({
+    mutationFn: async (players: Array<{ name: string; employeeId?: string; userId?: string; teamId?: string }>) => {
+      const results = [];
+      for (const player of players) {
+        try {
+          const playerData: any = {
+            name: player.name,
+            teamId: player.teamId || selectedTeamId || undefined,
+            userId: player.userId || undefined,
+          };
+          const result = await apiRequest("POST", "/api/players", playerData);
+          results.push({ success: true, player: result, name: player.name });
+        } catch (error: any) {
+          results.push({ success: false, error: error.message || "فشل الإضافة", name: player.name });
+        }
+      }
+      return results;
+    },
+    onSuccess: (results) => {
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+      if (successCount > 0) {
+        toast({ 
+          title: `تم إضافة ${successCount} لاعب بنجاح`,
+          description: failCount > 0 ? `فشل إضافة ${failCount} لاعب` : undefined
+        });
+      } else {
+        toast({ 
+          title: "فشل إضافة اللاعبين", 
+          variant: "destructive" 
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/players"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teams", selectedTeamId, "players"] });
+      setPlayersText("");
+    },
+    onError: () => {
+      toast({ title: "حدث خطأ أثناء الاستيراد", variant: "destructive" });
+    },
+  });
+
+  const handleImport = () => {
+    if (!playersText.trim()) {
+      toast({ title: "يرجى إدخال بيانات اللاعبين", variant: "destructive" });
+      return;
+    }
+
+    // Parse the text - support multiple formats:
+    // Format 1: team,employeeId,name (3 columns)
+    // Format 2: name,employeeId (2 columns - uses selectedTeamId)
+    const lines = playersText.trim().split('\n').filter(line => line.trim());
+    const players: Array<{ name: string; employeeId?: string; userId?: string; teamId?: string; teamName?: string }> = [];
+    
+    lines.forEach((line, index) => {
+      // Skip header row if it looks like Arabic headers
+      if (index === 0 && (line.includes('الفريق') || line.includes('الرقم الوظيفي') || line.includes('اسم اللاعب'))) {
+        return;
+      }
+
+      const parts = line.trim().split(',').map(p => p.trim());
+      
+      // Determine format based on number of parts
+      if (parts.length >= 3) {
+        // Format: team,employeeId,name (3 columns)
+        const teamName = parts[0] || "";
+        const employeeId = parts[1] && parts[1].toLowerCase() !== 'na' && parts[1].toLowerCase() !== '' ? parts[1] : undefined;
+        const name = parts[2] || "";
+        
+        if (name) {
+          // Find team by name
+          let teamId: string | undefined;
+          if (teamName && teams) {
+            const team = teams.find(t => t.name.toLowerCase().includes(teamName.toLowerCase()) || teamName.toLowerCase().includes(t.name.toLowerCase()));
+            if (team) {
+              teamId = team.id;
+            }
+          }
+          
+          // Find user by employeeId if provided
+          let userId: string | undefined;
+          if (employeeId && allUsers) {
+            const user = allUsers.find(u => u.employeeId === employeeId || u.employeeId.toLowerCase() === employeeId.toLowerCase());
+            if (user) {
+              userId = user.id;
+            }
+          }
+
+          players.push({ name, employeeId, userId, teamId, teamName });
+        }
+      } else if (parts.length === 2) {
+        // Format: name,employeeId (2 columns - uses selectedTeamId)
+        const name = parts[0] || "";
+        const employeeId = parts[1] && parts[1].toLowerCase() !== 'na' && parts[1].toLowerCase() !== '' ? parts[1] : undefined;
+        
+        if (name) {
+          // Find user by employeeId if provided
+          let userId: string | undefined;
+          if (employeeId && allUsers) {
+            const user = allUsers.find(u => u.employeeId === employeeId || u.employeeId.toLowerCase() === employeeId.toLowerCase());
+            if (user) {
+              userId = user.id;
+            }
+          }
+
+          players.push({ name, employeeId, userId, teamId: selectedTeamId || undefined });
+        }
+      } else if (parts.length === 1) {
+        // Format: name only (uses selectedTeamId)
+        const name = parts[0] || "";
+        if (name) {
+          players.push({ name, teamId: selectedTeamId || undefined });
+        }
+      }
+    });
+
+    const validPlayers = players.filter(p => p.name);
+    
+    if (validPlayers.length === 0) {
+      toast({ title: "لم يتم العثور على لاعبين صالحين", variant: "destructive" });
+      return;
+    }
+
+    // Group by team for better feedback
+    const playersByTeam = validPlayers.reduce((acc, p) => {
+      const teamId = p.teamId || selectedTeamId || 'no-team';
+      if (!acc[teamId]) acc[teamId] = [];
+      acc[teamId].push(p);
+      return acc;
+    }, {} as Record<string, typeof validPlayers>);
+
+    const teamsWithPlayers = Object.keys(playersByTeam);
+    if (teamsWithPlayers.length > 1) {
+      toast({ 
+        title: `تم العثور على ${validPlayers.length} لاعب في ${teamsWithPlayers.length} فريق`,
+        description: "سيتم إضافة اللاعبين للفرق المناسبة"
+      });
+    }
+
+    setIsImporting(true);
+    importMutation.mutate(validPlayers);
+    setTimeout(() => setIsImporting(false), 1000);
+  };
+
+  return (
+    <Card className="border-0 shadow-lg">
+      <CardHeader className="bg-gradient-to-l from-primary/10 to-transparent rounded-t-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-700 to-blue-900 flex items-center justify-center">
+            <FileSpreadsheet className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <CardTitle className="text-xl">استيراد لاعبين متعددين</CardTitle>
+            <CardDescription>أدخل بيانات اللاعبين (اسم، رقم وظيفي) - سطر واحد لكل لاعب</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-6">
+        <div className="space-y-6">
+          <div>
+            <Label>اختر الفريق (اختياري - للصيغة 2 أعمدة)</Label>
+            <Select value={selectedTeamId || "none"} onValueChange={(value) => setSelectedTeamId(value === "none" ? "" : value)}>
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="اختر الفريق (اختياري - للصيغة 2 أعمدة)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">بدون فريق (استخدم أسماء الفرق من البيانات)</SelectItem>
+                {teams?.map((team) => (
+                  <SelectItem key={team.id} value={team.id}>
+                    {team.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              إذا استخدمت الصيغة 3 أعمدة (الفريق، الرقم الوظيفي، اسم اللاعب)، سيتم تجاهل هذا الاختيار
+            </p>
+          </div>
+
+          <div>
+            <Label>بيانات اللاعبين</Label>
+            <Textarea
+              value={playersText}
+              onChange={(e) => setPlayersText(e.target.value)}
+              placeholder={`الصيغة 1 (3 أعمدة - الفريق، الرقم الوظيفي، اسم اللاعب):
+WELL SERVICES & HSE,82055,Qasim
+WELL SERVICES & HSE,81885,Moosa ALI
+DRILLING & MAINTEN,82438,Azan Al Ada
+
+الصيغة 2 (2 أعمدة - اسم اللاعب، الرقم الوظيفي):
+Qasim,82055
+Moosa ALI,81885
+Marwan Al,na`}
+              className="mt-2 font-mono text-sm"
+              rows={12}
+            />
+            <p className="text-sm text-muted-foreground mt-2">
+              <strong>الصيغة المدعومة:</strong>
+              <br />
+              1. <strong>3 أعمدة:</strong> الفريق، الرقم الوظيفي، اسم اللاعب (سيتم توزيع اللاعبين على الفرق تلقائياً)
+              <br />
+              2. <strong>2 أعمدة:</strong> اسم اللاعب، الرقم الوظيفي (سيتم إضافة جميع اللاعبين للفريق المحدد أعلاه)
+              <br />
+              3. <strong>عمود واحد:</strong> اسم اللاعب فقط (سيتم إضافة جميع اللاعبين للفريق المحدد أعلاه)
+              <br />
+              إذا لم يكن هناك رقم وظيفي، استخدم "na" أو اتركه فارغاً
+            </p>
+          </div>
+
+          <Button
+            onClick={handleImport}
+            disabled={isImporting || importMutation.isPending || !selectedTeamId || !playersText.trim()}
+            className="w-full"
+            size="lg"
+          >
+            {isImporting || importMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                جاري الاستيراد...
+              </>
+            ) : (
+              <>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                استيراد اللاعبين
+              </>
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ========== EDIT PLAYER DIALOG ==========
+function EditPlayerDialog({ player, onSuccess }: { player: Player; onSuccess: () => void }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: player.name || "",
+    number: player.number?.toString() || "",
+    position: player.position || "midfielder",
+    level: player.level || "intermediate",
+    teamId: player.teamId || "",
+    userId: player.userId || "",
+  });
+
+  const { data: teams } = useQuery<Team[]>({
+    queryKey: ["/api/teams"],
+  });
+
+  const { data: linkableUsers } = useQuery<{ id: string; fullName: string; employeeId: string }[]>({
+    queryKey: ["/api/users/linkable"],
+    enabled: open,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("PATCH", `/api/players/${player.id}`, data);
+    },
+    onSuccess: () => {
+      toast({ title: "تم تحديث اللاعب بنجاح" });
+      queryClient.invalidateQueries({ queryKey: ["/api/players"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/players/with-details"] });
+      setOpen(false);
+      onSuccess();
+    },
+    onError: () => {
+      toast({ title: "فشل تحديث اللاعب", variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateMutation.mutate({
+      name: formData.name,
+      number: formData.number ? parseInt(formData.number) : undefined,
+      position: formData.position || undefined,
+      level: formData.level || undefined,
+      teamId: formData.teamId || undefined,
+      userId: formData.userId || undefined,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogHeader>
+          <DialogTitle>تعديل لاعب: {player.name}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label>اسم اللاعب</Label>
+            <Input
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>الرقم</Label>
+              <Input
+                type="number"
+                min="1"
+                max="99"
+                value={formData.number}
+                onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>المركز</Label>
+              <Select value={formData.position} onValueChange={(value) => setFormData({ ...formData, position: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="goalkeeper">حارس مرمى</SelectItem>
+                  <SelectItem value="defender">مدافع</SelectItem>
+                  <SelectItem value="midfielder">وسط</SelectItem>
+                  <SelectItem value="forward">مهاجم</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label>المستوى</Label>
+            <Select value={formData.level} onValueChange={(value) => setFormData({ ...formData, level: value })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="beginner">مبتدئ</SelectItem>
+                <SelectItem value="intermediate">متوسط</SelectItem>
+                <SelectItem value="advanced">متقدم</SelectItem>
+                <SelectItem value="professional">محترف</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>الفريق</Label>
+            <Select value={formData.teamId || "none"} onValueChange={(value) => setFormData({ ...formData, teamId: value === "none" ? "" : value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="اختر الفريق" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">بدون فريق</SelectItem>
+                {teams?.map((team) => (
+                  <SelectItem key={team.id} value={team.id}>
+                    {team.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>ربط بحساب موظف (اختياري)</Label>
+            <Select value={formData.userId || "none"} onValueChange={(value) => setFormData({ ...formData, userId: value === "none" ? "" : value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="اختر حساب الموظف" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">بدون ربط</SelectItem>
+                {linkableUsers?.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.fullName} - {user.employeeId}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              إلغاء
+            </Button>
+            <Button type="submit" disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  جاري الحفظ...
+                </>
+              ) : (
+                "حفظ التغييرات"
+              )}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ========== PLAYERS LIST VIEW ==========
 interface PlayerWithUser extends Player {
   user?: { fullName: string; employeeId: string } | null;
@@ -1630,6 +2063,8 @@ interface PlayerWithUser extends Player {
 }
 
 function PlayersListView() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "committee_member";
   const { data: players, isLoading: playersLoading } = useQuery<PlayerWithUser[]>({
     queryKey: ["/api/players/with-details"],
   });
@@ -1713,6 +2148,7 @@ function PlayersListView() {
                   <th className="text-right py-3 px-2">المستوى</th>
                   <th className="text-right py-3 px-2">الفريق</th>
                   <th className="text-right py-3 px-2">الموظف المرتبط</th>
+                  {isAdmin && <th className="text-right py-3 px-2">إجراءات</th>}
                 </tr>
               </thead>
               <tbody>
@@ -1745,28 +2181,39 @@ function PlayersListView() {
                       <Badge variant="outline">{getPositionLabel(player.position)}</Badge>
                     </td>
                     <td className="py-3 px-2">
-                      <span className="text-sm">{getLevelLabel(player.level)}</span>
+                      <span className="text-base">{getLevelLabel(player.level)}</span>
                     </td>
                     <td className="py-3 px-2">
                       {player.teamId ? (
                         <Badge className="bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                          <Shield className="w-3 h-3 ml-1" />
+                          <Shield className="w-3 h-3 mr-1" />
                           {(player as PlayerWithUser).team?.name || getTeamName(player.teamId) || "فريق"}
                         </Badge>
                       ) : (
-                        <span className="text-muted-foreground text-sm">غير مرتبط</span>
+                        <span className="text-muted-foreground text-base">غير مرتبط</span>
                       )}
                     </td>
                     <td className="py-3 px-2">
                       {player.userId ? (
                         <Badge className="bg-green-500/20 text-green-600 dark:text-green-400">
-                          <User className="w-3 h-3 ml-1" />
+                          <User className="w-3 h-3 mr-1" />
                           {(player as PlayerWithUser).user?.fullName || "موظف مرتبط"}
                         </Badge>
                       ) : (
-                        <span className="text-muted-foreground text-sm">غير مرتبط</span>
+                        <span className="text-muted-foreground text-base">غير مرتبط</span>
                       )}
                     </td>
+                    {isAdmin && (
+                      <td className="py-3 px-2">
+                        <EditPlayerDialog 
+                          player={player} 
+                          onSuccess={() => {
+                            queryClient.invalidateQueries({ queryKey: ["/api/players"] });
+                            queryClient.invalidateQueries({ queryKey: ["/api/players/with-details"] });
+                          }} 
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -1794,29 +2241,33 @@ export default function TeamWizard() {
 
       {/* Tabs */}
       <div className="container mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 h-auto p-1">
-            <TabsTrigger value="player" className="flex items-center gap-2 py-3" data-testid="tab-player">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6" dir="rtl">
+          <TabsList className="grid w-full grid-cols-7 h-auto p-1" dir="rtl">
+            <TabsTrigger value="player" className="flex items-center flex-row-reverse gap-2 py-3" data-testid="tab-player">
               <UserPlus className="w-4 h-4" />
               <span className="hidden sm:inline">إنشاء لاعب</span>
             </TabsTrigger>
-            <TabsTrigger value="team" className="flex items-center gap-2 py-3" data-testid="tab-team">
+            <TabsTrigger value="bulk-import" className="flex items-center flex-row-reverse gap-2 py-3" data-testid="tab-bulk-import">
+              <FileSpreadsheet className="w-4 h-4" />
+              <span className="hidden sm:inline">استيراد جماعي</span>
+            </TabsTrigger>
+            <TabsTrigger value="team" className="flex items-center flex-row-reverse gap-2 py-3" data-testid="tab-team">
               <Shield className="w-4 h-4" />
               <span className="hidden sm:inline">إنشاء فريق</span>
             </TabsTrigger>
-            <TabsTrigger value="lineup" className="flex items-center gap-2 py-3" data-testid="tab-lineup">
+            <TabsTrigger value="lineup" className="flex items-center flex-row-reverse gap-2 py-3" data-testid="tab-lineup">
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">إنشاء تشكيلة</span>
             </TabsTrigger>
-            <TabsTrigger value="league" className="flex items-center gap-2 py-3" data-testid="tab-league">
+            <TabsTrigger value="league" className="flex items-center flex-row-reverse gap-2 py-3" data-testid="tab-league">
               <Trophy className="w-4 h-4" />
               <span className="hidden sm:inline">إنشاء دوري</span>
             </TabsTrigger>
-            <TabsTrigger value="teams-list" className="flex items-center gap-2 py-3" data-testid="tab-teams-list">
+            <TabsTrigger value="teams-list" className="flex items-center flex-row-reverse gap-2 py-3" data-testid="tab-teams-list">
               <Shield className="w-4 h-4" />
               <span className="hidden sm:inline">قائمة الفرق</span>
             </TabsTrigger>
-            <TabsTrigger value="players-list" className="flex items-center gap-2 py-3" data-testid="tab-players-list">
+            <TabsTrigger value="players-list" className="flex items-center flex-row-reverse gap-2 py-3" data-testid="tab-players-list">
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">قائمة اللاعبين</span>
             </TabsTrigger>
@@ -1824,6 +2275,10 @@ export default function TeamWizard() {
 
           <TabsContent value="player">
             <CreatePlayerForm />
+          </TabsContent>
+
+          <TabsContent value="bulk-import">
+            <BulkPlayerImportForm />
           </TabsContent>
 
           <TabsContent value="team">

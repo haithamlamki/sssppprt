@@ -1,4 +1,4 @@
-import { User, Mail, Phone, Building, Briefcase, Calendar, Clock, Loader2, CheckCircle, XCircle } from "lucide-react";
+﻿import { User, Mail, Phone, Building, Briefcase, Calendar, Clock, Loader2, CheckCircle, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -126,14 +126,14 @@ export default function Profile() {
               <div className="flex items-center gap-3">
                 <User className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">الاسم الكامل</p>
+                  <p className="text-base text-muted-foreground">الاسم الكامل</p>
                   <p className="font-medium">{user.fullName}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">البريد الإلكتروني</p>
+                  <p className="text-base text-muted-foreground">البريد الإلكتروني</p>
                   <p className="font-medium">{user.email}</p>
                 </div>
               </div>
@@ -141,7 +141,7 @@ export default function Profile() {
                 <div className="flex items-center gap-3">
                   <Phone className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">رقم الجوال</p>
+                    <p className="text-base text-muted-foreground">رقم الجوال</p>
                     <p className="font-medium" dir="ltr">{user.phoneNumber}</p>
                   </div>
                 </div>
@@ -160,21 +160,21 @@ export default function Profile() {
               <div className="flex items-center gap-3">
                 <Building className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">القسم</p>
+                  <p className="text-base text-muted-foreground">القسم</p>
                   <p className="font-medium">{user.department}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <Briefcase className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">المنصب</p>
+                  <p className="text-base text-muted-foreground">المنصب</p>
                   <p className="font-medium">{user.position}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <Calendar className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">رقم الموظف</p>
+                  <p className="text-base text-muted-foreground">رقم الموظف</p>
                   <p className="font-medium">{user.employeeId}</p>
                 </div>
               </div>
@@ -191,11 +191,11 @@ export default function Profile() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-muted/50 rounded-lg p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-1">نظام الدوام</p>
+                  <p className="text-base text-muted-foreground mb-1">نظام الدوام</p>
                   <p className="font-medium">{shiftLabels[user.shiftPattern] || user.shiftPattern}</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-1">الحالة الحالية</p>
+                  <p className="text-base text-muted-foreground mb-1">الحالة الحالية</p>
                   {user.shiftPattern === "2weeks_on_2weeks_off" && shiftStatus ? (
                     <Badge className={shiftStatus.isOnShift ? "bg-gold" : "bg-success"}>
                       {shiftStatus.isOnShift ? "في الدوام" : "في الإجازة"}
@@ -205,7 +205,7 @@ export default function Profile() {
                   )}
                 </div>
                 <div className="bg-muted/50 rounded-lg p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-1">
+                  <p className="text-base text-muted-foreground mb-1">
                     {shiftStatus?.isOnShift ? "تبقى للإجازة" : "تبقى للدوام"}
                   </p>
                   <p className="font-medium">
@@ -221,7 +221,7 @@ export default function Profile() {
               {user.shiftPattern === "2weeks_on_2weeks_off" && (
                 <div>
                   <h4 className="font-medium mb-3">جدول الأسابيع القادمة</h4>
-                  <div className="grid grid-cols-7 gap-1 text-center text-sm">
+                  <div className="grid grid-cols-7 gap-1 text-center text-base">
                     {["أحد", "إثن", "ثلا", "أرب", "خمي", "جمع", "سبت"].map((day) => (
                       <div key={day} className="font-medium text-muted-foreground p-2">
                         {day}
@@ -230,7 +230,7 @@ export default function Profile() {
                     {shiftCalendar.map((day, index) => (
                       <div
                         key={index}
-                        className={`p-2 rounded text-xs ${
+                        className={`p-2 rounded text-base ${
                           day.isOnShift 
                             ? "bg-gold/20 text-gold-foreground border border-gold/30" 
                             : "bg-success/20 text-success-foreground border border-success/30"
@@ -241,7 +241,7 @@ export default function Profile() {
                       </div>
                     ))}
                   </div>
-                  <div className="flex items-center justify-center gap-6 mt-4 text-sm">
+                  <div className="flex items-center justify-center gap-6 mt-4 text-base">
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 rounded bg-gold/20 border border-gold/30" />
                       <span>في الدوام</span>

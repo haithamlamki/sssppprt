@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Trophy, ChevronLeft, Users, Calendar, MapPin, Loader2, Flag } from "lucide-react";
+import { TeamNameDisplay } from "@/utils/teamNameUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -50,11 +51,12 @@ function TeamSlot({
                 <Flag className="w-4 h-4 text-primary" />
               )}
             </div>
-            <span className={`text-sm truncate ${isWinner ? "font-bold" : ""}`}>
-              {team.name}
-            </span>
+            <TeamNameDisplay 
+              name={team.name}
+              className={`text-base ${isWinner ? "font-bold" : ""}`}
+            />
             {ranking && (
-              <span className="text-xs text-muted-foreground">({ranking})</span>
+              <span className="text-base text-muted-foreground">({ranking})</span>
             )}
           </>
         ) : (
@@ -62,12 +64,12 @@ function TeamSlot({
             <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
               <Users className="w-4 h-4 text-muted-foreground" />
             </div>
-            <span className="text-sm text-muted-foreground">TBD</span>
+            <span className="text-base text-muted-foreground">TBD</span>
           </>
         )}
       </div>
       {showScore && (
-        <div className={`min-w-[32px] h-8 flex items-center justify-center rounded font-bold text-sm ${
+        <div className={`min-w-[32px] h-8 flex items-center justify-center rounded font-bold text-base ${
           isWinner 
             ? "bg-emerald-500 text-white" 
             : score !== null && score !== undefined
@@ -94,7 +96,7 @@ function BracketMatchCard({ match }: { match: MatchWithTeams }) {
       <div className="w-52 hover-elevate cursor-pointer" data-testid={`bracket-match-${match.id}`}>
         {/* Date Header */}
         {match.matchDate && (
-          <div className="text-xs text-muted-foreground text-center mb-1 flex items-center justify-center gap-1">
+          <div className="text-base text-muted-foreground text-center mb-1 flex items-center justify-center gap-1">
             <Calendar className="w-3 h-3" />
             {format(new Date(match.matchDate), "EEEE dd/MM/yyyy", { locale: ar })}
             {match.matchTime && ` - ${match.matchTime}`}
@@ -117,7 +119,7 @@ function BracketMatchCard({ match }: { match: MatchWithTeams }) {
 
         {/* Penalty Score */}
         {match.homePenaltyScore !== null && match.awayPenaltyScore !== null && (
-          <div className="text-xs text-center text-muted-foreground mt-1">
+          <div className="text-base text-center text-muted-foreground mt-1">
             ركلات الترجيح: {match.homePenaltyScore} - {match.awayPenaltyScore}
           </div>
         )}
@@ -126,7 +128,7 @@ function BracketMatchCard({ match }: { match: MatchWithTeams }) {
         <div className="flex justify-center mt-1">
           <Badge 
             variant="outline" 
-            className={`text-[10px] ${
+            className={`text-base ${
               match.status === "completed" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
               match.status === "live" ? "bg-red-500 text-white animate-pulse" :
               "bg-muted"
@@ -195,7 +197,7 @@ function BracketColumn({
       }`}>
         <div className="flex items-center gap-2 justify-center">
           {stage === "final" && <Trophy className="w-4 h-4" />}
-          <span className="font-bold text-sm">{STAGE_LABELS[stage]}</span>
+          <span className="font-bold text-base">{STAGE_LABELS[stage]}</span>
         </div>
       </div>
 
@@ -210,7 +212,7 @@ function BracketColumn({
             </div>
           ))
         ) : (
-          <div className="w-52 h-24 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground text-sm">
+          <div className="w-52 h-24 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground text-base">
             لم تحدد بعد
           </div>
         )}
@@ -293,7 +295,7 @@ function TournamentWinner({ matches }: { matches: MatchWithTeams[] }) {
           البطل
           <Trophy className="w-6 h-6 text-yellow-600" />
         </h2>
-        <p className="text-3xl font-display font-bold text-yellow-700 dark:text-yellow-400">
+        <p className="text-base font-display font-bold text-yellow-700 dark:text-yellow-400">
           {winner.name}
         </p>
       </CardContent>
@@ -333,7 +335,7 @@ function MatchResultsList({ matches }: { matches: MatchWithTeams[] }) {
                 <div className="flex items-center justify-between gap-4">
                   {/* Home Team */}
                   <div className={`flex items-center gap-2 flex-1 justify-end ${homeWinner ? "font-bold" : ""}`}>
-                    <span className="text-sm truncate">{match.homeTeam?.name || "فريق 1"}</span>
+                    <span className="text-base truncate">{match.homeTeam?.name || "فريق 1"}</span>
                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <Flag className="w-4 h-4 text-primary" />
                     </div>
@@ -359,12 +361,12 @@ function MatchResultsList({ matches }: { matches: MatchWithTeams[] }) {
                     <div className="w-8 h-8 rounded-full bg-secondary/50 flex items-center justify-center flex-shrink-0">
                       <Flag className="w-4 h-4" />
                     </div>
-                    <span className="text-sm truncate">{match.awayTeam?.name || "فريق 2"}</span>
+                    <span className="text-base truncate">{match.awayTeam?.name || "فريق 2"}</span>
                   </div>
                 </div>
 
                 {/* Match Info */}
-                <div className="flex items-center justify-center gap-4 mt-2 text-xs text-muted-foreground">
+                <div className="flex items-center justify-center gap-4 mt-2 text-base text-muted-foreground">
                   {match.matchDate && (
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
@@ -372,7 +374,7 @@ function MatchResultsList({ matches }: { matches: MatchWithTeams[] }) {
                     </span>
                   )}
                   {match.stage && (
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge variant="outline" className="text-sm">
                       {STAGE_LABELS[match.stage] || match.stage}
                     </Badge>
                   )}
@@ -430,7 +432,7 @@ export default function Bracket() {
                     <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                   </div>
                 ) : knockoutTournaments.length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground text-sm">
+                  <div className="p-4 text-center text-muted-foreground text-base">
                     لا توجد بطولات تصفيات
                   </div>
                 ) : (
@@ -442,7 +444,7 @@ export default function Bracket() {
                 )}
                 {tournaments.filter(t => t.type !== "knockout" && t.type !== "groups_knockout").length > 0 && (
                   <>
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground border-t mt-1">
+                    <div className="px-2 py-1.5 text-base text-muted-foreground border-t mt-1">
                       بطولات أخرى (دوري)
                     </div>
                     {tournaments.filter(t => t.type !== "knockout" && t.type !== "groups_knockout").map((tournament) => (
@@ -481,7 +483,7 @@ export default function Bracket() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                  <div className="flex flex-wrap gap-4 text-base text-muted-foreground">
                     {selectedTournament.startDate && (
                       <span className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
@@ -552,20 +554,20 @@ export default function Bracket() {
             {/* Legend */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">مفتاح الألوان</CardTitle>
+                <CardTitle className="text-xl">مفتاح الألوان</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-4 text-sm">
+                <div className="flex flex-wrap gap-4 text-base">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-emerald-500 rounded text-white flex items-center justify-center text-xs font-bold">2</div>
+                    <div className="w-6 h-6 bg-emerald-500 rounded text-white flex items-center justify-center text-base font-bold">2</div>
                     <span>الفائز</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-muted rounded flex items-center justify-center text-xs font-bold">1</div>
+                    <div className="w-6 h-6 bg-muted rounded flex items-center justify-center text-base font-bold">1</div>
                     <span>الخاسر</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-red-500 text-white text-[10px]">مباشر</Badge>
+                    <Badge variant="outline" className="bg-red-500 text-white text-sm">مباشر</Badge>
                     <span>مباراة جارية</span>
                   </div>
                 </div>

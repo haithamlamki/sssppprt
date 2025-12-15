@@ -185,7 +185,7 @@ export default function TournamentEdit() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4" dir="rtl">
         <Trophy className="h-16 w-16 text-muted-foreground" />
-        <h2 className="text-xl font-medium">البطولة غير موجودة</h2>
+        <h2 className="text-2xl font-medium">البطولة غير موجودة</h2>
         <Link href="/admin">
           <Button data-testid="button-return-admin">
             <ArrowRight className="ml-2 h-4 w-4" />
@@ -207,7 +207,7 @@ export default function TournamentEdit() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
+              <h1 className="text-3xl font-bold flex items-center gap-2">
                 <Target className="h-6 w-6 text-primary" />
                 تعديل البطولة
               </h1>
@@ -222,29 +222,29 @@ export default function TournamentEdit() {
           </Badge>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 max-w-3xl">
-            <TabsTrigger value="info" data-testid="tab-info">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6" dir="rtl">
+          <TabsList className="grid w-full grid-cols-6 max-w-3xl" dir="rtl">
+            <TabsTrigger value="info" data-testid="tab-info" className="flex-row-reverse">
               <Target className="h-4 w-4 ml-2" />
               المعلومات
             </TabsTrigger>
-            <TabsTrigger value="theme" data-testid="tab-theme">
+            <TabsTrigger value="theme" data-testid="tab-theme" className="flex-row-reverse">
               <Palette className="h-4 w-4 ml-2" />
               الثيم
             </TabsTrigger>
-            <TabsTrigger value="teams" data-testid="tab-teams">
+            <TabsTrigger value="teams" data-testid="tab-teams" className="flex-row-reverse">
               <Users className="h-4 w-4 ml-2" />
               الفرق
             </TabsTrigger>
-            <TabsTrigger value="referees" data-testid="tab-referees">
+            <TabsTrigger value="referees" data-testid="tab-referees" className="flex-row-reverse">
               <Gavel className="h-4 w-4 ml-2" />
               الحكام
             </TabsTrigger>
-            <TabsTrigger value="matches" data-testid="tab-matches">
+            <TabsTrigger value="matches" data-testid="tab-matches" className="flex-row-reverse">
               <Trophy className="h-4 w-4 ml-2" />
               المباريات
             </TabsTrigger>
-            <TabsTrigger value="stages" data-testid="tab-stages">
+            <TabsTrigger value="stages" data-testid="tab-stages" className="flex-row-reverse">
               <Layers className="h-4 w-4 ml-2" />
               المراحل
             </TabsTrigger>
@@ -267,7 +267,7 @@ export default function TournamentEdit() {
           </TabsContent>
 
           <TabsContent value="matches">
-            <MatchesTab tournamentId={tournamentId!} tournament={tournament} matches={matches} teams={teams} />
+            <MatchesTab tournamentId={tournamentId!} tournament={tournament} matches={matches} teams={teams} referees={referees} />
           </TabsContent>
 
           <TabsContent value="stages">
@@ -480,7 +480,7 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
         </CardTitle>
         {!isEditing ? (
           <Button variant="outline" onClick={() => setIsEditing(true)} data-testid="button-edit-info">
-            <Pencil className="h-4 w-4 ml-2" />
+            <Pencil className="h-4 w-4 mr-2" />
             تعديل
           </Button>
         ) : (
@@ -497,7 +497,7 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
               disabled={updateMutation.isPending}
               data-testid="button-save-info"
             >
-              <Save className="h-4 w-4 ml-2" />
+              <Save className="h-4 w-4 mr-2" />
               {updateMutation.isPending ? "جاري الحفظ..." : "حفظ"}
             </Button>
           </div>
@@ -730,19 +730,19 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
                     <span className="cursor-pointer">
                       {uploadingTrophy ? (
                         <>
-                          <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           جاري الرفع...
                         </>
                       ) : (
                         <>
-                          <Plus className="h-4 w-4 ml-2" />
+                          <Plus className="h-4 w-4 mr-2" />
                           {formData.trophyImageUrl ? "تغيير الصورة" : "رفع صورة الكأس"}
                         </>
                       )}
                     </span>
                   </Button>
                 </label>
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-base text-muted-foreground mt-2">
                   ستظهر صورة الكأس في منتصف شجرة خروج المغلوب
                 </p>
               </div>
@@ -750,7 +750,7 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
             {!isEditing && !tournament.trophyImageUrl && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Trophy className="h-8 w-8" />
-                <p className="text-sm">لم يتم رفع صورة الكأس بعد</p>
+                <p className="text-base">لم يتم رفع صورة الكأس بعد</p>
               </div>
             )}
           </div>
@@ -803,12 +803,12 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
                     <span className="cursor-pointer">
                       {uploadingImage ? (
                         <>
-                          <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           جاري الرفع...
                         </>
                       ) : (
                         <>
-                          <Upload className="h-4 w-4 ml-2" />
+                          <Upload className="h-4 w-4 mr-2" />
                           {formData.imageUrl ? "تغيير الصورة" : "رفع صورة البطولة"}
                         </>
                       )}
@@ -818,7 +818,7 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
               </div>
             )}
             {!isEditing && !tournament.imageUrl && (
-              <p className="text-sm text-muted-foreground">لم يتم رفع صورة بعد</p>
+              <p className="text-base text-muted-foreground">لم يتم رفع صورة بعد</p>
             )}
           </div>
         </div>
@@ -845,7 +845,7 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
                   }`}>
                     <User className="h-5 w-5" />
                   </div>
-                  <span className="font-bold text-sm">فردي</span>
+                  <span className="font-bold text-base">فردي</span>
                 </div>
               </div>
               <div
@@ -865,7 +865,7 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
                   }`}>
                     <Users className="h-5 w-5" />
                   </div>
-                  <span className="font-bold text-sm">فرقي</span>
+                  <span className="font-bold text-base">فرقي</span>
                 </div>
               </div>
             </div>
@@ -1039,7 +1039,7 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
           <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
             <div className="space-y-1">
               <Label className="text-base font-semibold">ذهاب وعودة</Label>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 كل فريقين يلعبان مباراتين (ذهاب وإياب)
               </p>
             </div>
@@ -1079,14 +1079,14 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
           <div className="bg-muted/50 rounded-lg p-4 space-y-4">
             <div>
               <Label className="text-base font-semibold">عدد المباريات اليومية لكل ملعب</Label>
-              <p className="text-sm text-muted-foreground">حدد عدد المباريات التي يمكن إقامتها في كل ملعب يومياً</p>
+              <p className="text-base text-muted-foreground">حدد عدد المباريات التي يمكن إقامتها في كل ملعب يومياً</p>
             </div>
             <div className="space-y-3">
               {venuesList.map((venue, index) => (
                 <div key={index} className="flex items-center gap-4 bg-background/50 rounded-lg p-3">
                   <div className="flex-1 font-medium">{venue}</div>
                   <div className="flex items-center gap-2">
-                    <Label className="text-sm text-muted-foreground">مباريات/يوم:</Label>
+                    <Label className="text-base text-muted-foreground">مباريات/يوم:</Label>
                     <Input
                       type="number"
                       value={formData.venueMatchConfigs[venue] || formData.matchesPerDayPerVenue}
@@ -1169,7 +1169,7 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
         <div className="flex items-center justify-between p-4 border rounded-lg">
           <div className="space-y-1">
             <Label>التسجيل مفتوح</Label>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               السماح للفرق بالتسجيل في البطولة
             </p>
           </div>
@@ -1190,7 +1190,7 @@ function TournamentInfoTab({ tournament }: { tournament: Tournament }) {
         <div className="flex items-center justify-between p-4 border rounded-lg">
           <div className="space-y-1">
             <Label>مباراة تحديد المركز الثالث</Label>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               إضافة مباراة لتحديد المركز الثالث بين خاسري الدور نصف النهائي
             </p>
           </div>
@@ -1349,7 +1349,7 @@ function ThemeTab({ tournament }: { tournament: Tournament }) {
                     className="w-6 h-6 rounded-full" 
                     style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})` }}
                   />
-                  <span className="text-sm">{theme.name}</span>
+                  <span className="text-base">{theme.name}</span>
                 </button>
               ))}
             </div>
@@ -1398,7 +1398,7 @@ function ThemeTab({ tournament }: { tournament: Tournament }) {
           </div>
 
           <div 
-            className="h-24 rounded-lg flex items-center justify-center text-white font-bold text-lg"
+            className="h-24 rounded-lg flex items-center justify-center text-white font-bold text-base"
             style={{ background: `linear-gradient(135deg, ${themeData.primaryColor}, ${themeData.secondaryColor})` }}
           >
             معاينة ألوان البطولة
@@ -1465,12 +1465,12 @@ function ThemeTab({ tournament }: { tournament: Tournament }) {
                       <span className="cursor-pointer">
                         {uploading === "heroImageUrl" ? (
                           <>
-                            <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                             جاري الرفع...
                           </>
                         ) : (
                           <>
-                            <Upload className="h-4 w-4 ml-2" />
+                            <Upload className="h-4 w-4 mr-2" />
                             {themeData.heroImageUrl ? "تغيير الصورة" : "رفع صورة"}
                           </>
                         )}
@@ -1546,12 +1546,12 @@ function ThemeTab({ tournament }: { tournament: Tournament }) {
         >
           {updateMutation.isPending ? (
             <>
-              <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               جاري الحفظ...
             </>
           ) : (
             <>
-              <Save className="h-4 w-4 ml-2" />
+              <Save className="h-4 w-4 mr-2" />
               حفظ ثيم البطولة
             </>
           )}
@@ -1656,7 +1656,7 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
         }}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-team">
-              <Plus className="h-4 w-4 ml-2" />
+              <Plus className="h-4 w-4 mr-2" />
               إضافة فريق
             </Button>
           </DialogTrigger>
@@ -1667,11 +1667,11 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
             <Tabs value={dialogTab} onValueChange={(v) => setDialogTab(v as "existing" | "new")} className="mt-4">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="existing" data-testid="tab-add-existing-team">
-                  <Users className="h-4 w-4 ml-2" />
+                  <Users className="h-4 w-4 mr-2" />
                   إضافة فريق موجود
                 </TabsTrigger>
                 <TabsTrigger value="new" data-testid="tab-create-new-team">
-                  <Plus className="h-4 w-4 ml-2" />
+                  <Plus className="h-4 w-4 mr-2" />
                   إنشاء فريق جديد
                 </TabsTrigger>
               </TabsList>
@@ -1695,7 +1695,7 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
                           </div>
                           <div>
                             <p className="font-medium">{team.name}</p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2 text-base text-muted-foreground">
                               {team.representativeName && (
                                 <span className="flex items-center gap-1">
                                   <User className="h-3 w-3" />
@@ -1703,7 +1703,7 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
                                 </span>
                               )}
                               {team.level && (
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-sm">
                                   {levelLabels[team.level] || team.level}
                                 </Badge>
                               )}
@@ -1720,7 +1720,7 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <>
-                              <Plus className="h-4 w-4 ml-1" />
+                              <Plus className="h-4 w-4 mr-1" />
                               إضافة
                             </>
                           )}
@@ -1732,7 +1732,7 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
                   <div className="text-center py-8 text-muted-foreground">
                     <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>لا توجد فرق متاحة للإضافة</p>
-                    <p className="text-sm mt-2">يمكنك إنشاء فريق جديد من التبويب الآخر</p>
+                    <p className="text-base mt-2">يمكنك إنشاء فريق جديد من التبويب الآخر</p>
                   </div>
                 )}
               </TabsContent>
@@ -1766,11 +1766,11 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>الممثل</Label>
+                    <Label>الكابتن</Label>
                     <Input
                       value={newTeam.representativeName}
                       onChange={(e) => setNewTeam({ ...newTeam, representativeName: e.target.value })}
-                      placeholder="اسم ممثل الفريق"
+                      placeholder="اسم الكابتن"
                       data-testid="input-team-representative"
                     />
                   </div>
@@ -1841,7 +1841,7 @@ function TeamsTab({ tournamentId, teams }: { tournamentId: string; teams: Team[]
                 <TableHead className="text-right">الفريق</TableHead>
                 <TableHead className="text-center">المجموعة</TableHead>
                 <TableHead className="text-right">المستوى</TableHead>
-                <TableHead className="text-right">الممثل</TableHead>
+                <TableHead className="text-right">الكابتن</TableHead>
                 <TableHead className="text-center">لعب</TableHead>
                 <TableHead className="text-center">فاز</TableHead>
                 <TableHead className="text-center">نقاط</TableHead>
@@ -2006,10 +2006,11 @@ function EditTeamDialog({
             label="لون القميص الأساسي"
           />
           <div className="space-y-2">
-            <Label>الممثل</Label>
+            <Label>الكابتن</Label>
             <Input
               value={formData.representativeName}
               onChange={(e) => setFormData({ ...formData, representativeName: e.target.value })}
+              placeholder="اسم الكابتن"
               data-testid="input-edit-team-rep"
             />
           </div>
@@ -2107,7 +2108,7 @@ function RefereesTab({ tournamentId, referees }: { tournamentId: string; referee
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-referee">
-              <Plus className="h-4 w-4 ml-2" />
+              <Plus className="h-4 w-4 mr-2" />
               إضافة حكم
             </Button>
           </DialogTrigger>
@@ -2219,7 +2220,7 @@ function RefereesTab({ tournamentId, referees }: { tournamentId: string; referee
                       </div>
                       <div>
                         <h4 className="font-bold">{referee.name}</h4>
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-sm">
                           {specializationLabels[referee.specialization || "main"]}
                         </Badge>
                       </div>
@@ -2244,8 +2245,8 @@ function RefereesTab({ tournamentId, referees }: { tournamentId: string; referee
                       </Button>
                     </div>
                   </div>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <Badge className="ml-2">
+                  <div className="space-y-2 text-base text-muted-foreground">
+                    <Badge className="mr-2">
                       {levelLabels[referee.level || "intermediate"]}
                     </Badge>
                     {referee.phone && (
@@ -2398,16 +2399,18 @@ function EditRefereeDialog({
   );
 }
 
-function MatchesTab({ 
-  tournamentId, 
+function MatchesTab({
+  tournamentId,
   tournament,
-  matches, 
-  teams 
-}: { 
-  tournamentId: string; 
+  matches,
+  teams,
+  referees
+}: {
+  tournamentId: string;
   tournament: Tournament;
-  matches: MatchWithTeams[]; 
+  matches: MatchWithTeams[];
   teams: Team[];
+  referees: Referee[];
 }) {
   const { toast } = useToast();
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
@@ -2437,6 +2440,7 @@ function MatchesTab({
     round: 1,
     matchDate: "",
     venue: "",
+    referee: "",
   });
 
   const getMatchEditingData = (matchId: string) => editingDataMap[matchId] || {};
@@ -2560,7 +2564,7 @@ function MatchesTab({
       toast({ title: "تم إضافة المباراة بنجاح" });
       queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "matches"] });
       setIsAddMatchOpen(false);
-      setNewMatch({ homeTeamId: "", awayTeamId: "", round: 1, matchDate: "", venue: "" });
+      setNewMatch({ homeTeamId: "", awayTeamId: "", round: 1, matchDate: "", venue: "", referee: "no-referee" });
     },
     onError: (error: Error) => {
       toast({ 
@@ -2617,7 +2621,7 @@ function MatchesTab({
                   disabled={teams.length < 2}
                   data-testid="button-generate-matches"
                 >
-                  <Calendar className="h-4 w-4 ml-2" />
+                  <Calendar className="h-4 w-4 mr-2" />
                   توليد جدول المباريات
                 </Button>
               </DialogTrigger>
@@ -2628,12 +2632,12 @@ function MatchesTab({
                 <div className="space-y-4 py-4">
                   {/* Warning if matches already exist */}
                   {matches.length > 0 && (
-                    <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-200 p-3 rounded-lg text-sm">
+                    <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-200 p-3 rounded-lg text-base">
                       <strong>تحذير:</strong> يوجد {matches.length} مباراة حالياً. سيتم حذف جميع المباريات الموجودة وإعادة توليدها من جديد!
                     </div>
                   )}
                   {/* Tournament Info */}
-                  <div className="bg-muted p-3 rounded-lg text-sm space-y-1">
+                  <div className="bg-muted p-3 rounded-lg text-base space-y-1">
                     <p className="font-semibold mb-2">معلومات البطولة:</p>
                     <p><strong>تاريخ البداية:</strong> {tournament.startDate ? format(new Date(tournament.startDate), "yyyy/MM/dd", { locale: ar }) : "غير محدد"}</p>
                     <p><strong>تاريخ النهاية:</strong> {tournament.endDate ? format(new Date(tournament.endDate), "yyyy/MM/dd", { locale: ar }) : "غير محدد"}</p>
@@ -2645,7 +2649,7 @@ function MatchesTab({
                   </div>
                   
                   {(!tournament.startDate || !tournament.endDate) && (
-                    <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 p-3 rounded-lg text-sm">
+                    <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 p-3 rounded-lg text-base">
                       تنبيه: يرجى تحديد تاريخ البداية والنهاية من تبويب "المعلومات" أولاً
                     </div>
                   )}
@@ -2688,7 +2692,7 @@ function MatchesTab({
                   >
                     {generateMatchesMutation.isPending ? (
                       <>
-                        <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         جاري التوليد...
                       </>
                     ) : (
@@ -2701,7 +2705,7 @@ function MatchesTab({
             <Dialog open={isAddMatchOpen} onOpenChange={setIsAddMatchOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-add-match" disabled={teams.length < 2}>
-                  <Plus className="h-4 w-4 ml-2" />
+                  <Plus className="h-4 w-4 mr-2" />
                   إضافة مباراة
                 </Button>
               </DialogTrigger>
@@ -2778,8 +2782,27 @@ function MatchesTab({
                       data-testid="input-new-match-venue"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label>الحكم</Label>
+                    <Select
+                      value={newMatch.referee || ''}
+                      onValueChange={(v) => setNewMatch({ ...newMatch, referee: v })}
+                    >
+                      <SelectTrigger data-testid="select-new-match-referee">
+                        <SelectValue placeholder="اختر الحكم" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no-referee">بدون حكم</SelectItem>
+                        {referees.map((referee) => (
+                          <SelectItem key={referee.id} value={referee.name}>
+                            {referee.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   {newMatch.homeTeamId && newMatch.awayTeamId && newMatch.homeTeamId === newMatch.awayTeamId && (
-                    <p className="text-sm text-destructive" data-testid="error-same-team">
+                    <p className="text-base text-destructive" data-testid="error-same-team">
                       لا يمكن اختيار نفس الفريق كمضيف وضيف
                     </p>
                   )}
@@ -2789,7 +2812,7 @@ function MatchesTab({
                     variant="outline" 
                     onClick={() => {
                       setIsAddMatchOpen(false);
-                      setNewMatch({ homeTeamId: "", awayTeamId: "", round: 1, matchDate: "", venue: "" });
+                      setNewMatch({ homeTeamId: "", awayTeamId: "", round: 1, matchDate: "", venue: "", referee: "no-referee" });
                     }}
                     data-testid="button-cancel-add-match"
                   >
@@ -2813,7 +2836,7 @@ function MatchesTab({
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             {teams.length < 2 
               ? "يجب إضافة فريقين على الأقل لتوليد المباريات أو إضافة مباراة يدوياً"
               : `يمكنك توليد جدول مباريات تلقائي لـ ${teams.length} فرق أو إضافة مباريات يدوياً`
@@ -2840,6 +2863,7 @@ function MatchesTab({
                   <div 
                     className="flex items-center justify-between p-4 cursor-pointer hover-elevate"
                     onClick={() => toggleMatchExpand(match)}
+                    dir="rtl"
                   >
                     <div className="flex items-center gap-4">
                       {isExpanded ? <ChevronUp className="h-4 w-4 text-primary" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -2858,7 +2882,7 @@ function MatchesTab({
                     </div>
                     <div className="flex items-center gap-2">
                       {match.matchDate && (
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-base text-muted-foreground">
                           {format(new Date(match.matchDate), "dd/MM/yyyy", { locale: ar })}
                         </span>
                       )}
@@ -2909,13 +2933,13 @@ function MatchesTab({
                       </div>
                       <div className="flex items-center justify-center gap-6 p-4 bg-card rounded-lg border">
                         <div className="text-center">
-                          <p className="font-bold text-lg mb-1">{teams.find(t => t.id === matchData.homeTeamId)?.name || "المضيف"}</p>
-                          <Input type="number" min={0} value={matchData.homeScore ?? 0} onChange={(e) => updateMatchField(match.id, 'homeScore', parseInt(e.target.value) || 0)} className="w-20 text-center text-2xl font-bold" data-testid="inline-input-home-score" />
+                          <p className="font-bold text-base mb-1">{teams.find(t => t.id === matchData.homeTeamId)?.name || "المضيف"}</p>
+                          <Input type="number" min={0} value={matchData.homeScore ?? 0} onChange={(e) => updateMatchField(match.id, 'homeScore', parseInt(e.target.value) || 0)} className="w-20 text-center text-base font-bold" data-testid="inline-input-home-score" />
                         </div>
-                        <span className="text-3xl font-bold text-muted-foreground">-</span>
+                        <span className="text-base font-bold text-muted-foreground">-</span>
                         <div className="text-center">
-                          <p className="font-bold text-lg mb-1">{teams.find(t => t.id === matchData.awayTeamId)?.name || "الضيف"}</p>
-                          <Input type="number" min={0} value={matchData.awayScore ?? 0} onChange={(e) => updateMatchField(match.id, 'awayScore', parseInt(e.target.value) || 0)} className="w-20 text-center text-2xl font-bold" data-testid="inline-input-away-score" />
+                          <p className="font-bold text-base mb-1">{teams.find(t => t.id === matchData.awayTeamId)?.name || "الضيف"}</p>
+                          <Input type="number" min={0} value={matchData.awayScore ?? 0} onChange={(e) => updateMatchField(match.id, 'awayScore', parseInt(e.target.value) || 0)} className="w-20 text-center text-base font-bold" data-testid="inline-input-away-score" />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -2941,13 +2965,25 @@ function MatchesTab({
                         </div>
                         <div className="space-y-2">
                           <Label>الحكم</Label>
-                          <Input value={matchData.referee || ''} onChange={(e) => updateMatchField(match.id, 'referee', e.target.value)} placeholder="اسم الحكم" data-testid="inline-input-referee" />
+                          <Select value={matchData.referee || ''} onValueChange={(v) => updateMatchField(match.id, 'referee', v)}>
+                            <SelectTrigger data-testid="inline-select-referee">
+                              <SelectValue placeholder="اختر الحكم" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="no-referee">بدون حكم</SelectItem>
+                              {referees.map((referee) => (
+                                <SelectItem key={referee.id} value={referee.name}>
+                                  {referee.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                       <div className="flex justify-end gap-2 pt-2">
                         <Button variant="outline" onClick={() => setExpandedMatchId(null)} data-testid="button-cancel-inline-edit">إلغاء</Button>
                         <Button onClick={() => handleSaveMatch(match.id)} disabled={updateMatchMutation.isPending} data-testid="button-save-inline-edit">
-                          <Save className="h-4 w-4 ml-2" />
+                          <Save className="h-4 w-4 mr-2" />
                           {updateMatchMutation.isPending ? "جاري الحفظ..." : "حفظ"}
                         </Button>
                       </div>
@@ -2983,6 +3019,7 @@ function MatchesTab({
                   <div 
                     className="flex items-center justify-between p-4 cursor-pointer hover-elevate"
                     onClick={() => toggleMatchExpand(match)}
+                    dir="rtl"
                   >
                     <div className="flex items-center gap-4">
                       {isExpanded ? <ChevronUp className="h-4 w-4 text-primary" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -2996,12 +3033,12 @@ function MatchesTab({
                         <Badge className="bg-orange-500 text-white">خروج المغلوب</Badge>
                       )}
                       <span className="font-medium">{match.homeTeam?.name}</span>
-                      <span className="font-bold text-lg px-2">{match.homeScore} - {match.awayScore}</span>
+                      <span className="font-bold text-base px-2">{match.homeScore} - {match.awayScore}</span>
                       <span className="font-medium">{match.awayTeam?.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {match.matchDate && (
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-base text-muted-foreground">
                           {format(new Date(match.matchDate), "d/M/yyyy", { locale: ar })}
                         </span>
                       )}
@@ -3053,13 +3090,13 @@ function MatchesTab({
                       </div>
                       <div className="flex items-center justify-center gap-6 p-4 bg-card rounded-lg border">
                         <div className="text-center">
-                          <p className="font-bold text-lg mb-1">{teams.find(t => t.id === matchData.homeTeamId)?.name || "المضيف"}</p>
-                          <Input type="number" min={0} value={matchData.homeScore ?? 0} onChange={(e) => updateMatchField(match.id, 'homeScore', parseInt(e.target.value) || 0)} className="w-20 text-center text-2xl font-bold" />
+                          <p className="font-bold text-base mb-1">{teams.find(t => t.id === matchData.homeTeamId)?.name || "المضيف"}</p>
+                          <Input type="number" min={0} value={matchData.homeScore ?? 0} onChange={(e) => updateMatchField(match.id, 'homeScore', parseInt(e.target.value) || 0)} className="w-20 text-center text-base font-bold" />
                         </div>
-                        <span className="text-3xl font-bold text-muted-foreground">-</span>
+                        <span className="text-base font-bold text-muted-foreground">-</span>
                         <div className="text-center">
-                          <p className="font-bold text-lg mb-1">{teams.find(t => t.id === matchData.awayTeamId)?.name || "الضيف"}</p>
-                          <Input type="number" min={0} value={matchData.awayScore ?? 0} onChange={(e) => updateMatchField(match.id, 'awayScore', parseInt(e.target.value) || 0)} className="w-20 text-center text-2xl font-bold" />
+                          <p className="font-bold text-base mb-1">{teams.find(t => t.id === matchData.awayTeamId)?.name || "الضيف"}</p>
+                          <Input type="number" min={0} value={matchData.awayScore ?? 0} onChange={(e) => updateMatchField(match.id, 'awayScore', parseInt(e.target.value) || 0)} className="w-20 text-center text-base font-bold" />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -3085,13 +3122,25 @@ function MatchesTab({
                         </div>
                         <div className="space-y-2">
                           <Label>الحكم</Label>
-                          <Input value={matchData.referee || ''} onChange={(e) => updateMatchField(match.id, 'referee', e.target.value)} placeholder="اسم الحكم" />
+                          <Select value={matchData.referee || ''} onValueChange={(v) => updateMatchField(match.id, 'referee', v)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="اختر الحكم" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="no-referee">بدون حكم</SelectItem>
+                              {referees.map((referee) => (
+                                <SelectItem key={referee.id} value={referee.name}>
+                                  {referee.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                       <div className="flex justify-end gap-2 pt-2">
                         <Button variant="outline" onClick={() => setExpandedMatchId(null)}>إلغاء</Button>
                         <Button onClick={() => handleSaveMatch(match.id)} disabled={updateMatchMutation.isPending}>
-                          <Save className="h-4 w-4 ml-2" />
+                          <Save className="h-4 w-4 mr-2" />
                           {updateMatchMutation.isPending ? "جاري الحفظ..." : "حفظ"}
                         </Button>
                       </div>
@@ -3112,18 +3161,20 @@ function MatchesTab({
   );
 }
 
-function EditMatchDialog({ 
-  match, 
-  onClose, 
-  onSave, 
+function EditMatchDialog({
+  match,
+  onClose,
+  onSave,
   isPending,
   teams = [],
-}: { 
-  match: MatchWithTeams; 
-  onClose: () => void; 
+  referees = [],
+}: {
+  match: MatchWithTeams;
+  onClose: () => void;
   onSave: (data: any) => void;
   isPending: boolean;
   teams?: Team[];
+  referees?: Referee[];
 }) {
   const getDateFromMatch = () => {
     if (!match.matchDate) return "";
@@ -3250,27 +3301,27 @@ function EditMatchDialog({
 
           <div className="flex items-center justify-center gap-4 p-4 bg-muted/50 rounded-lg">
             <div className="text-center">
-              <p className="font-bold text-lg">{selectedHomeTeam?.name || "المضيف"}</p>
-              <Label className="text-sm text-muted-foreground">أهداف المضيف</Label>
+              <p className="font-bold text-base">{selectedHomeTeam?.name || "المضيف"}</p>
+              <Label className="text-base text-muted-foreground">أهداف المضيف</Label>
               <Input
                 type="number"
                 min={0}
                 value={formData.homeScore}
                 onChange={(e) => setFormData({ ...formData, homeScore: parseInt(e.target.value) || 0 })}
-                className="w-20 text-center text-xl font-bold mx-auto mt-1"
+                className="w-20 text-center text-base font-bold mx-auto mt-1"
                 data-testid="input-home-score"
               />
             </div>
-            <span className="text-2xl font-bold">-</span>
+            <span className="text-base font-bold">-</span>
             <div className="text-center">
-              <p className="font-bold text-lg">{selectedAwayTeam?.name || "الضيف"}</p>
-              <Label className="text-sm text-muted-foreground">أهداف الضيف</Label>
+              <p className="font-bold text-base">{selectedAwayTeam?.name || "الضيف"}</p>
+              <Label className="text-base text-muted-foreground">أهداف الضيف</Label>
               <Input
                 type="number"
                 min={0}
                 value={formData.awayScore}
                 onChange={(e) => setFormData({ ...formData, awayScore: parseInt(e.target.value) || 0 })}
-                className="w-20 text-center text-xl font-bold mx-auto mt-1"
+                className="w-20 text-center text-base font-bold mx-auto mt-1"
                 data-testid="input-away-score"
               />
             </div>
@@ -3306,12 +3357,22 @@ function EditMatchDialog({
             </div>
             <div className="space-y-2">
               <Label>الحكم</Label>
-              <Input
-                value={formData.referee}
-                onChange={(e) => setFormData({ ...formData, referee: e.target.value })}
-                placeholder="اسم الحكم"
-                data-testid="input-match-referee"
-              />
+              <Select
+                value={formData.referee || 'no-referee'}
+                onValueChange={(v) => setFormData({ ...formData, referee: v === 'no-referee' ? '' : v })}
+              >
+                <SelectTrigger data-testid="input-match-referee">
+                  <SelectValue placeholder="اختر الحكم" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no-referee">بدون حكم</SelectItem>
+                  {referees.map((referee) => (
+                    <SelectItem key={referee.id} value={referee.name}>
+                      {referee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -3454,7 +3515,7 @@ function StagesTab({
       <Card>
         <CardContent className="py-12 text-center">
           <Layers className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">إدارة المراحل</h3>
+          <h3 className="text-xl font-medium mb-2">إدارة المراحل</h3>
           <p className="text-muted-foreground">
             إدارة المراحل متاحة فقط لبطولات المجموعات وخروج المغلوب
           </p>
@@ -3481,7 +3542,7 @@ function StagesTab({
                   disabled={assignGroupsMutation.isPending || teams.length < 4}
                   data-testid="button-assign-groups"
                 >
-                  <RefreshCw className={`h-4 w-4 ml-2 ${assignGroupsMutation.isPending ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-4 w-4 mr-2 ${assignGroupsMutation.isPending ? 'animate-spin' : ''}`} />
                   {assignGroupsMutation.isPending ? "جاري التوزيع..." : "توزيع الفرق تلقائياً"}
                 </Button>
                 <Button
@@ -3490,7 +3551,7 @@ function StagesTab({
                   disabled={generateGroupMatchesMutation.isPending || teamsWithGroups.length < 4}
                   data-testid="button-generate-group-matches"
                 >
-                  <Calendar className="h-4 w-4 ml-2" />
+                  <Calendar className="h-4 w-4 mr-2" />
                   {generateGroupMatchesMutation.isPending ? "جاري التوليد..." : "توليد مباريات المجموعات"}
                 </Button>
                 <Button
@@ -3500,20 +3561,20 @@ function StagesTab({
                   className="bg-emerald-600 hover:bg-emerald-700"
                   data-testid="button-complete-group-stage"
                 >
-                  <CheckCircle2 className="h-4 w-4 ml-2" />
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
                   {completeGroupStageMutation.isPending ? "جاري الإكمال..." : "إكمال مرحلة المجموعات"}
                 </Button>
               </div>
 
               {teams.length < 4 && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   يجب إضافة 4 فرق على الأقل لتوزيعها على المجموعات
                 </p>
               )}
 
               {teamsWithoutGroups.length > 0 && teamsWithGroups.length > 0 && (
                 <div className="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
-                  <p className="text-amber-700 dark:text-amber-300 text-sm">
+                  <p className="text-amber-700 dark:text-amber-300 text-base">
                     {teamsWithoutGroups.length} فريق لم يتم توزيعهم بعد على المجموعات
                   </p>
                 </div>
@@ -3532,7 +3593,7 @@ function StagesTab({
               {Object.entries(groupedStandings).sort().map(([groupName, standings]) => (
                 <Card key={groupName} data-testid={`card-group-${groupName.replace(/\s+/g, '-')}`}>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2">
+                    <CardTitle className="text-xl flex items-center gap-2">
                       <Shield className="h-4 w-4 text-primary" />
                       {groupName}
                     </CardTitle>
@@ -3595,7 +3656,7 @@ function StagesTab({
           <CardContent className="space-y-4">
             {tournament.type === "knockout" && (
               <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
-                <p className="text-blue-700 dark:text-blue-300 text-sm" data-testid="text-knockout-info">
+                <p className="text-blue-700 dark:text-blue-300 text-base" data-testid="text-knockout-info">
                   بطولة خروج المغلوب - {teams.length} فريق مسجل
                 </p>
               </div>
@@ -3607,20 +3668,20 @@ function StagesTab({
                 disabled={generateKnockoutMutation.isPending || teams.length < 2}
                 data-testid="button-generate-knockout"
               >
-                <GitBranch className={`h-4 w-4 ml-2 ${generateKnockoutMutation.isPending ? 'animate-spin' : ''}`} />
+                <GitBranch className={`h-4 w-4 mr-2 ${generateKnockoutMutation.isPending ? 'animate-spin' : ''}`} />
                 {generateKnockoutMutation.isPending ? "جاري التوليد..." : "توليد شجرة خروج المغلوب"}
               </Button>
             )}
 
             {tournament.type === "knockout" && teams.length < 2 && (
-              <p className="text-sm text-muted-foreground" data-testid="text-knockout-teams-warning">
+              <p className="text-base text-muted-foreground" data-testid="text-knockout-teams-warning">
                 يجب إضافة فريقين على الأقل لتوليد شجرة خروج المغلوب
               </p>
             )}
 
             {tournament.type === "groups_knockout" && !tournament.groupStageComplete && (
               <div className="p-3 bg-orange-50 dark:bg-orange-950 rounded-lg border border-orange-200 dark:border-orange-800 mb-4">
-                <p className="text-orange-700 dark:text-orange-300 text-sm" data-testid="text-group-stage-required">
+                <p className="text-orange-700 dark:text-orange-300 text-base" data-testid="text-group-stage-required">
                   سيتم توليد مباريات خروج المغلوب تلقائياً عند إكمال مرحلة المجموعات
                 </p>
               </div>

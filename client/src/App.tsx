@@ -24,6 +24,8 @@ import MatchDetail from "@/pages/match-detail";
 import TeamWizard from "@/pages/team-wizard";
 import Bracket from "@/pages/bracket";
 import TournamentEdit from "@/pages/tournament-edit";
+import Chats from "@/pages/chats";
+import EventHub from "@/pages/event-hub";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -46,6 +48,8 @@ function Router() {
       <Route path="/matches/:id" component={MatchDetail} />
       <Route path="/team-wizard" component={TeamWizard} />
       <Route path="/bracket" component={Bracket} />
+      <Route path="/chats" component={Chats} />
+      <Route path="/event-hubs/:id" component={EventHub} />
       <Route component={NotFound} />
     </Switch>
   );

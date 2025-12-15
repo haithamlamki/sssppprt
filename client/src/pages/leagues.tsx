@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
@@ -77,8 +77,8 @@ export default function Leagues() {
             className="text-center"
           >
             <Trophy className="w-16 h-16 mx-auto mb-4" />
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">البطولات والدوريات</h1>
-            <p className="text-xl opacity-90 max-w-2xl mx-auto">
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">البطولات والدوريات</h1>
+            <p className="text-base opacity-90 max-w-2xl mx-auto">
               استعرض جميع البطولات والدوريات الرياضية - سجّل فريقك وتنافس على البطولة
             </p>
           </motion.div>
@@ -118,7 +118,7 @@ export default function Leagues() {
               >
                 <Card className="overflow-hidden hover-elevate group" data-testid={`card-tournament-${tournament.id}`}>
                   <div className="relative h-48 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                    <span className="text-8xl opacity-30">
+                    <span className="text-base opacity-30">
                       {sportIcons[tournament.sport] || "🏆"}
                     </span>
                     <div className="absolute top-4 right-4">
@@ -129,7 +129,7 @@ export default function Leagues() {
                     {tournament.status === "ongoing" && (
                       <div className="absolute top-4 left-4">
                         <Badge className="bg-red-500 text-white animate-pulse">
-                          <Flame className="h-3 w-3 ml-1" />
+                          <Flame className="h-3 w-3 mr-1" />
                           مباشر
                         </Badge>
                       </div>
@@ -141,13 +141,13 @@ export default function Leagues() {
                       <Trophy className="h-5 w-5 text-gold" />
                       {tournament.name}
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
+                    <p className="text-base text-muted-foreground line-clamp-2">
                       {tournament.description}
                     </p>
                   </CardHeader>
 
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="grid grid-cols-2 gap-3 text-base">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Target className="h-4 w-4" />
                         <span>{sportLabels[tournament.sport] || tournament.sport}</span>
@@ -169,7 +169,7 @@ export default function Leagues() {
                     </div>
 
                     {tournament.venues && tournament.venues.length > 0 && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 text-base text-muted-foreground">
                         <MapPin className="h-4 w-4" />
                         <span>{tournament.venues.join("، ")}</span>
                       </div>

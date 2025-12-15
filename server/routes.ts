@@ -1,7 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import { setupAuth, isAuthenticated, isAdmin, hashPassword } from "./auth";
+import { matchEvents, matches, players } from "@shared/schema";
+import { eq, and, inArray } from "drizzle-orm";
 import passport from "passport";
 import multer from "multer";
 import path from "path";
@@ -46,6 +49,12 @@ import {
   insertMatchEventSchema,
   insertMatchLineupSchema,
   insertMatchCommentSchema,
+  insertTournamentCommentSchema,
+  insertTeamChatMessageSchema,
+  insertMediaCommentSchema,
+  insertCommentReactionSchema,
+  insertPollVoteSchema,
+  insertChatMessageSchema,
   insertTeamEvaluationSchema
 } from "@shared/schema";
 
@@ -206,6 +215,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(event);
     } catch (error) {
       res.status(500).json({ error: "Failed to create event" });
+    }
+  });
+
+  app.patch("/api/events/:id", isAdmin, async (req, res) => {
+    try {
+      const event = await storage.updateEvent(req.params.id, req.body);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      res.json(event);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update event" });
+    }
+  });
+
+  app.delete("/api/events/:id", isAdmin, async (req, res) => {
+    try {
+      const success = await storage.deleteEvent(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Event not found", message: "الفعالية غير موجودة" });
+      }
+      return res.json({ message: "تم حذف الفعالية بنجاح", success: true });
+    } catch (error: any) {
+      console.error("Error deleting event:", error);
+      return res.status(500).json({ 
+        error: "Failed to delete event", 
+        message: error.message || "حدث خطأ أثناء حذف الفعالية" 
+      });
     }
   });
 
@@ -1109,9 +1146,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const topScorers = await storage.getTopScorers(req.params.tournamentId, limit);
+      // Force fresh data by not caching
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.json(topScorers);
     } catch (error) {
+      console.error("Error fetching top scorers:", error);
       res.status(500).json({ error: "Failed to fetch top scorers" });
+    }
+  });
+
+  // Recalculate player stats from match events (admin only)
+  app.post("/api/tournaments/:tournamentId/recalculate-stats", isAdmin, async (req, res) => {
+    try {
+      console.log(`[recalculate-stats] Tournament ID: ${req.params.tournamentId}`);
+      const result = await storage.recalculatePlayerStats(req.params.tournamentId);
+      console.log(`[recalculate-stats] Updated ${result.playersUpdated} players`);
+      res.json({ 
+        success: true, 
+        message: `تم تحديث إحصائيات ${result.playersUpdated} لاعب`,
+        playersUpdated: result.playersUpdated
+      });
+    } catch (error: any) {
+      console.error("[recalculate-stats] Error:", error);
+      res.status(500).json({ error: error.message || "Failed to recalculate player stats" });
+    }
+  });
+
+  // Debug endpoint to check goal events for a tournament (admin only)
+  app.get("/api/tournaments/:tournamentId/debug-goals", isAdmin, async (req, res) => {
+    try {
+      const tournamentMatches = await db
+        .select({ id: matches.id })
+        .from(matches)
+        .where(eq(matches.tournamentId, req.params.tournamentId));
+      const matchIds = tournamentMatches.map(m => m.id);
+
+      const goalEvents = matchIds.length > 0 
+        ? await db
+            .select()
+            .from(matchEvents)
+            .where(and(
+              inArray(matchEvents.matchId, matchIds),
+              eq(matchEvents.eventType, 'goal')
+            ))
+        : [];
+
+      // Get player names for events
+      const eventsWithPlayerNames = await Promise.all(
+        goalEvents.map(async (event) => {
+          if (event.playerId) {
+            const [player] = await db.select({ name: players.name, id: players.id }).from(players).where(eq(players.id, event.playerId));
+            return {
+              ...event,
+              playerName: player?.name || 'Unknown',
+              playerId: event.playerId
+            };
+          }
+          return { ...event, playerName: 'No Player', playerId: null };
+        })
+      );
+
+      // Group by player
+      const goalsByPlayer: Record<string, { name: string; goals: number; events: any[] }> = {};
+      for (const event of eventsWithPlayerNames) {
+        if (event.playerId) {
+          if (!goalsByPlayer[event.playerId]) {
+            goalsByPlayer[event.playerId] = {
+              name: event.playerName,
+              goals: 0,
+              events: []
+            };
+          }
+          goalsByPlayer[event.playerId].goals++;
+          goalsByPlayer[event.playerId].events.push({
+            minute: event.minute,
+            matchId: event.matchId
+          });
+        }
+      }
+
+      res.json({
+        totalEvents: goalEvents.length,
+        eventsWithPlayer: goalEvents.filter(e => e.playerId).length,
+        eventsWithoutPlayer: goalEvents.filter(e => !e.playerId).length,
+        goalsByPlayer: Object.entries(goalsByPlayer).map(([playerId, data]) => ({
+          playerId,
+          playerName: data.name,
+          goalCount: data.goals,
+          events: data.events
+        }))
+      });
+    } catch (error: any) {
+      console.error("Debug goals error:", error);
+      res.status(500).json({ error: error.message || "Failed to debug goals" });
     }
   });
 
@@ -1389,6 +1516,369 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete comment" });
+    }
+  });
+
+  // Tournament Comments
+  app.get("/api/tournaments/:id/comments", async (req, res) => {
+    try {
+      const comments = await storage.getTournamentComments(req.params.id);
+      res.json(comments);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch tournament comments" });
+    }
+  });
+
+  app.post("/api/tournaments/:id/comments", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const commentData = insertTournamentCommentSchema.parse({
+        ...req.body,
+        tournamentId: req.params.id,
+        userId: user.id,
+      });
+      const comment = await storage.createTournamentComment(commentData);
+      res.status(201).json(comment);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create comment" });
+    }
+  });
+
+  app.delete("/api/tournaments/:id/comments/:commentId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const success = await storage.deleteTournamentComment(req.params.commentId, user.id);
+      if (!success) {
+        return res.status(403).json({ error: "Cannot delete this comment" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete comment" });
+    }
+  });
+
+  // Team Chats
+  app.get("/api/teams/:id/chat", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const hasAccess = await storage.checkTeamMemberAccess(req.params.id, user.id);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied. Team members only." });
+      }
+      const room = await storage.getTeamChatRoom(req.params.id);
+      if (!room) {
+        return res.status(404).json({ error: "Chat room not found" });
+      }
+      res.json(room);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get team chat room" });
+    }
+  });
+
+  app.get("/api/teams/:id/chat/messages", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const hasAccess = await storage.checkTeamMemberAccess(req.params.id, user.id);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied. Team members only." });
+      }
+      const room = await storage.getTeamChatRoom(req.params.id);
+      if (!room) {
+        return res.status(404).json({ error: "Chat room not found" });
+      }
+      const messages = await storage.getTeamChatMessages(room.id);
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  app.post("/api/teams/:id/chat/messages", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const hasAccess = await storage.checkTeamMemberAccess(req.params.id, user.id);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied. Team members only." });
+      }
+      const room = await storage.getTeamChatRoom(req.params.id);
+      if (!room) {
+        return res.status(404).json({ error: "Chat room not found" });
+      }
+      const messageData = insertTeamChatMessageSchema.parse({
+        ...req.body,
+        roomId: room.id,
+        userId: user.id,
+      });
+      const message = await storage.createTeamChatMessage(messageData);
+      res.status(201).json(message);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to send message" });
+    }
+  });
+
+  // Event Hubs
+  app.get("/api/event-hubs", async (req, res) => {
+    try {
+      const tournamentId = req.query.tournamentId as string | undefined;
+      const matchId = req.query.matchId as string | undefined;
+      const hubs = await storage.getEventHubs(tournamentId, matchId);
+      res.json(hubs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch event hubs" });
+    }
+  });
+
+  app.get("/api/event-hubs/:id", async (req, res) => {
+    try {
+      const hub = await storage.getEventHub(req.params.id);
+      if (!hub) {
+        return res.status(404).json({ error: "Event hub not found" });
+      }
+      res.json(hub);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch event hub" });
+    }
+  });
+
+  app.post("/api/event-hubs", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (user.role !== "admin") {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      const hub = await storage.createEventHub(req.body);
+      res.status(201).json(hub);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create event hub" });
+    }
+  });
+
+  app.get("/api/event-hubs/:id/polls", async (req, res) => {
+    try {
+      const polls = await storage.getHubPolls(req.params.id);
+      res.json(polls);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch polls" });
+    }
+  });
+
+  app.post("/api/event-hubs/:id/polls", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (user.role !== "admin") {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      const poll = await storage.createPoll({
+        ...req.body,
+        hubId: req.params.id,
+      });
+      res.status(201).json(poll);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create poll" });
+    }
+  });
+
+  app.post("/api/polls/:id/vote", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const hasVoted = await storage.hasUserVoted(req.params.id, user.id);
+      if (hasVoted) {
+        return res.status(400).json({ error: "You have already voted on this poll" });
+      }
+      const voteData = insertPollVoteSchema.parse({
+        ...req.body,
+        pollId: req.params.id,
+        userId: user.id,
+      });
+      const vote = await storage.votePoll(voteData);
+      res.status(201).json(vote);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to vote" });
+    }
+  });
+
+  app.get("/api/polls/:id/results", async (req, res) => {
+    try {
+      const results = await storage.getPollResults(req.params.id);
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch poll results" });
+    }
+  });
+
+  app.get("/api/polls/:id/has-voted", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const hasVoted = await storage.hasUserVoted(req.params.id, user.id);
+      res.json({ hasVoted });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check vote status" });
+    }
+  });
+
+  // Media Comments
+  app.get("/api/media/:type/:id/comments", async (req, res) => {
+    try {
+      const comments = await storage.getMediaComments(req.params.type, req.params.id);
+      res.json(comments);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch media comments" });
+    }
+  });
+
+  app.post("/api/media/:type/:id/comments", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const commentData = insertMediaCommentSchema.parse({
+        ...req.body,
+        mediaType: req.params.type,
+        mediaId: req.params.id,
+        userId: user.id,
+      });
+      const comment = await storage.createMediaComment(commentData);
+      res.status(201).json(comment);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create comment" });
+    }
+  });
+
+  app.delete("/api/media/comments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const success = await storage.deleteMediaComment(req.params.id, user.id);
+      if (!success) {
+        return res.status(403).json({ error: "Cannot delete this comment" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete comment" });
+    }
+  });
+
+  // Reactions
+  app.post("/api/comments/:type/:id/reactions", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const reactionData = insertCommentReactionSchema.parse({
+        ...req.body,
+        commentType: req.params.type,
+        commentId: req.params.id,
+        userId: user.id,
+      });
+      const reaction = await storage.addReaction(reactionData);
+      res.status(201).json(reaction);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to add reaction" });
+    }
+  });
+
+  app.delete("/api/comments/:type/:id/reactions", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const success = await storage.removeReaction(req.params.type, req.params.id, user.id);
+      if (!success) {
+        return res.status(404).json({ error: "Reaction not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to remove reaction" });
+    }
+  });
+
+  app.get("/api/comments/:type/:id/reactions", async (req, res) => {
+    try {
+      const user = req.user as any;
+      const reactions = await storage.getCommentReactions(req.params.type, req.params.id, user?.id);
+      res.json(reactions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch reactions" });
+    }
+  });
+
+  // Private Chats
+  app.get("/api/chats", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const rooms = await storage.getUserChatRooms(user.id);
+      res.json(rooms);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch chat rooms" });
+    }
+  });
+
+  app.post("/api/chats", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const room = await storage.createChatRoom({
+        ...req.body,
+        createdBy: user.id,
+      });
+      res.status(201).json(room);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create chat room" });
+    }
+  });
+
+  app.get("/api/chats/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      // Verify user is member of room
+      const rooms = await storage.getUserChatRooms(user.id);
+      const hasAccess = rooms.some(r => r.id === req.params.id);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const messages = await storage.getChatMessages(req.params.id);
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  app.post("/api/chats/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      // Verify user is member of room
+      const rooms = await storage.getUserChatRooms(user.id);
+      const hasAccess = rooms.some(r => r.id === req.params.id);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const messageData = insertChatMessageSchema.parse({
+        ...req.body,
+        roomId: req.params.id,
+        userId: user.id,
+      });
+      const message = await storage.createChatMessage(messageData);
+      res.status(201).json(message);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to send message" });
+    }
+  });
+
+  app.post("/api/chats/:id/members", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      // Verify user is member of room
+      const rooms = await storage.getUserChatRooms(user.id);
+      const hasAccess = rooms.some(r => r.id === req.params.id);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      await storage.addChatMember(req.params.id, req.body.userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to add member" });
+    }
+  });
+
+  app.put("/api/chats/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      await storage.markChatAsRead(req.params.id, user.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mark as read" });
     }
   });
 

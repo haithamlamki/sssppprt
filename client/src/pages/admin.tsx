@@ -47,6 +47,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 export default function Admin() {
@@ -64,7 +65,7 @@ export default function Admin() {
     enabled: isAdmin,
   });
 
-  const { data: events = [] } = useQuery<Event[]>({
+  const { data: events = [], refetch: refetchEvents } = useQuery<Event[]>({
     queryKey: ["/api/events"],
     enabled: isAdmin,
   });
@@ -260,7 +261,7 @@ export default function Admin() {
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md w-full text-center p-8">
           <Shield className="h-16 w-16 mx-auto text-destructive mb-4" />
-          <h2 className="text-2xl font-bold mb-4">غير مصرح</h2>
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-4">غير مصرح</h2>
           <p className="text-muted-foreground mb-6">
             ليس لديك صلاحية للوصول إلى لوحة التحكم الإدارية
           </p>
@@ -273,115 +274,115 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4 md:px-6">
+    <div className="min-h-screen py-4 sm:py-6 md:py-8">
+      <div className="container mx-auto px-3 sm:px-4 md:px-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-display font-bold">لوحة التحكم</h1>
-            <p className="text-muted-foreground">إدارة الفعاليات والمحتوى</p>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 mb-4 sm:mb-6 md:mb-8">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold truncate">لوحة التحكم</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">إدارة الفعاليات والمحتوى</p>
           </div>
-          <Badge className="bg-primary">{user.role === "admin" ? "مدير" : "عضو لجنة"}</Badge>
+          <Badge className="bg-primary text-xs sm:text-sm flex-shrink-0">{user.role === "admin" ? "مدير" : "عضو لجنة"}</Badge>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 md:grid-cols-9 lg:w-auto lg:inline-grid gap-1">
-            <TabsTrigger value="dashboard" data-testid="tab-dashboard">
-              <BarChart3 className="h-4 w-4 ml-2" />
-              الإحصائيات
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3 sm:space-y-4 md:space-y-6" dir="rtl">
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-9 lg:w-auto lg:inline-grid gap-1 overflow-x-auto" dir="rtl">
+            <TabsTrigger value="dashboard" data-testid="tab-dashboard" className="flex-row-reverse text-xs sm:text-sm px-2 sm:px-3">
+              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+              <span className="truncate">الإحصائيات</span>
             </TabsTrigger>
-            <TabsTrigger value="events" data-testid="tab-events">
-              <Calendar className="h-4 w-4 ml-2" />
-              الفعاليات
+            <TabsTrigger value="events" data-testid="tab-events" className="flex-row-reverse text-xs sm:text-sm px-2 sm:px-3">
+              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+              <span className="truncate">الفعاليات</span>
             </TabsTrigger>
-            <TabsTrigger value="tournaments" data-testid="tab-tournaments">
-              <Target className="h-4 w-4 ml-2" />
-              البطولات
+            <TabsTrigger value="tournaments" data-testid="tab-tournaments" className="flex-row-reverse text-xs sm:text-sm px-2 sm:px-3">
+              <Target className="h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+              <span className="truncate">البطولات</span>
             </TabsTrigger>
-            <TabsTrigger value="matches" data-testid="tab-matches">
-              <Trophy className="h-4 w-4 ml-2" />
-              المباريات
+            <TabsTrigger value="matches" data-testid="tab-matches" className="flex-row-reverse text-xs sm:text-sm px-2 sm:px-3">
+              <Trophy className="h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+              <span className="truncate">المباريات</span>
             </TabsTrigger>
-            <TabsTrigger value="news" data-testid="tab-news">
-              <Newspaper className="h-4 w-4 ml-2" />
-              الأخبار
+            <TabsTrigger value="news" data-testid="tab-news" className="flex-row-reverse text-xs sm:text-sm px-2 sm:px-3">
+              <Newspaper className="h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+              <span className="truncate">الأخبار</span>
             </TabsTrigger>
-            <TabsTrigger value="results" data-testid="tab-results">
-              <Trophy className="h-4 w-4 ml-2" />
-              النتائج
+            <TabsTrigger value="results" data-testid="tab-results" className="flex-row-reverse text-xs sm:text-sm px-2 sm:px-3">
+              <Trophy className="h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+              <span className="truncate">النتائج</span>
             </TabsTrigger>
-            <TabsTrigger value="users" data-testid="tab-users">
-              <Users className="h-4 w-4 ml-2" />
-              المستخدمين
+            <TabsTrigger value="users" data-testid="tab-users" className="flex-row-reverse text-xs sm:text-sm px-2 sm:px-3">
+              <Users className="h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+              <span className="truncate">المستخدمين</span>
             </TabsTrigger>
-            <TabsTrigger value="gallery" data-testid="tab-gallery">
-              <ImageIcon className="h-4 w-4 ml-2" />
-              المعرض
+            <TabsTrigger value="gallery" data-testid="tab-gallery" className="flex-row-reverse text-xs sm:text-sm px-2 sm:px-3">
+              <ImageIcon className="h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+              <span className="truncate">المعرض</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" data-testid="tab-settings">
-              <Settings className="h-4 w-4 ml-2" />
-              الإعدادات
+            <TabsTrigger value="settings" data-testid="tab-settings" className="flex-row-reverse text-xs sm:text-sm px-2 sm:px-3">
+              <Settings className="h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+              <span className="truncate">الإعدادات</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card data-testid="stat-events">
-                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                  <CardTitle className="text-sm font-medium">إجمالي الفعاليات</CardTitle>
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+              <Card data-testid="stat-events" className="overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between gap-1 sm:gap-2 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6" dir="rtl">
+                  <CardTitle className="text-xs sm:text-sm md:text-base lg:text-xl font-medium text-right truncate">إجمالي الفعاليات</CardTitle>
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats?.totalEvents || 0}</div>
-                  <p className="text-xs text-muted-foreground">فعالية نشطة</p>
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                  <div className="text-sm sm:text-base md:text-lg font-bold text-right">{stats?.totalEvents || 0}</div>
+                  <p className="text-xs sm:text-sm md:text-base text-muted-foreground text-right truncate">فعالية نشطة</p>
                 </CardContent>
               </Card>
-              <Card data-testid="stat-participants">
-                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                  <CardTitle className="text-sm font-medium">المشاركون</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
+              <Card data-testid="stat-participants" className="overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between gap-1 sm:gap-2 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6" dir="rtl">
+                  <CardTitle className="text-xs sm:text-sm md:text-base lg:text-xl font-medium text-right truncate">المشاركون</CardTitle>
+                  <Users className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats?.totalParticipants || 0}</div>
-                  <p className="text-xs text-muted-foreground">مشارك مسجل</p>
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                  <div className="text-sm sm:text-base md:text-lg font-bold text-right">{stats?.totalParticipants || 0}</div>
+                  <p className="text-xs sm:text-sm md:text-base text-muted-foreground text-right truncate">مشارك مسجل</p>
                 </CardContent>
               </Card>
-              <Card data-testid="stat-achievements">
-                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                  <CardTitle className="text-sm font-medium">الإنجازات</CardTitle>
-                  <Trophy className="h-4 w-4 text-muted-foreground" />
+              <Card data-testid="stat-achievements" className="overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between gap-1 sm:gap-2 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6" dir="rtl">
+                  <CardTitle className="text-xs sm:text-sm md:text-base lg:text-xl font-medium text-right truncate">الإنجازات</CardTitle>
+                  <Trophy className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats?.totalAchievements || 0}</div>
-                  <p className="text-xs text-muted-foreground">إنجاز محقق</p>
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                  <div className="text-sm sm:text-base md:text-lg font-bold text-right">{stats?.totalAchievements || 0}</div>
+                  <p className="text-xs sm:text-sm md:text-base text-muted-foreground text-right truncate">إنجاز محقق</p>
                 </CardContent>
               </Card>
-              <Card data-testid="stat-sports">
-                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                  <CardTitle className="text-sm font-medium">الأنشطة</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <Card data-testid="stat-sports" className="overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between gap-1 sm:gap-2 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6" dir="rtl">
+                  <CardTitle className="text-xs sm:text-sm md:text-base lg:text-xl font-medium text-right truncate">الأنشطة</CardTitle>
+                  <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats?.activeSports || 0}</div>
-                  <p className="text-xs text-muted-foreground">نشاط رياضي</p>
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                  <div className="text-sm sm:text-base md:text-lg font-bold text-right">{stats?.activeSports || 0}</div>
+                  <p className="text-xs sm:text-sm md:text-base text-muted-foreground text-right truncate">نشاط رياضي</p>
                 </CardContent>
               </Card>
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
               {/* Events by Category Pie Chart */}
-              <Card data-testid="chart-events-category">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    توزيع الفعاليات حسب النوع
+              <Card data-testid="chart-events-category" className="overflow-hidden">
+                <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
+                  <CardTitle className="flex items-center justify-center gap-1 sm:gap-2 text-center text-xs sm:text-sm md:text-base">
+                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+                    <span className="truncate">توزيع الفعاليات حسب النوع</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
+                <CardContent className="px-2 sm:px-4 md:px-6 pb-3 sm:pb-6">
+                  <div className="h-[200px] sm:h-[250px] md:h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -395,7 +396,7 @@ export default function Admin() {
                           cy="50%"
                           labelLine={false}
                           label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          outerRadius={100}
+                          outerRadius={80}
                           fill="#8884d8"
                           dataKey="value"
                         >
@@ -419,7 +420,7 @@ export default function Admin() {
               {/* Overview Bar Chart */}
               <Card data-testid="chart-overview">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center justify-center gap-2 text-center">
                     <BarChart3 className="h-5 w-5" />
                     نظرة عامة على النظام
                   </CardTitle>
@@ -434,7 +435,7 @@ export default function Admin() {
                           { name: 'المستخدمين', value: allUsers.length, fill: '#22C55E' },
                           { name: 'الأخبار', value: news.length, fill: '#A855F7' },
                         ]}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                        margin={{ top: 10, right: 10, left: 10, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
@@ -461,39 +462,39 @@ export default function Admin() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card data-testid="stat-tournaments">
                 <CardContent className="p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+                  <div className="flex items-center justify-center gap-4 flex-row-reverse" dir="rtl">
+                    <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center flex-shrink-0">
                       <Target className="h-6 w-6 text-orange-600" />
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">البطولات النشطة</p>
-                      <p className="text-2xl font-bold">{tournamentsList.filter(t => t.status === 'ongoing' || t.status === 'registration').length}</p>
+                    <div className="text-center">
+                      <p className="text-base text-muted-foreground">البطولات النشطة</p>
+                      <p className="text-base font-bold">{tournamentsList.filter(t => t.status === 'ongoing' || t.status === 'registration').length}</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
               <Card data-testid="stat-users">
                 <CardContent className="p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                  <div className="flex items-center justify-center gap-4 flex-row-reverse" dir="rtl">
+                    <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
                       <Users className="h-6 w-6 text-green-600" />
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">إجمالي المستخدمين</p>
-                      <p className="text-2xl font-bold">{allUsers.length}</p>
+                    <div className="text-center">
+                      <p className="text-base text-muted-foreground">إجمالي المستخدمين</p>
+                      <p className="text-base font-bold">{allUsers.length}</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
               <Card data-testid="stat-news">
                 <CardContent className="p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                  <div className="flex items-center justify-center gap-4 flex-row-reverse" dir="rtl">
+                    <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center flex-shrink-0">
                       <Newspaper className="h-6 w-6 text-purple-600" />
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">الأخبار المنشورة</p>
-                      <p className="text-2xl font-bold">{news.length}</p>
+                    <div className="text-center">
+                      <p className="text-base text-muted-foreground">الأخبار المنشورة</p>
+                      <p className="text-base font-bold">{news.length}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -501,27 +502,27 @@ export default function Admin() {
             </div>
 
             {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle>آخر الفعاليات</CardTitle>
+            <Card className="overflow-hidden">
+              <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
+                <CardTitle className="text-center text-sm sm:text-base md:text-lg">آخر الفعاليات</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
+              <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                <div className="space-y-2 sm:space-y-3 md:space-y-4">
                   {events.slice(0, 5).map((event) => (
-                    <div key={event.id} className="flex items-center justify-between border-b pb-2">
-                      <div>
-                        <p className="font-medium">{event.title}</p>
-                        <p className="text-sm text-muted-foreground">
+                    <div key={event.id} className="flex items-center justify-between gap-2 sm:gap-3 md:gap-4 border-b pb-2 overflow-hidden" dir="rtl">
+                      <div className="flex-1 text-right min-w-0">
+                        <p className="font-medium text-xs sm:text-sm md:text-base truncate">{event.title}</p>
+                        <p className="text-xs sm:text-sm md:text-base text-muted-foreground">
                           {new Date(event.date).toLocaleDateString('ar-SA')}
                         </p>
                       </div>
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="flex-shrink-0 text-xs sm:text-sm">
                         {event.currentParticipants || 0} مشارك
                       </Badge>
                     </div>
                   ))}
                   {events.length === 0 && (
-                    <p className="text-center text-muted-foreground py-4">لا توجد فعاليات بعد</p>
+                    <p className="text-center text-xs sm:text-sm text-muted-foreground py-4">لا توجد فعاليات بعد</p>
                   )}
                 </div>
               </CardContent>
@@ -531,7 +532,7 @@ export default function Admin() {
           {/* Events Tab */}
           <TabsContent value="events" className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold">إدارة الفعاليات</h2>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold">إدارة الفعاليات</h2>
               <AddEventDialog />
             </div>
             <div className="grid gap-4">
@@ -540,7 +541,7 @@ export default function Admin() {
                   <CardContent className="flex items-center justify-between p-4">
                     <div className="flex-1">
                       <h3 className="font-medium">{event.title}</h3>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-base text-muted-foreground">
                         {new Date(event.date).toLocaleDateString('ar-SA')} - {event.location}
                       </p>
                     </div>
@@ -549,6 +550,8 @@ export default function Admin() {
                         {event.currentParticipants || 0} / {event.maxParticipants || "∞"}
                       </Badge>
                       <Badge>{event.status}</Badge>
+                      <EditEventDialog event={event} />
+                      <DeleteEventDialog eventId={event.id} eventTitle={event.title} />
                     </div>
                   </CardContent>
                 </Card>
@@ -567,7 +570,7 @@ export default function Admin() {
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button data-testid="button-add-tournament">
-                      <Plus className="h-4 w-4 ml-2" />
+                      <Plus className="h-4 w-4 mr-2" />
                       إضافة بطولة
                     </Button>
                   </DialogTrigger>
@@ -601,7 +604,7 @@ export default function Admin() {
                             </Badge>
                           </div>
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{t.description}</p>
+                        <p className="text-base text-muted-foreground line-clamp-2 mb-3">{t.description}</p>
                         <div className="flex gap-2">
                           <Button 
                             variant="outline" 
@@ -619,7 +622,7 @@ export default function Admin() {
                             onClick={() => navigate(`/admin/tournaments/${t.id}/edit`)}
                             data-testid={`button-edit-tournament-${t.id}`}
                           >
-                            <Pencil className="h-4 w-4 ml-1" />
+                            <Pencil className="h-4 w-4 mr-1" />
                             تعديل
                           </Button>
                           {t.hasGroupStage && t.status === "registration" && (
@@ -685,7 +688,7 @@ export default function Admin() {
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <>
-                        <Trash2 className="h-4 w-4 ml-2" />
+                        <Trash2 className="h-4 w-4 mr-2" />
                         حذف
                       </>
                     )}
@@ -704,7 +707,7 @@ export default function Admin() {
                   </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-muted-foreground text-base">
                     سيتم توزيع الفرق المسجلة في "{drawTournament?.name}" على المجموعات بشكل عشوائي.
                   </p>
                   <div className="space-y-2">
@@ -747,9 +750,9 @@ export default function Admin() {
                       data-testid="button-confirm-draw"
                     >
                       {randomDrawMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       ) : (
-                        <Shuffle className="h-4 w-4 ml-2" />
+                        <Shuffle className="h-4 w-4 mr-2" />
                       )}
                       إجراء القرعة
                     </Button>
@@ -817,7 +820,7 @@ export default function Admin() {
                                 />
                                 
                                 <div className="flex flex-col items-center px-3">
-                                  {isLive && <Badge className="bg-red-500 animate-pulse text-xs mb-1">مباشر</Badge>}
+                                  {isLive && <Badge className="bg-red-500 animate-pulse text-sm mb-1">مباشر</Badge>}
                                   <InlineScoreEditor
                                     match={match}
                                     onSave={(data) => updateMatchMutation.mutate({ matchId: match.id, data })}
@@ -834,7 +837,7 @@ export default function Admin() {
                               </div>
                               
                               <div className="flex items-center gap-3">
-                                <div className="text-left">
+                                <div className="text-right">
                                   <Badge
                                     className={
                                       match.status === "completed" ? "bg-green-500" :
@@ -846,7 +849,7 @@ export default function Admin() {
                                      match.status === "live" ? "مباشر" :
                                      match.status === "postponed" ? "مؤجلة" : "مقررة"}
                                   </Badge>
-                                  <p className="text-xs text-muted-foreground mt-1">
+                                  <p className="text-base text-muted-foreground mt-1">
                                     الجولة {match.round}
                                   </p>
                                 </div>
@@ -858,7 +861,7 @@ export default function Admin() {
                               </div>
                             </div>
                             {match.matchDate && (
-                              <p className="text-xs text-muted-foreground mt-2">
+                              <p className="text-base text-muted-foreground mt-2">
                                 {new Date(match.matchDate).toLocaleDateString('ar-SA')} - {match.venue || "غير محدد"}
                               </p>
                             )}
@@ -875,7 +878,7 @@ export default function Admin() {
           {/* News Tab */}
           <TabsContent value="news" className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold">إدارة الأخبار</h2>
+              <h2 className="text-2xl font-bold">إدارة الأخبار</h2>
               <AddNewsDialog />
             </div>
             <div className="grid gap-4">
@@ -884,12 +887,12 @@ export default function Admin() {
                   <CardContent className="flex items-center justify-between p-4">
                     <div className="flex-1">
                       <h3 className="font-medium">{item.title}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-1">
+                      <p className="text-base text-muted-foreground line-clamp-1">
                         {item.content}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-base text-muted-foreground">
                         {new Date(item.date).toLocaleDateString('ar-SA')}
                       </p>
                       <Badge variant="outline">{item.category}</Badge>
@@ -903,7 +906,7 @@ export default function Admin() {
           {/* Results Tab */}
           <TabsContent value="results" className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold">إدارة النتائج</h2>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold">إدارة النتائج</h2>
               <AddResultDialog />
             </div>
             <div className="grid gap-4">
@@ -912,12 +915,12 @@ export default function Admin() {
                   <CardContent className="flex items-center justify-between p-4">
                     <div className="flex-1">
                       <h3 className="font-medium">{result.tournamentName}</h3>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-base text-muted-foreground">
                         الفائز: {result.winner}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-base text-muted-foreground">
                         {new Date(result.date).toLocaleDateString('ar-SA')}
                       </p>
                       <Badge variant="outline">{result.category}</Badge>
@@ -931,7 +934,7 @@ export default function Admin() {
           {/* Gallery Tab */}
           <TabsContent value="gallery" className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold">إدارة المعرض</h2>
+              <h2 className="text-2xl font-bold">إدارة المعرض</h2>
               <AddGalleryDialog />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -948,10 +951,10 @@ export default function Admin() {
                   </div>
                   <CardContent className="p-4">
                     <h3 className="font-medium">{item.title}</h3>
-                    <p className="text-sm text-muted-foreground">{item.description}</p>
+                    <p className="text-base text-muted-foreground">{item.description}</p>
                     <div className="flex items-center justify-between mt-2">
                       <Badge variant="outline">{item.category}</Badge>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-base text-muted-foreground">
                         {item.eventDate ? new Date(item.eventDate).toLocaleDateString('ar-SA') : ''}
                       </span>
                     </div>
@@ -964,7 +967,7 @@ export default function Admin() {
           {/* Users Tab */}
           <TabsContent value="users" className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold">إدارة المستخدمين</h2>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold">إدارة المستخدمين</h2>
               <Badge variant="outline">{allUsers.length} مستخدم</Badge>
             </div>
             <div className="grid gap-4">
@@ -973,10 +976,10 @@ export default function Admin() {
                   <CardContent className="flex items-center justify-between p-4">
                     <div className="flex-1">
                       <h3 className="font-medium">{userItem.fullName}</h3>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-base text-muted-foreground">
                         {userItem.department} - {userItem.position}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-base text-muted-foreground">
                         {userItem.email} | رقم الموظف: {userItem.employeeId}
                       </p>
                     </div>
@@ -1014,7 +1017,7 @@ export default function Admin() {
           {/* Settings Tab */}
           <TabsContent value="settings" className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold">إعدادات الموقع</h2>
+              <h2 className="text-2xl font-bold">إعدادات الموقع</h2>
             </div>
             
             {/* Hero Image Settings */}
@@ -1059,9 +1062,9 @@ export default function Admin() {
                       data-testid="button-upload-hero"
                     >
                       {uploadHeroImageMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       ) : (
-                        <Upload className="h-4 w-4 ml-2" />
+                        <Upload className="h-4 w-4 mr-2" />
                       )}
                       اختيار صورة
                     </Button>
@@ -1082,13 +1085,13 @@ export default function Admin() {
                     data-testid="button-save-hero"
                   >
                     {updateHeroImageMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : null}
                     حفظ الصورة
                   </Button>
                 )}
 
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   يفضل استخدام صورة بحجم 1920x600 بكسل للحصول على أفضل عرض
                 </p>
               </CardContent>
@@ -1100,10 +1103,116 @@ export default function Admin() {
   );
 }
 
+function DeleteEventDialog({ eventId, eventTitle }: { eventId: string; eventTitle: string }) {
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          "Accept": "application/json",
+        },
+      });
+      if (!response.ok) {
+        const contentType = response.headers.get("content-type");
+        let errorMessage = `خطأ ${response.status}: ${response.statusText}`;
+        
+        if (contentType && contentType.includes("application/json")) {
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } catch {
+            // If JSON parsing fails, use default message
+          }
+        } else {
+          // If response is HTML or other non-JSON, try to extract error
+          const text = await response.text();
+          if (text.includes("<!DOCTYPE")) {
+            errorMessage = "حدث خطأ في الخادم. يرجى التحقق من تسجيل الدخول.";
+          } else {
+            errorMessage = text || errorMessage;
+          }
+        }
+        throw new Error(errorMessage);
+      }
+      
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        return await response.json();
+      }
+      // If no JSON, return success anyway
+      return { message: "تم الحذف بنجاح" };
+    },
+    onSuccess: async () => {
+      toast({ 
+        title: "تم الحذف", 
+        description: "تم حذف الفعالية بنجاح" 
+      });
+      // Force refetch to update the list immediately
+      await queryClient.refetchQueries({ queryKey: ["/api/events"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      setOpen(false);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "فشل الحذف", 
+        description: error.message || "حدث خطأ أثناء حذف الفعالية",
+        variant: "destructive" 
+      });
+    },
+  });
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button 
+          variant="destructive" 
+          size="icon"
+          data-testid={`button-delete-event-${eventId}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>حذف الفعالية</AlertDialogTitle>
+          <AlertDialogDescription>
+            هل أنت متأكد من حذف الفعالية "{eventTitle}"؟ هذا الإجراء لا يمكن التراجع عنه وسيتم حذف جميع التسجيلات المرتبطة بهذه الفعالية.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>إلغاء</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => deleteMutation.mutate()}
+            disabled={deleteMutation.isPending}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {deleteMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                جاري الحذف...
+              </>
+            ) : (
+              "حذف"
+            )}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function AddEventDialog() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [imageUrl, setImageUrl] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -1115,6 +1224,33 @@ function AddEventDialog() {
     requirements: "",
   });
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("image", file);
+      
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formDataUpload,
+        credentials: "include",
+      });
+      
+      if (!response.ok) throw new Error("فشل رفع الصورة");
+      
+      const data = await response.json();
+      setImageUrl(data.url);
+      toast({ title: "تم رفع الصورة بنجاح" });
+    } catch (error) {
+      toast({ title: "فشل رفع الصورة", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const mutation = useMutation({
     mutationFn: async (data: any) => {
       return await apiRequest("POST", "/api/events", data);
@@ -1124,6 +1260,7 @@ function AddEventDialog() {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       setOpen(false);
+      setImageUrl("");
       setFormData({
         title: "",
         description: "",
@@ -1145,7 +1282,7 @@ function AddEventDialog() {
       ...formData,
       date: new Date(formData.date),
       maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : null,
-      imageUrl: "/assets/football.png",
+      imageUrl: imageUrl || "/assets/football.png",
       status: "upcoming",
     });
   };
@@ -1154,7 +1291,7 @@ function AddEventDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button data-testid="button-add-event">
-          <Plus className="h-4 w-4 ml-2" />
+          <Plus className="h-4 w-4 mr-2" />
           إضافة فعالية
         </Button>
       </DialogTrigger>
@@ -1228,8 +1365,257 @@ function AddEventDialog() {
               onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={mutation.isPending}>
+          <div>
+            <Label>صورة الفعالية</Label>
+            <div className="space-y-2">
+              {imageUrl && (
+                <div className="relative">
+                  <img 
+                    src={imageUrl} 
+                    alt="صورة الفعالية" 
+                    className="w-full h-32 object-cover rounded-lg border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 left-2 h-6 w-6"
+                    onClick={() => setImageUrl("")}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+              <div 
+                className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                  disabled={isUploading}
+                />
+                {isUploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    <span>{imageUrl ? "تغيير الصورة" : "رفع صورة الفعالية"}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          <Button type="submit" className="w-full" disabled={mutation.isPending || isUploading}>
             {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إضافة"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditEventDialog({ event }: { event: Event }) {
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [imageUrl, setImageUrl] = useState<string>(event.imageUrl || "");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [formData, setFormData] = useState({
+    title: event.title,
+    description: event.description,
+    category: event.category,
+    date: event.date ? new Date(event.date).toISOString().slice(0, 16) : "",
+    location: event.location,
+    maxParticipants: event.maxParticipants?.toString() || "",
+    requirements: event.requirements || "",
+  });
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("image", file);
+      
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formDataUpload,
+        credentials: "include",
+      });
+      
+      if (!response.ok) throw new Error("فشل رفع الصورة");
+      
+      const data = await response.json();
+      setImageUrl(data.url);
+      toast({ title: "تم رفع الصورة بنجاح" });
+    } catch (error) {
+      toast({ title: "فشل رفع الصورة", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const mutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("PATCH", `/api/events/${event.id}`, data);
+    },
+    onSuccess: () => {
+      toast({ title: "تم التعديل", description: "تم تعديل الفعالية بنجاح" });
+      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      setOpen(false);
+    },
+    onError: () => {
+      toast({ title: "فشل التعديل", variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({
+      ...formData,
+      date: new Date(formData.date),
+      maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : null,
+      imageUrl: imageUrl || event.imageUrl,
+      status: event.status,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button 
+          variant="outline" 
+          size="icon"
+          data-testid={`button-edit-event-${event.id}`}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>تعديل الفعالية</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label>عنوان الفعالية</Label>
+            <Input
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <Label>الوصف</Label>
+            <Textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <Label>النوع</Label>
+            <Select
+              value={formData.category}
+              onValueChange={(value) => setFormData({ ...formData, category: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="football">كرة قدم</SelectItem>
+                <SelectItem value="basketball">كرة سلة</SelectItem>
+                <SelectItem value="marathon">ماراثون</SelectItem>
+                <SelectItem value="family">عائلي</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>التاريخ والوقت</Label>
+            <Input
+              type="datetime-local"
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <Label>المكان</Label>
+            <Input
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <Label>الحد الأقصى للمشاركين</Label>
+            <Input
+              type="number"
+              value={formData.maxParticipants}
+              onChange={(e) => setFormData({ ...formData, maxParticipants: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>الشروط</Label>
+            <Textarea
+              value={formData.requirements}
+              onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>صورة الفعالية</Label>
+            <div className="space-y-2">
+              {imageUrl && (
+                <div className="relative">
+                  <img 
+                    src={imageUrl} 
+                    alt="صورة الفعالية" 
+                    className="w-full h-32 object-cover rounded-lg border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 left-2 h-6 w-6"
+                    onClick={() => setImageUrl("")}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+              <div 
+                className="flex items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                  disabled={isUploading}
+                />
+                {isUploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    <span>{imageUrl ? "تغيير الصورة" : "رفع صورة الفعالية"}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          <Button type="submit" className="w-full" disabled={mutation.isPending || isUploading}>
+            {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "تعديل"}
           </Button>
         </form>
       </DialogContent>
@@ -1272,7 +1658,7 @@ function AddNewsDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button data-testid="button-add-news">
-          <Plus className="h-4 w-4 ml-2" />
+          <Plus className="h-4 w-4 mr-2" />
           إضافة خبر
         </Button>
       </DialogTrigger>
@@ -1371,7 +1757,7 @@ function AddResultDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button data-testid="button-add-result">
-          <Plus className="h-4 w-4 ml-2" />
+          <Plus className="h-4 w-4 mr-2" />
           إضافة نتيجة
         </Button>
       </DialogTrigger>
@@ -1485,7 +1871,7 @@ function AddGalleryDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button data-testid="button-add-gallery">
-          <Plus className="h-4 w-4 ml-2" />
+          <Plus className="h-4 w-4 mr-2" />
           إضافة صورة
         </Button>
       </DialogTrigger>
@@ -1775,7 +2161,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
           ) : (
             <div className="py-4">
               <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">اضغط لرفع صورة</p>
+              <p className="text-base text-muted-foreground">اضغط لرفع صورة</p>
             </div>
           )}
           <input
@@ -1879,7 +2265,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
                 <UserIcon className="h-6 w-6" />
               </div>
               <span className="font-bold">فردي</span>
-              <span className="text-xs text-muted-foreground">مسابقة فردية</span>
+              <span className="text-base text-muted-foreground">مسابقة فردية</span>
             </div>
           </div>
           <div
@@ -1900,7 +2286,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
                 <Users className="h-6 w-6" />
               </div>
               <span className="font-bold">فرقي</span>
-              <span className="text-xs text-muted-foreground">مسابقة بين الفرق</span>
+              <span className="text-base text-muted-foreground">مسابقة بين الفرق</span>
             </div>
           </div>
         </div>
@@ -2026,7 +2412,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
         <div className="flex items-center justify-between bg-muted/50 rounded-lg p-4">
           <div>
             <Label className="text-base font-semibold">ذهاب وعودة</Label>
-            <p className="text-sm text-muted-foreground">كل فريقين يلعبان مباراتين (ذهاب وإياب)</p>
+            <p className="text-base text-muted-foreground">كل فريقين يلعبان مباراتين (ذهاب وإياب)</p>
           </div>
           <Switch
             checked={formData.hasSecondLeg}
@@ -2039,7 +2425,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
       {/* الأيام المستثناة */}
       <div>
         <Label className="text-base font-semibold mb-3 block">الأيام المستثناة</Label>
-        <p className="text-sm text-muted-foreground mb-2">حدد الأيام التي لا تُقام فيها المباريات</p>
+        <p className="text-base text-muted-foreground mb-2">حدد الأيام التي لا تُقام فيها المباريات</p>
         <div className="flex flex-wrap gap-2">
           {daysOfWeek.map((day) => (
             <button
@@ -2064,7 +2450,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
         <Label className="text-base font-semibold mb-3 block">نظام النقاط</Label>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <Label className="text-sm">نقاط الفوز</Label>
+            <Label className="text-base">نقاط الفوز</Label>
             <Input
               type="number"
               value={formData.pointsForWin}
@@ -2075,7 +2461,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
             />
           </div>
           <div>
-            <Label className="text-sm">نقاط التعادل</Label>
+            <Label className="text-base">نقاط التعادل</Label>
             <Input
               type="number"
               value={formData.pointsForDraw}
@@ -2086,7 +2472,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
             />
           </div>
           <div>
-            <Label className="text-sm">نقاط الخسارة</Label>
+            <Label className="text-base">نقاط الخسارة</Label>
             <Input
               type="number"
               value={formData.pointsForLoss}
@@ -2104,7 +2490,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
         <Label className="text-base font-semibold mb-3 block">مدة المباراة</Label>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label className="text-sm">مدة الشوط (دقيقة)</Label>
+            <Label className="text-base">مدة الشوط (دقيقة)</Label>
             <Input
               type="number"
               value={formData.halfDuration}
@@ -2115,7 +2501,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
             />
           </div>
           <div>
-            <Label className="text-sm">الفترة بين الشوطين (دقيقة)</Label>
+            <Label className="text-base">الفترة بين الشوطين (دقيقة)</Label>
             <Input
               type="number"
               value={formData.breakBetweenHalves}
@@ -2132,7 +2518,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
       {(formData.type === "groups" || formData.type === "groups_knockout" || formData.type === "round_robin") && (
         <div>
           <Label>عدد الجولات</Label>
-          <p className="text-sm text-muted-foreground mb-2">عدد مرات مواجهة كل فريقين (بالإضافة لذهاب وعودة إن كانت مفعلة)</p>
+          <p className="text-base text-muted-foreground mb-2">عدد مرات مواجهة كل فريقين (بالإضافة لذهاب وعودة إن كانت مفعلة)</p>
           <Input
             type="number"
             value={formData.numberOfRounds}
@@ -2181,13 +2567,13 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
       {venuesList.length > 0 && (
         <div className="bg-muted/50 rounded-lg p-4">
           <Label className="text-base font-semibold mb-3 block">عدد المباريات اليومية لكل ملعب</Label>
-          <p className="text-sm text-muted-foreground mb-4">حدد عدد المباريات التي يمكن إقامتها في كل ملعب يومياً</p>
+          <p className="text-base text-muted-foreground mb-4">حدد عدد المباريات التي يمكن إقامتها في كل ملعب يومياً</p>
           <div className="space-y-3">
             {venuesList.map((venue, index) => (
               <div key={index} className="flex items-center gap-4 bg-background/50 rounded-lg p-3">
                 <div className="flex-1 font-medium">{venue}</div>
                 <div className="flex items-center gap-2">
-                  <Label className="text-sm text-muted-foreground">مباريات/يوم:</Label>
+                  <Label className="text-base text-muted-foreground">مباريات/يوم:</Label>
                   <Input
                     type="number"
                     value={formData.venueMatchConfigs[venue] || formData.matchesPerDayPerVenue}
@@ -2208,7 +2594,7 @@ function AddTournamentForm({ onSuccess }: { onSuccess: () => void }) {
       <div className="flex items-center justify-between bg-muted/50 rounded-lg p-4">
         <div>
           <Label className="text-base font-semibold">مفتوح للتسجيل</Label>
-          <p className="text-sm text-muted-foreground">السماح للفرق بالتسجيل في البطولة</p>
+          <p className="text-base text-muted-foreground">السماح للفرق بالتسجيل في البطولة</p>
         </div>
         <Switch
           checked={formData.isOpenForRegistration}
@@ -2299,17 +2685,17 @@ function InlineScoreEditor({
           value={homeScore}
           onChange={(e) => handleScoreChange(e.target.value, setHomeScore)}
           onKeyDown={handleKeyDown}
-          className="w-14 text-center font-bold text-lg h-10"
+          className="w-14 text-center font-bold text-base h-10"
           data-testid={`input-inline-home-score-${match.id}`}
         />
-        <span className="font-bold text-lg text-muted-foreground">-</span>
+        <span className="font-bold text-base text-muted-foreground">-</span>
         <Input
           type="number"
           min="0"
           value={awayScore}
           onChange={(e) => handleScoreChange(e.target.value, setAwayScore)}
           onKeyDown={handleKeyDown}
-          className="w-14 text-center font-bold text-lg h-10"
+          className="w-14 text-center font-bold text-base h-10"
           data-testid={`input-inline-away-score-${match.id}`}
         />
         <Button 
@@ -2338,9 +2724,9 @@ function InlineScoreEditor({
       className="flex items-center gap-2 bg-muted/30 hover:bg-muted/50 rounded-lg px-3 py-2 transition-colors group cursor-pointer"
       data-testid={`button-inline-edit-${match.id}`}
     >
-      <span className="text-2xl font-bold">{match.homeScore ?? 0}</span>
+      <span className="text-base font-bold">{match.homeScore ?? 0}</span>
       <span className="font-bold text-muted-foreground">-</span>
-      <span className="text-2xl font-bold">{match.awayScore ?? 0}</span>
+      <span className="text-base font-bold">{match.awayScore ?? 0}</span>
       <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity mr-1" />
     </button>
   );
@@ -2543,15 +2929,15 @@ function EditMatchDialog({
         <DialogTabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <DialogTabsList className="grid w-full grid-cols-3">
             <DialogTabsTrigger value="result" data-testid="tab-match-result">
-              <Trophy className="h-4 w-4 ml-1" />
+              <Trophy className="h-4 w-4 mr-1" />
               النتيجة
             </DialogTabsTrigger>
             <DialogTabsTrigger value="goals" data-testid="tab-match-goals">
-              <Goal className="h-4 w-4 ml-1" />
+              <Goal className="h-4 w-4 mr-1" />
               الأهداف
             </DialogTabsTrigger>
             <DialogTabsTrigger value="cards" data-testid="tab-match-cards">
-              <AlertTriangle className="h-4 w-4 ml-1" />
+              <AlertTriangle className="h-4 w-4 mr-1" />
               البطاقات
             </DialogTabsTrigger>
           </DialogTabsList>
@@ -2564,19 +2950,19 @@ function EditMatchDialog({
                   <Input
                     type="number"
                     min="0"
-                    className="w-20 text-center text-2xl font-bold"
+                    className="w-20 text-center text-base font-bold"
                     value={formData.homeScore}
                     onChange={(e) => setFormData({ ...formData, homeScore: e.target.value })}
                     data-testid="input-home-score"
                   />
                 </div>
-                <span className="text-2xl font-bold text-muted-foreground">:</span>
+                <span className="text-base font-bold text-muted-foreground">:</span>
                 <div className="text-center">
                   <p className="font-bold mb-2">{match.awayTeam?.name || "فريق 2"}</p>
                   <Input
                     type="number"
                     min="0"
-                    className="w-20 text-center text-2xl font-bold"
+                    className="w-20 text-center text-base font-bold"
                     value={formData.awayScore}
                     onChange={(e) => setFormData({ ...formData, awayScore: e.target.value })}
                     data-testid="input-away-score"
@@ -2611,7 +2997,7 @@ function EditMatchDialog({
           <DialogTabsContent value="goals" className="mt-4 space-y-4">
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
+                <CardTitle className="text-xl flex items-center gap-2">
                   <Plus className="h-4 w-4" />
                   إضافة هدف
                 </CardTitle>
@@ -2629,8 +3015,12 @@ function EditMatchDialog({
                           <SelectValue placeholder="اختر الفريق" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={match.homeTeamId || ""}>{match.homeTeam?.name}</SelectItem>
-                          <SelectItem value={match.awayTeamId || ""}>{match.awayTeam?.name}</SelectItem>
+                          {match.homeTeamId && (
+                            <SelectItem value={match.homeTeamId}>{match.homeTeam?.name}</SelectItem>
+                          )}
+                          {match.awayTeamId && (
+                            <SelectItem value={match.awayTeamId}>{match.awayTeam?.name}</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -2662,13 +3052,16 @@ function EditMatchDialog({
                           <SelectValue placeholder="اختر اللاعب" />
                         </SelectTrigger>
                         <SelectContent>
-                          {goalTeamPlayers.map((player) => (
-                            <SelectItem key={player.id} value={player.id}>
-                              {player.number ? `#${player.number} ` : ""}{player.name}
-                            </SelectItem>
-                          ))}
-                          {goalTeamPlayers.length === 0 && (
-                            <SelectItem value="" disabled>لا يوجد لاعبين مسجلين</SelectItem>
+                          {goalTeamPlayers.length > 0 ? (
+                            goalTeamPlayers.map((player) => (
+                              <SelectItem key={player.id} value={player.id}>
+                                {player.number ? `#${player.number} ` : ""}{player.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">
+                              لا يوجد لاعبين مسجلين
+                            </div>
                           )}
                         </SelectContent>
                       </Select>
@@ -2703,7 +3096,7 @@ function EditMatchDialog({
 
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">الأهداف المسجلة</CardTitle>
+                <CardTitle className="text-xl">الأهداف المسجلة</CardTitle>
               </CardHeader>
               <CardContent>
                 {matchEvents.filter(e => e.eventType === "goal" || e.eventType === "own_goal").length === 0 ? (
@@ -2723,7 +3116,7 @@ function EditMatchDialog({
                             {eventTypeIcons[event.eventType]}
                             <div>
                               <p className="font-medium">{getPlayerName(event.playerId)}</p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-base text-muted-foreground">
                                 {getTeamName(event.teamId)} - {eventTypeLabels[event.eventType]}
                               </p>
                             </div>
@@ -2752,7 +3145,7 @@ function EditMatchDialog({
           <DialogTabsContent value="cards" className="mt-4 space-y-4">
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
+                <CardTitle className="text-xl flex items-center gap-2">
                   <Plus className="h-4 w-4" />
                   إضافة بطاقة
                 </CardTitle>
@@ -2770,8 +3163,12 @@ function EditMatchDialog({
                           <SelectValue placeholder="اختر الفريق" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={match.homeTeamId || ""}>{match.homeTeam?.name}</SelectItem>
-                          <SelectItem value={match.awayTeamId || ""}>{match.awayTeam?.name}</SelectItem>
+                          {match.homeTeamId && (
+                            <SelectItem value={match.homeTeamId}>{match.homeTeam?.name}</SelectItem>
+                          )}
+                          {match.awayTeamId && (
+                            <SelectItem value={match.awayTeamId}>{match.awayTeam?.name}</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -2803,13 +3200,16 @@ function EditMatchDialog({
                           <SelectValue placeholder="اختر اللاعب" />
                         </SelectTrigger>
                         <SelectContent>
-                          {cardTeamPlayers.map((player) => (
-                            <SelectItem key={player.id} value={player.id}>
-                              {player.number ? `#${player.number} ` : ""}{player.name}
-                            </SelectItem>
-                          ))}
-                          {cardTeamPlayers.length === 0 && (
-                            <SelectItem value="" disabled>لا يوجد لاعبين مسجلين</SelectItem>
+                          {cardTeamPlayers.length > 0 ? (
+                            cardTeamPlayers.map((player) => (
+                              <SelectItem key={player.id} value={player.id}>
+                                {player.number ? `#${player.number} ` : ""}{player.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">
+                              لا يوجد لاعبين مسجلين
+                            </div>
                           )}
                         </SelectContent>
                       </Select>
@@ -2853,7 +3253,7 @@ function EditMatchDialog({
 
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">البطاقات المسجلة</CardTitle>
+                <CardTitle className="text-xl">البطاقات المسجلة</CardTitle>
               </CardHeader>
               <CardContent>
                 {matchEvents.filter(e => e.eventType === "yellow_card" || e.eventType === "red_card").length === 0 ? (
@@ -2873,11 +3273,11 @@ function EditMatchDialog({
                             {eventTypeIcons[event.eventType]}
                             <div>
                               <p className="font-medium">{getPlayerName(event.playerId)}</p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-base text-muted-foreground">
                                 {getTeamName(event.teamId)} - {eventTypeLabels[event.eventType]}
                               </p>
                               {event.notes && (
-                                <p className="text-xs text-muted-foreground italic">{event.notes}</p>
+                                <p className="text-base text-muted-foreground italic">{event.notes}</p>
                               )}
                             </div>
                           </div>

@@ -28,7 +28,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { MatchWithTeams, MatchEvent, MatchLineup, MatchCommentWithUser, Player } from "@shared/schema";
 import { format } from "date-fns";
+import { TeamNameDisplay } from "@/utils/teamNameUtils";
 import { ar } from "date-fns/locale";
+import { Reactions } from "@/components/Reactions";
 
 const matchStatusLabels: Record<string, string> = {
   scheduled: "قادمة",
@@ -124,6 +126,11 @@ export default function MatchDetail() {
   const { data: comments, refetch: refetchComments } = useQuery<MatchCommentWithUser[]>({
     queryKey: ["/api/matches", matchId, "comments"],
     enabled: !!matchId,
+    refetchInterval: (data) => {
+      // Poll every 5 seconds for live matches, 30 seconds for completed
+      const matchStatus = match?.status;
+      return matchStatus === "live" ? 5000 : matchStatus === "completed" ? 30000 : false;
+    },
   });
 
   const { data: homePlayers } = useQuery<Player[]>({
@@ -163,10 +170,10 @@ export default function MatchDetail() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4" dir="rtl">
         <Calendar className="h-16 w-16 text-muted-foreground" />
-        <h2 className="text-xl font-medium">المباراة غير موجودة</h2>
+        <h2 className="text-2xl font-medium">المباراة غير موجودة</h2>
         <Link href="/leagues">
           <Button>
-            <ArrowRight className="ml-2 h-4 w-4" />
+            <ArrowRight className="mr-2 h-4 w-4" />
             العودة للبطولات
           </Button>
         </Link>
@@ -191,7 +198,7 @@ export default function MatchDetail() {
         <div className="relative container mx-auto px-4">
           <Link href={`/leagues/${match.tournamentId}`}>
             <Button variant="ghost" className="text-white/80 hover:text-white mb-4" data-testid="button-back">
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="mr-2 h-4 w-4" />
               العودة للبطولة
             </Button>
           </Link>
@@ -205,10 +212,10 @@ export default function MatchDetail() {
                 match.status === "live" ? "bg-white text-red-600 animate-pulse" :
                 match.status === "completed" ? "bg-gray-500" : "bg-blue-500"
               }>
-                {match.status === "live" && <Play className="h-3 w-3 ml-1" />}
+                {match.status === "live" && <Play className="h-3 w-3 mr-1" />}
                 {matchStatusLabels[match.status]}
               </Badge>
-              <div className="text-sm opacity-80">
+              <div className="text-base opacity-80">
                 {getMatchStageLabel(match.stage, match.round, match.leg, match.groupNumber)}
               </div>
             </div>
@@ -218,21 +225,24 @@ export default function MatchDetail() {
                 <div className="w-20 h-20 md:w-28 md:h-28 mx-auto bg-white/10 rounded-full flex items-center justify-center mb-3">
                   <Users className="h-10 w-10 md:h-14 md:w-14" />
                 </div>
-                <h2 className="text-xl md:text-2xl font-bold">{match.homeTeam?.name}</h2>
+                <TeamNameDisplay 
+                  name={match.homeTeam?.name}
+                  className="text-2xl md:text-3xl font-bold"
+                />
               </div>
 
               <div className="text-center px-4 md:px-8">
                 {match.status === "completed" || match.status === "live" ? (
-                  <div className="text-5xl md:text-7xl font-bold flex items-center gap-3 md:gap-6">
+                  <div className="text-base md:text-base font-bold flex items-center gap-3 md:gap-6">
                     <span>{match.homeScore ?? 0}</span>
-                    <span className="text-3xl opacity-50">-</span>
+                    <span className="text-base opacity-50">-</span>
                     <span>{match.awayScore ?? 0}</span>
                   </div>
                 ) : (
-                  <div className="text-4xl font-bold opacity-50">VS</div>
+                  <div className="text-base font-bold opacity-50">VS</div>
                 )}
                 {match.matchDate && (
-                  <div className="mt-4 flex items-center justify-center gap-2 text-sm opacity-80">
+                  <div className="mt-4 flex items-center justify-center gap-2 text-base opacity-80">
                     <Clock className="h-4 w-4" />
                     {format(new Date(match.matchDate), "EEEE dd/MM/yyyy - HH:mm", { locale: ar })}
                   </div>
@@ -243,7 +253,7 @@ export default function MatchDetail() {
                 <div className="w-20 h-20 md:w-28 md:h-28 mx-auto bg-white/10 rounded-full flex items-center justify-center mb-3">
                   <Users className="h-10 w-10 md:h-14 md:w-14" />
                 </div>
-                <h2 className="text-xl md:text-2xl font-bold">{match.awayTeam?.name}</h2>
+                <h2 className="text-2xl md:text-3xl font-bold">{match.awayTeam?.name}</h2>
               </div>
             </div>
 
@@ -258,7 +268,7 @@ export default function MatchDetail() {
               {match.streamUrl && (
                 <a href={match.streamUrl} target="_blank" rel="noopener noreferrer">
                   <Button variant="secondary" size="sm">
-                    <Video className="h-4 w-4 ml-2" />
+                    <Video className="h-4 w-4 mr-2" />
                     بث مباشر
                   </Button>
                 </a>
@@ -266,7 +276,7 @@ export default function MatchDetail() {
               {match.highlightsUrl && (
                 <a href={match.highlightsUrl} target="_blank" rel="noopener noreferrer">
                   <Button variant="secondary" size="sm">
-                    <Play className="h-4 w-4 ml-2" />
+                    <Play className="h-4 w-4 mr-2" />
                     ملخص المباراة
                   </Button>
                 </a>
@@ -311,15 +321,15 @@ export default function MatchDetail() {
                               isHome ? "flex-row" : "flex-row-reverse"
                             }`}
                           >
-                            <div className="text-2xl">{eventTypeIcons[event.eventType]}</div>
+                            <div className="text-base">{eventTypeIcons[event.eventType]}</div>
                             <div className={isHome ? "text-right" : "text-left"}>
                               <div className="font-medium">{player?.name || "لاعب غير محدد"}</div>
-                              <div className="text-sm text-muted-foreground">
+                              <div className="text-base text-muted-foreground">
                                 {eventTypeLabels[event.eventType]} - الدقيقة {event.minute}'
                                 {event.extraMinute && `+${event.extraMinute}`}
                               </div>
                             </div>
-                            <Badge variant="outline" className="mr-auto ml-0">
+                            <Badge variant="outline" className="mr-auto mr-0">
                               {event.minute}'
                             </Badge>
                           </motion.div>
@@ -342,7 +352,7 @@ export default function MatchDetail() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
-                    {match.homeTeam?.name}
+                    <TeamNameDisplay name={match.homeTeam?.name} />
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -355,7 +365,7 @@ export default function MatchDetail() {
                             <Badge variant="outline">{player?.number}</Badge>
                             <span>{player?.name}</span>
                             {!lineup.isStarter && (
-                              <Badge variant="secondary" className="text-xs">بديل</Badge>
+                              <Badge variant="secondary" className="text-sm">بديل</Badge>
                             )}
                           </div>
                         );
@@ -367,7 +377,7 @@ export default function MatchDetail() {
                         <div key={player.id} className="flex items-center gap-3 p-2 rounded bg-muted/50">
                           <Badge variant="outline">{player.number}</Badge>
                           <span>{player.name}</span>
-                          <Badge variant="secondary" className="text-xs">{player.position}</Badge>
+                          <Badge variant="secondary" className="text-sm">{player.position}</Badge>
                         </div>
                       ))}
                     </div>
@@ -381,7 +391,7 @@ export default function MatchDetail() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
-                    {match.awayTeam?.name}
+                    <TeamNameDisplay name={match.awayTeam?.name} />
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -394,7 +404,7 @@ export default function MatchDetail() {
                             <Badge variant="outline">{player?.number}</Badge>
                             <span>{player?.name}</span>
                             {!lineup.isStarter && (
-                              <Badge variant="secondary" className="text-xs">بديل</Badge>
+                              <Badge variant="secondary" className="text-sm">بديل</Badge>
                             )}
                           </div>
                         );
@@ -406,7 +416,7 @@ export default function MatchDetail() {
                         <div key={player.id} className="flex items-center gap-3 p-2 rounded bg-muted/50">
                           <Badge variant="outline">{player.number}</Badge>
                           <span>{player.name}</span>
-                          <Badge variant="secondary" className="text-xs">{player.position}</Badge>
+                          <Badge variant="secondary" className="text-sm">{player.position}</Badge>
                         </div>
                       ))}
                     </div>
@@ -445,7 +455,7 @@ export default function MatchDetail() {
                         disabled={!comment.trim() || addCommentMutation.isPending}
                         data-testid="button-submit-comment"
                       >
-                        <Send className="h-4 w-4 ml-2" />
+                        <Send className="h-4 w-4 mr-2" />
                         إرسال
                       </Button>
                     </div>
@@ -475,11 +485,12 @@ export default function MatchDetail() {
                       <div className="flex-1 bg-muted/50 rounded-lg p-3">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-medium">{c.user?.fullName}</span>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-base text-muted-foreground">
                             {format(new Date(c.createdAt), "dd/MM/yyyy - HH:mm", { locale: ar })}
                           </span>
                         </div>
-                        <p className="text-sm">{c.content}</p>
+                        <p className="text-base mb-2">{c.content}</p>
+                        <Reactions commentType="match" commentId={c.id} />
                       </div>
                     </motion.div>
                   ))}

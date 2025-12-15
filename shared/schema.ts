@@ -533,6 +533,15 @@ export const matches = pgTable("matches", {
   bracketPosition: integer("bracket_position"), // Position in knockout bracket (1, 2, 3... for ordering)
   nextMatchId: varchar("next_match_id"), // Winner advances to this match
   
+  // Propagation references - for automatic team assignment
+  homeTeamSource: text("home_team_source"), // "WINNER_OF:match_id" or "LOSER_OF:match_id" or "SEED:seed_number" or null for direct team
+  awayTeamSource: text("away_team_source"), // Same format
+  
+  // Match result tracking
+  winnerTeamId: varchar("winner_team_id").references(() => teams.id), // Winner after penalties if needed
+  loserTeamId: varchar("loser_team_id").references(() => teams.id), // Loser
+  wentToPenalties: boolean("went_to_penalties").default(false), // Whether match went to penalties
+  
   // Schedule
   matchDate: timestamp("match_date"),
   venue: text("venue"),
@@ -634,6 +643,147 @@ export const insertMatchCommentSchema = createInsertSchema(matchComments).omit({
 });
 export type InsertMatchComment = z.infer<typeof insertMatchCommentSchema>;
 export type MatchComment = typeof matchComments.$inferSelect;
+
+// Tournament Comments
+export const tournamentComments = pgTable("tournament_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tournamentId: varchar("tournament_id").notNull().references(() => tournaments.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertTournamentCommentSchema = createInsertSchema(tournamentComments).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertTournamentComment = z.infer<typeof insertTournamentCommentSchema>;
+export type TournamentComment = typeof tournamentComments.$inferSelect;
+
+// Team Chat Rooms
+export const teamChatRooms = pgTable("team_chat_rooms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  name: text("name").notNull().default("Team Chat"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const teamChatMessages = pgTable("team_chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roomId: varchar("room_id").notNull().references(() => teamChatRooms.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertTeamChatMessageSchema = createInsertSchema(teamChatMessages).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertTeamChatMessage = z.infer<typeof insertTeamChatMessageSchema>;
+export type TeamChatMessage = typeof teamChatMessages.$inferSelect;
+
+// Event Hubs and Polls
+export const eventHubs = pgTable("event_hubs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tournamentId: varchar("tournament_id").references(() => tournaments.id, { onDelete: "cascade" }),
+  matchId: varchar("match_id").references(() => matches.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const polls = pgTable("polls", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hubId: varchar("hub_id").notNull().references(() => eventHubs.id, { onDelete: "cascade" }),
+  question: text("question").notNull(),
+  type: text("type").notNull().default("single"), // single, multiple, prediction
+  options: text("options").notNull(), // JSON array of options
+  closesAt: timestamp("closes_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const pollVotes = pgTable("poll_votes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  pollId: varchar("poll_id").notNull().references(() => polls.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  selectedOptions: text("selected_options").notNull(), // JSON array
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPollVoteSchema = createInsertSchema(pollVotes).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertPollVote = z.infer<typeof insertPollVoteSchema>;
+export type PollVote = typeof pollVotes.$inferSelect;
+
+// Media Comments
+export const mediaComments = pgTable("media_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  mediaType: text("media_type").notNull(), // gallery, highlight, news
+  mediaId: varchar("media_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertMediaCommentSchema = createInsertSchema(mediaComments).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertMediaComment = z.infer<typeof insertMediaCommentSchema>;
+export type MediaComment = typeof mediaComments.$inferSelect;
+
+// Comment Reactions
+export const commentReactions = pgTable("comment_reactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  commentType: text("comment_type").notNull(), // match, tournament, media, forum
+  commentId: varchar("comment_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  reactionType: text("reaction_type").notNull().default("like"), // like, love, celebrate, support
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCommentReactionSchema = createInsertSchema(commentReactions).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertCommentReaction = z.infer<typeof insertCommentReactionSchema>;
+export type CommentReaction = typeof commentReactions.$inferSelect;
+
+// Private Chats and Messages
+export const chatRooms = pgTable("chat_rooms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: text("type").notNull().default("direct"), // direct, group
+  name: text("name"), // For group chats
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const chatRoomMembers = pgTable("chat_room_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roomId: varchar("room_id").notNull().references(() => chatRooms.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+  lastReadAt: timestamp("last_read_at"),
+});
+
+export const chatMessages = pgTable("chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roomId: varchar("room_id").notNull().references(() => chatRooms.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;
 
 // Team Evaluations
 export const teamEvaluations = pgTable("team_evaluations", {

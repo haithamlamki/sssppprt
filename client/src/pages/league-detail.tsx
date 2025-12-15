@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -16,9 +16,11 @@ import {
   Play,
   CheckCircle2,
   User,
-  Swords,
   Shield,
-  BarChart3
+  BarChart3,
+  MessageCircle,
+  MessageSquare,
+  RefreshCw
 } from "lucide-react";
 import { TeamBox, getTeamColor, isLightColor } from "@/components/TeamBox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,11 +33,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import type { Tournament, Team, MatchWithTeams, PlayerWithTeam } from "@shared/schema";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
-import KnockoutBracket from "@/components/KnockoutBracket";
+import { TournamentComments } from "@/components/TournamentComments";
+import { TeamChat } from "@/components/TeamChat";
+import { TeamNameDisplay } from "@/utils/teamNameUtils";
+import { KnockoutBracket } from "@/components/KnockoutBracket";
 
 const sportLabels: Record<string, string> = {
   football: "كرة القدم",
@@ -174,29 +179,29 @@ function GroupStandings({ standings, matches, isLoading }: { standings: GroupSta
         
         return (
           <Card key={groupNumber} data-testid={`group-${groupNumber}`}>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-primary font-bold text-sm">{groupNumber}</span>
+            <CardHeader className="p-3 pb-1.5 sm:pb-2" dir="ltr">
+              <CardTitle className="font-semibold tracking-tight flex items-center justify-center gap-1 sm:gap-1.5 text-xs sm:text-sm text-center">
+                <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-primary font-bold text-[10px] sm:text-xs">{groupNumber}</span>
                 </div>
-                {groupLabels[groupNumber] || `المجموعة ${groupNumber}`}
+                <span className="truncate">{groupLabels[groupNumber] || `المجموعة ${groupNumber}`}</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="overflow-x-auto">
+            <CardContent className="p-3 pt-0">
+              <div className="overflow-x-visible">
                 <Table>
                   <TableHeader>
-                    <TableRow className="text-xs bg-muted/50">
-                      <TableHead className="text-center w-10 px-1">#</TableHead>
-                      <TableHead className="text-right px-2">الفريق</TableHead>
-                      <TableHead className="text-center px-1 w-10">لعب</TableHead>
-                      <TableHead className="text-center px-1 w-10">ف</TableHead>
-                      <TableHead className="text-center px-1 w-10">ت</TableHead>
-                      <TableHead className="text-center px-1 w-10">خ</TableHead>
-                      <TableHead className="text-center px-1 w-10">له</TableHead>
-                      <TableHead className="text-center px-1 w-10">عليه</TableHead>
-                      <TableHead className="text-center px-1 w-10">فارق</TableHead>
-                      <TableHead className="text-center px-2 w-12 font-bold bg-primary/5">نقاط</TableHead>
+                    <TableRow className="text-[10px] sm:text-xs bg-muted/50">
+                      <TableHead className="text-center w-6 px-0.5">#</TableHead>
+                      <TableHead className="text-left px-1 min-w-0" dir="ltr">الفريق</TableHead>
+                      <TableHead className="text-center px-0.5 w-6">لعب</TableHead>
+                      <TableHead className="text-center px-0.5 w-6">ف</TableHead>
+                      <TableHead className="text-center px-0.5 w-6">ت</TableHead>
+                      <TableHead className="text-center px-0.5 w-6">خ</TableHead>
+                      <TableHead className="text-center px-0.5 w-6">له</TableHead>
+                      <TableHead className="text-center px-0.5 w-6">عليه</TableHead>
+                      <TableHead className="text-center px-0.5 w-8">فارق</TableHead>
+                      <TableHead className="text-center px-1 w-8 font-bold bg-primary/5">نقاط</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -208,23 +213,38 @@ function GroupStandings({ standings, matches, isLoading }: { standings: GroupSta
                           className={isQualified ? "bg-emerald-500/5" : ""}
                           data-testid={`row-group-team-${team.id}`}
                         >
-                          <TableCell className="font-bold px-1 text-sm text-center">
-                            {index === 0 && <Trophy className="h-4 w-4 text-yellow-500 mx-auto" />}
+                          <TableCell className="font-bold px-0.5 text-[10px] sm:text-xs text-center">
+                            {index === 0 && <Trophy className="h-3 w-3 text-yellow-500 mx-auto" />}
                             {index > 0 && index + 1}
                           </TableCell>
-                          <TableCell className="font-medium px-2 text-sm">{team.name}</TableCell>
-                          <TableCell className="text-center px-1 text-sm">{team.played}</TableCell>
-                          <TableCell className="text-center px-1 text-sm text-emerald-600 dark:text-emerald-400 font-medium">{team.won}</TableCell>
-                          <TableCell className="text-center px-1 text-sm text-muted-foreground">{team.drawn}</TableCell>
-                          <TableCell className="text-center px-1 text-sm text-red-600 dark:text-red-400">{team.lost}</TableCell>
-                          <TableCell className="text-center px-1 text-sm">{team.goalsFor}</TableCell>
-                          <TableCell className="text-center px-1 text-sm">{team.goalsAgainst}</TableCell>
-                          <TableCell className="text-center px-1 text-sm">
+                          <TableCell className="font-medium px-1 text-[10px] sm:text-xs text-left min-w-0" dir="ltr">
+                            <div className="flex items-center gap-1 justify-start min-w-0">
+                              {team.logoUrl ? (
+                                <img 
+                                  src={team.logoUrl} 
+                                  alt={team.name} 
+                                  className="w-4 h-4 rounded-full object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                  <Users className="h-2.5 w-2.5 text-primary" />
+                                </div>
+                              )}
+                              <span className="truncate min-w-0">{team.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center px-0.5 text-[10px] sm:text-xs">{team.played}</TableCell>
+                          <TableCell className="text-center px-0.5 text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">{team.won}</TableCell>
+                          <TableCell className="text-center px-0.5 text-[10px] sm:text-xs text-muted-foreground">{team.drawn}</TableCell>
+                          <TableCell className="text-center px-0.5 text-[10px] sm:text-xs text-red-600 dark:text-red-400">{team.lost}</TableCell>
+                          <TableCell className="text-center px-0.5 text-[10px] sm:text-xs">{team.goalsFor}</TableCell>
+                          <TableCell className="text-center px-0.5 text-[10px] sm:text-xs">{team.goalsAgainst}</TableCell>
+                          <TableCell className="text-center px-0.5 text-[10px] sm:text-xs">
                             <span className={team.goalDifference > 0 ? "text-emerald-600 dark:text-emerald-400" : team.goalDifference < 0 ? "text-red-600 dark:text-red-400" : ""}>
                               {team.goalDifference > 0 ? "+" : ""}{team.goalDifference}
                             </span>
                           </TableCell>
-                          <TableCell className="text-center px-2 font-bold text-lg bg-primary/5">{team.points}</TableCell>
+                          <TableCell className="text-center px-1 font-bold text-[10px] sm:text-xs bg-primary/5">{team.points}</TableCell>
                         </TableRow>
                       );
                     })}
@@ -232,28 +252,23 @@ function GroupStandings({ standings, matches, isLoading }: { standings: GroupSta
                 </Table>
               </div>
               
-              <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded bg-emerald-500/20" />
-                  <span>يتأهل للأدوار الإقصائية</span>
+              <div className="mt-1.5 sm:mt-2 flex items-center gap-1 text-[9px] sm:text-[10px] text-muted-foreground text-right">
+                <div className="flex items-center gap-0.5">
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded bg-emerald-500/20 flex-shrink-0" />
+                  <span className="truncate">يتأهل للأدوار الإقصائية</span>
                 </div>
               </div>
 
               {groupMatches.length > 0 && (
-                <div className="mt-4 pt-4 border-t">
-                  <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    مباريات المجموعة
+                <div className="mt-2 sm:mt-3 md:mt-4 pt-2 sm:pt-3 md:pt-4 border-t">
+                  <h4 className="text-[10px] sm:text-xs md:text-sm lg:text-base font-medium mb-1.5 sm:mb-2 md:mb-3 flex items-center justify-center gap-1 sm:gap-2">
+                    <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+                    <span className="truncate">مباريات المجموعة</span>
                   </h4>
-                  <div className="space-y-2">
-                    {groupMatches.slice(0, 4).map((match) => (
+                  <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
+                    {groupMatches.map((match) => (
                       <GroupMatchCard key={match.id} match={match} />
                     ))}
-                    {groupMatches.length > 4 && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        +{groupMatches.length - 4} مباريات أخرى
-                      </p>
-                    )}
                   </div>
                 </div>
               )}
@@ -274,37 +289,39 @@ function GroupMatchCard({ match }: { match: MatchWithTeams }) {
     <Link href={`/matches/${match.id}`}>
       <motion.div 
         whileHover={{ x: -2 }}
-        className="flex items-center justify-between p-2 bg-muted/30 rounded-lg text-sm cursor-pointer hover-elevate"
+        className="flex items-center justify-between p-1.5 sm:p-2 bg-muted/30 rounded-lg text-[10px] sm:text-xs md:text-sm lg:text-base cursor-pointer hover-elevate overflow-hidden"
         data-testid={`group-match-${match.id}`}
       >
-        <div className="flex items-center gap-2 flex-1">
-          <span className={`font-medium ${homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
-            {match.homeTeam?.name || getKnockoutTeamLabel(match, true)}
-          </span>
+        <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0 justify-center">
+          <TeamNameDisplay 
+            name={match.homeTeam?.name || getKnockoutTeamLabel(match, true)}
+            className={`font-medium text-center ${homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}
+          />
         </div>
         
-        <div className="flex items-center gap-2 px-3">
+        <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2 md:px-3 flex-shrink-0">
           {isCompleted ? (
             <>
-              <span className={`font-bold min-w-[20px] text-center ${homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+              <span className={`font-bold min-w-[16px] sm:min-w-[20px] text-center text-[10px] sm:text-xs md:text-sm ${homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
                 {match.homeScore}
               </span>
-              <span className="text-muted-foreground">-</span>
-              <span className={`font-bold min-w-[20px] text-center ${awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+              <span className="text-muted-foreground text-[10px] sm:text-xs">-</span>
+              <span className={`font-bold min-w-[16px] sm:min-w-[20px] text-center text-[10px] sm:text-xs md:text-sm ${awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
                 {match.awayScore}
               </span>
             </>
           ) : (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm px-1 sm:px-1.5 md:px-2">
               {matchStatusLabels[match.status]}
             </Badge>
           )}
         </div>
         
-        <div className="flex items-center gap-2 flex-1 justify-end">
-          <span className={`font-medium ${awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
-            {match.awayTeam?.name || getKnockoutTeamLabel(match, false)}
-          </span>
+        <div className="flex items-center gap-1 sm:gap-2 flex-1 justify-center min-w-0">
+          <TeamNameDisplay 
+            name={match.awayTeam?.name || getKnockoutTeamLabel(match, false)}
+            className={`font-medium text-center ${awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}
+          />
         </div>
       </motion.div>
     </Link>
@@ -316,6 +333,8 @@ export default function LeagueDetail() {
   const tournamentId = params?.id;
   const { toast } = useToast();
   const { isAuthenticated, user } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "committee_member";
+  const queryClient = useQueryClient();
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [teamName, setTeamName] = useState("");
 
@@ -334,9 +353,42 @@ export default function LeagueDetail() {
     enabled: !!tournamentId,
   });
 
-  const { data: topScorers } = useQuery<PlayerWithTeam[]>({
+  const { data: topScorers, refetch: refetchTopScorers } = useQuery<PlayerWithTeam[]>({
     queryKey: ["/api/tournaments", tournamentId, "top-scorers"],
     enabled: !!tournamentId,
+    refetchInterval: false,
+    staleTime: 0, // Always fetch fresh data
+    cacheTime: 0, // Don't cache at all
+  });
+
+  const recalculateStatsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/tournaments/${tournamentId}/recalculate-stats`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to recalculate stats");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "تم إعادة حساب الإحصائيات بنجاح",
+        description: data.message 
+      });
+      // Force refetch with cache bypass
+      queryClient.invalidateQueries({ queryKey: ["/api/tournaments", tournamentId, "top-scorers"] });
+      setTimeout(() => {
+        refetchTopScorers();
+      }, 500);
+    },
+    onError: (error: any) => {
+      console.error("Recalculate stats error:", error);
+      toast({ 
+        title: "فشل إعادة حساب الإحصائيات", 
+        description: error.message || "تأكد من أن السيرفر يعمل وأنك مسجل كمدير",
+        variant: "destructive" 
+      });
+    },
   });
 
   const { data: groupStandings = [], isLoading: standingsLoading } = useQuery<GroupStandingsData[]>({
@@ -379,10 +431,10 @@ export default function LeagueDetail() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4" dir="rtl">
         <Trophy className="h-16 w-16 text-muted-foreground" />
-        <h2 className="text-xl font-medium">البطولة غير موجودة</h2>
+        <h2 className="text-2xl font-medium">البطولة غير موجودة</h2>
         <Link href="/leagues">
           <Button>
-            <ArrowRight className="ml-2 h-4 w-4" />
+            <ArrowRight className="mr-2 h-4 w-4" />
             العودة للبطولات
           </Button>
         </Link>
@@ -422,7 +474,7 @@ export default function LeagueDetail() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <div 
-        className={`relative text-white py-16 ${!hasCustomTheme ? 'bg-gradient-to-br from-primary via-primary/90 to-primary/80' : ''}`}
+        className={`relative text-white py-8 ${!hasCustomTheme ? 'bg-gradient-to-br from-primary via-primary/90 to-primary/80' : ''}`}
         style={heroStyle}
       >
         {heroImage && (
@@ -435,7 +487,7 @@ export default function LeagueDetail() {
         <div className="relative container mx-auto px-4">
           <Link href="/leagues">
             <Button variant="ghost" className="text-white/80 hover:text-white mb-4" data-testid="button-back">
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="mr-2 h-4 w-4" />
               العودة للبطولات
             </Button>
           </Link>
@@ -443,7 +495,7 @@ export default function LeagueDetail() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col md:flex-row md:items-center md:justify-between gap-6"
+            className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 text-center"
           >
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -455,15 +507,15 @@ export default function LeagueDetail() {
                   {statusLabels[tournament.status]}
                 </Badge>
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-2">{tournament.name}</h1>
-              <p className="text-lg opacity-90 max-w-2xl">{tournament.description}</p>
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-2">{tournament.name}</h1>
+              <p className="text-xs sm:text-sm md:text-base opacity-90 max-w-2xl">{tournament.description}</p>
             </div>
 
             {tournament.status === "registration" && isAuthenticated && (
               <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
                 <DialogTrigger asChild>
                   <Button size="lg" className="bg-white text-primary hover:bg-white/90" data-testid="button-register-team">
-                    <Plus className="ml-2 h-5 w-5" />
+                    <Plus className="mr-2 h-5 w-5" />
                     سجّل فريقك
                   </Button>
                 </DialogTrigger>
@@ -496,46 +548,46 @@ export default function LeagueDetail() {
             )}
           </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-            <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
-              <Target className="h-6 w-6 mx-auto mb-2" />
-              <div className="text-2xl font-bold">{sportLabels[tournament.sport]}</div>
-              <div className="text-sm opacity-80">الرياضة</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 sm:gap-2 md:gap-3 lg:gap-4 mt-3 sm:mt-4 md:mt-6 lg:mt-8">
+            <div className="bg-white/10 backdrop-blur rounded-lg p-1.5 sm:p-2 md:p-3 lg:p-4 text-center">
+              <Target className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 mx-auto mb-0.5 sm:mb-1 md:mb-2" />
+              <div className="text-[10px] sm:text-xs md:text-sm lg:text-base font-bold truncate">{sportLabels[tournament.sport]}</div>
+              <div className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm opacity-80 truncate">الرياضة</div>
             </div>
-            <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
-              <Award className="h-6 w-6 mx-auto mb-2" />
-              <div className="text-2xl font-bold">{typeLabels[tournament.type]?.split(" ")[0]}</div>
-              <div className="text-sm opacity-80">نوع البطولة</div>
+            <div className="bg-white/10 backdrop-blur rounded-lg p-1.5 sm:p-2 md:p-3 lg:p-4 text-center">
+              <Award className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 mx-auto mb-0.5 sm:mb-1 md:mb-2" />
+              <div className="text-[10px] sm:text-xs md:text-sm lg:text-base font-bold truncate">{typeLabels[tournament.type]?.split(" ")[0]}</div>
+              <div className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm opacity-80 truncate">نوع البطولة</div>
             </div>
-            <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
-              <Users className="h-6 w-6 mx-auto mb-2" />
-              <div className="text-2xl font-bold">{teams?.length || 0} / {tournament.maxTeams}</div>
-              <div className="text-sm opacity-80">الفرق المسجلة</div>
+            <div className="bg-white/10 backdrop-blur rounded-lg p-1.5 sm:p-2 md:p-3 lg:p-4 text-center">
+              <Users className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 mx-auto mb-0.5 sm:mb-1 md:mb-2" />
+              <div className="text-[10px] sm:text-xs md:text-sm lg:text-base font-bold truncate">{teams?.length || 0} / {tournament.maxTeams}</div>
+              <div className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm opacity-80 truncate">الفرق المسجلة</div>
             </div>
-            <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
-              <Calendar className="h-6 w-6 mx-auto mb-2" />
-              <div className="text-2xl font-bold">{matches?.length || 0}</div>
-              <div className="text-sm opacity-80">المباريات</div>
+            <div className="bg-white/10 backdrop-blur rounded-lg p-1.5 sm:p-2 md:p-3 lg:p-4 text-center">
+              <Calendar className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 mx-auto mb-0.5 sm:mb-1 md:mb-2" />
+              <div className="text-[10px] sm:text-xs md:text-sm lg:text-base font-bold truncate">{matches?.length || 0}</div>
+              <div className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm opacity-80 truncate">المباريات</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="standings" className="space-y-6">
-          <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-6">
-            <TabsTrigger value="standings" data-testid="tab-standings">الترتيب</TabsTrigger>
-            <TabsTrigger value="matches" data-testid="tab-matches">المباريات</TabsTrigger>
-            <TabsTrigger value="knockout" data-testid="tab-knockout">
-              <Swords className="h-4 w-4 ml-1" />
-              التصفيات
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">
+        <Tabs defaultValue="standings" className="space-y-3 sm:space-y-4 md:space-y-6">
+          <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-3 grid-rows-2 sm:grid-cols-6 sm:grid-rows-1 gap-3 sm:gap-1">
+            <TabsTrigger value="standings" data-testid="tab-standings" className="text-xs sm:text-sm px-2 sm:px-3 py-2.5 sm:py-1.5 relative z-0">الترتيب</TabsTrigger>
+            <TabsTrigger value="matches" data-testid="tab-matches" className="text-xs sm:text-sm px-2 sm:px-3 py-2.5 sm:py-1.5 relative z-0">المباريات</TabsTrigger>
+            <TabsTrigger value="scorers" data-testid="tab-scorers" className="text-xs sm:text-sm px-2 sm:px-3 py-2.5 sm:py-1.5 relative z-0">الهدافين</TabsTrigger>
+            <TabsTrigger value="stats" data-testid="tab-stats" className="text-xs sm:text-sm px-2 sm:px-3 py-2.5 sm:py-1.5 relative z-0">
+              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+              <span className="truncate">إحصائيات</span>
             </TabsTrigger>
-            <TabsTrigger value="scorers" data-testid="tab-scorers">الهدافين</TabsTrigger>
-            <TabsTrigger value="stats" data-testid="tab-stats">
-              <BarChart3 className="h-4 w-4 ml-1" />
-              إحصائيات
+            <TabsTrigger value="teams" data-testid="tab-teams" className="text-xs sm:text-sm px-2 sm:px-3 py-2.5 sm:py-1.5 relative z-0">الفرق</TabsTrigger>
+            <TabsTrigger value="comments" data-testid="tab-comments" className="text-xs sm:text-sm px-2 sm:px-3 py-2.5 sm:py-1.5 relative z-0">
+              <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+              <span className="truncate">التعليقات</span>
             </TabsTrigger>
-            <TabsTrigger value="teams" data-testid="tab-teams">الفرق</TabsTrigger>
           </TabsList>
 
           <TabsContent value="standings">
@@ -544,9 +596,9 @@ export default function LeagueDetail() {
             ) : (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Trophy className="h-5 w-5 text-gold" />
-                    جدول الترتيب
+                    <CardTitle className="flex items-center gap-2 text-sm sm:text-base md:text-lg" dir="rtl">
+                    <span>جدول الترتيب</span>
+                    <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-gold flex-shrink-0" />
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -555,16 +607,16 @@ export default function LeagueDetail() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="text-right w-12">#</TableHead>
-                            <TableHead className="text-right">الفريق</TableHead>
-                            <TableHead className="text-center">لعب</TableHead>
-                            <TableHead className="text-center">فاز</TableHead>
-                            <TableHead className="text-center">تعادل</TableHead>
-                            <TableHead className="text-center">خسر</TableHead>
-                            <TableHead className="text-center">له</TableHead>
-                            <TableHead className="text-center">عليه</TableHead>
-                            <TableHead className="text-center">الفارق</TableHead>
-                            <TableHead className="text-center font-bold">النقاط</TableHead>
+                            <TableHead className="text-right w-12 text-xs sm:text-sm">#</TableHead>
+                            <TableHead className="text-right text-xs sm:text-sm">الفريق</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm">لعب</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm">فاز</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm">تعادل</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm">خسر</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm">له</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm">عليه</TableHead>
+                            <TableHead className="text-center text-xs sm:text-sm">الفارق</TableHead>
+                            <TableHead className="text-center font-bold text-xs sm:text-sm">النقاط</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -574,25 +626,40 @@ export default function LeagueDetail() {
                               className={index < 3 ? "bg-primary/5" : ""}
                               data-testid={`row-team-${team.id}`}
                             >
-                              <TableCell className="font-bold">
+                              <TableCell className="font-bold text-xs sm:text-sm">
                                 {index === 0 && <span className="text-gold">🥇</span>}
                                 {index === 1 && <span className="text-gray-400">🥈</span>}
                                 {index === 2 && <span className="text-amber-600">🥉</span>}
                                 {index > 2 && index + 1}
                               </TableCell>
-                              <TableCell className="font-medium">{team.name}</TableCell>
-                              <TableCell className="text-center">{team.played}</TableCell>
-                              <TableCell className="text-center text-emerald-500">{team.won}</TableCell>
-                              <TableCell className="text-center text-gray-500">{team.drawn}</TableCell>
-                              <TableCell className="text-center text-red-500">{team.lost}</TableCell>
-                              <TableCell className="text-center">{team.goalsFor}</TableCell>
-                              <TableCell className="text-center">{team.goalsAgainst}</TableCell>
-                              <TableCell className="text-center">
+                          <TableCell className="font-medium text-xs sm:text-sm text-right">
+                            <div className="flex items-center gap-1 sm:gap-2 justify-end">
+                              <span className="truncate">{team.name}</span>
+                              {team.logoUrl ? (
+                                <img 
+                                  src={team.logoUrl} 
+                                  alt={team.name} 
+                                  className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                  <Users className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center text-xs sm:text-sm">{team.played}</TableCell>
+                              <TableCell className="text-center text-xs sm:text-sm text-emerald-500">{team.won}</TableCell>
+                              <TableCell className="text-center text-xs sm:text-sm text-gray-500">{team.drawn}</TableCell>
+                              <TableCell className="text-center text-xs sm:text-sm text-red-500">{team.lost}</TableCell>
+                              <TableCell className="text-center text-xs sm:text-sm">{team.goalsFor}</TableCell>
+                              <TableCell className="text-center text-xs sm:text-sm">{team.goalsAgainst}</TableCell>
+                              <TableCell className="text-center text-xs sm:text-sm">
                                 <span className={team.goalDifference > 0 ? "text-emerald-500" : team.goalDifference < 0 ? "text-red-500" : ""}>
                                   {team.goalDifference > 0 ? "+" : ""}{team.goalDifference}
                                 </span>
                               </TableCell>
-                              <TableCell className="text-center font-bold text-lg">{team.points}</TableCell>
+                              <TableCell className="text-center font-bold text-xs sm:text-sm md:text-base">{team.points}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -609,25 +676,50 @@ export default function LeagueDetail() {
             )}
           </TabsContent>
 
-          <TabsContent value="matches" className="space-y-6">
-            <MatchesView matches={matches || []} />
-          </TabsContent>
-
-          <TabsContent value="knockout">
-            <KnockoutBracket 
-              matches={matches || []} 
-              tournament={tournament}
-              groupStageComplete={tournament?.currentStage !== 'group_stage'}
-            />
+          <TabsContent value="matches" className="space-y-6" dir="ltr">
+            <MatchesView matches={matches || []} tournament={tournament} />
+            
+            {/* Knockout Stage Section */}
+            {tournament.type === "groups_knockout" && (
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2" dir="rtl">
+                    <Trophy className="h-5 w-5 text-primary" />
+                    <span>مرحلة خروج المغلوب</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <KnockoutBracket 
+                    matches={matches || []} 
+                    tournament={tournament}
+                    groupStageComplete={matches?.some(m => m.stage === "group" && m.status === "completed") || false}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="scorers">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-orange-500" />
-                  قائمة الهدافين
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2" dir="rtl">
+                    <span>قائمة الهدافين</span>
+                    <Target className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                  </CardTitle>
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => recalculateStatsMutation.mutate()}
+                      disabled={recalculateStatsMutation.isPending}
+                      className="flex items-center gap-2"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${recalculateStatsMutation.isPending ? "animate-spin" : ""}`} />
+                      إعادة حساب الإحصائيات
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {topScorers && topScorers.length > 0 ? (
@@ -652,15 +744,32 @@ export default function LeagueDetail() {
                               {index === 2 && "🥉"}
                               {index > 2 && index + 1}
                             </TableCell>
-                            <TableCell className="font-medium flex items-center gap-2">
-                              <User className="h-4 w-4" />
-                              {player.name}
-                              <Badge variant="outline" className="text-xs">
-                                #{player.number}
-                              </Badge>
+                            <TableCell className="font-medium text-right">
+                              <div className="flex items-center gap-2 justify-end">
+                                <Badge variant="outline" className="text-sm flex-shrink-0">
+                                  #{player.number}
+                                </Badge>
+                                <span className="truncate">{player.name}</span>
+                                <User className="h-4 w-4 flex-shrink-0" />
+                              </div>
                             </TableCell>
-                            <TableCell>{player.team?.name}</TableCell>
-                            <TableCell className="text-center font-bold text-lg">{player.goals}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center gap-2 justify-end">
+                                <span className="truncate">{player.team?.name || "غير محدد"}</span>
+                                {player.team?.logoUrl ? (
+                                  <img 
+                                    src={player.team.logoUrl} 
+                                    alt={player.team.name || "فريق"} 
+                                    className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                                  />
+                                ) : (
+                                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                    <Users className="h-3 w-3 text-primary" />
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center font-bold text-xs sm:text-sm md:text-base">{player.goals}</TableCell>
                             <TableCell className="text-center">{player.assists}</TableCell>
                             <TableCell className="text-center">{player.matchesPlayed}</TableCell>
                           </TableRow>
@@ -678,18 +787,18 @@ export default function LeagueDetail() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="stats" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TabsContent value="stats" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-blue-500" />
-                    أفضل دفاع
+                <CardHeader className="p-4 pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm" dir="ltr">
+                    <Shield className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                    <span>أفضل دفاع</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4 pt-0">
                   {teams && teams.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {[...teams]
                         .filter(t => t.played > 0)
                         .sort((a, b) => {
@@ -701,11 +810,12 @@ export default function LeagueDetail() {
                         .map((team, index) => (
                           <div 
                             key={team.id} 
-                            className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                            className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
                             data-testid={`row-defense-${team.id}`}
+                            dir="ltr"
                           >
-                            <div className="flex items-center gap-3">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
                                 index === 0 ? "bg-yellow-500/20 text-yellow-600" :
                                 index === 1 ? "bg-gray-400/20 text-gray-600" :
                                 index === 2 ? "bg-amber-600/20 text-amber-700" :
@@ -713,46 +823,46 @@ export default function LeagueDetail() {
                               }`}>
                                 {index + 1}
                               </div>
-                              <span className="font-medium">{team.name}</span>
+                              <span className="text-xs font-medium break-words hyphens-auto min-w-0">{team.name}</span>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3 flex-shrink-0">
                               <div className="text-center">
-                                <div className="text-lg font-bold text-blue-500">{team.goalsAgainst}</div>
-                                <div className="text-xs text-muted-foreground">أهداف ضده</div>
+                                <div className="text-xs font-bold text-blue-500">{team.goalsAgainst}</div>
+                                <div className="text-[10px] text-muted-foreground">أهداف ضده</div>
                               </div>
                               <div className="text-center">
-                                <div className="text-lg font-bold">{(team.goalsAgainst / (team.played || 1)).toFixed(2)}</div>
-                                <div className="text-xs text-muted-foreground">معدل/مباراة</div>
+                                <div className="text-xs font-bold">{(team.goalsAgainst / (team.played || 1)).toFixed(2)}</div>
+                                <div className="text-[10px] text-muted-foreground">معدل/مباراة</div>
                               </div>
                             </div>
                           </div>
                         ))}
                       {teams.filter(t => t.played > 0).length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <Shield className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                          <p>لا توجد مباريات منتهية بعد</p>
+                        <div className="text-center py-4 text-muted-foreground">
+                          <Shield className="h-6 w-6 mx-auto mb-1 opacity-50" />
+                          <p className="text-xs">لا توجد مباريات منتهية بعد</p>
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Shield className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                      <p>لا توجد فرق مسجلة بعد</p>
+                    <div className="text-center py-4 text-muted-foreground">
+                      <Shield className="h-6 w-6 mx-auto mb-1 opacity-50" />
+                      <p className="text-xs">لا توجد فرق مسجلة بعد</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-emerald-500" />
-                    أفضل هجوم
+                <CardHeader className="p-4 pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm" dir="ltr">
+                    <Target className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                    <span>أفضل هجوم</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4 pt-0">
                   {teams && teams.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {[...teams]
                         .filter(t => t.played > 0)
                         .sort((a, b) => b.goalsFor - a.goalsFor)
@@ -760,11 +870,12 @@ export default function LeagueDetail() {
                         .map((team, index) => (
                           <div 
                             key={team.id} 
-                            className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                            className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
                             data-testid={`row-attack-${team.id}`}
+                            dir="ltr"
                           >
-                            <div className="flex items-center gap-3">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
                                 index === 0 ? "bg-yellow-500/20 text-yellow-600" :
                                 index === 1 ? "bg-gray-400/20 text-gray-600" :
                                 index === 2 ? "bg-amber-600/20 text-amber-700" :
@@ -772,31 +883,31 @@ export default function LeagueDetail() {
                               }`}>
                                 {index + 1}
                               </div>
-                              <span className="font-medium">{team.name}</span>
+                              <span className="text-xs font-medium break-words hyphens-auto min-w-0">{team.name}</span>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3 flex-shrink-0">
                               <div className="text-center">
-                                <div className="text-lg font-bold text-emerald-500">{team.goalsFor}</div>
-                                <div className="text-xs text-muted-foreground">أهداف له</div>
+                                <div className="text-xs font-bold text-emerald-500">{team.goalsFor}</div>
+                                <div className="text-[10px] text-muted-foreground">أهداف له</div>
                               </div>
                               <div className="text-center">
-                                <div className="text-lg font-bold">{(team.goalsFor / (team.played || 1)).toFixed(2)}</div>
-                                <div className="text-xs text-muted-foreground">معدل/مباراة</div>
+                                <div className="text-xs font-bold">{(team.goalsFor / (team.played || 1)).toFixed(2)}</div>
+                                <div className="text-[10px] text-muted-foreground">معدل/مباراة</div>
                               </div>
                             </div>
                           </div>
                         ))}
                       {teams.filter(t => t.played > 0).length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <Target className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                          <p>لا توجد مباريات منتهية بعد</p>
+                        <div className="text-center py-4 text-muted-foreground">
+                          <Target className="h-6 w-6 mx-auto mb-1 opacity-50" />
+                          <p className="text-xs">لا توجد مباريات منتهية بعد</p>
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Target className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                      <p>لا توجد فرق مسجلة بعد</p>
+                    <div className="text-center py-4 text-muted-foreground">
+                      <Target className="h-6 w-6 mx-auto mb-1 opacity-50" />
+                      <p className="text-xs">لا توجد فرق مسجلة بعد</p>
                     </div>
                   )}
                 </CardContent>
@@ -805,12 +916,12 @@ export default function LeagueDetail() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
+                <CardTitle className="flex items-center gap-2" dir="rtl">
+                  <span>سجل البطاقات</span>
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     <div className="w-4 h-5 bg-yellow-500 rounded-sm" />
                     <div className="w-4 h-5 bg-red-500 rounded-sm" />
                   </div>
-                  سجل البطاقات
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -849,10 +960,12 @@ export default function LeagueDetail() {
                           .map((player, index) => (
                             <TableRow key={player.id} data-testid={`row-cards-${player.id}`}>
                               <TableCell className="font-bold">{index + 1}</TableCell>
-                              <TableCell className="font-medium flex items-center gap-2">
-                                <User className="h-4 w-4" />
-                                {player.name}
-                                <Badge variant="outline" className="text-xs">#{player.number}</Badge>
+                              <TableCell className="font-medium text-right">
+                                <div className="flex items-center gap-2 justify-end">
+                                  <Badge variant="outline" className="text-sm flex-shrink-0">#{player.number}</Badge>
+                                  <span className="truncate">{player.name}</span>
+                                  <User className="h-4 w-4 flex-shrink-0" />
+                                </div>
                               </TableCell>
                               <TableCell>{player.team?.name}</TableCell>
                               <TableCell className="text-center">
@@ -897,77 +1010,104 @@ export default function LeagueDetail() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="text-center">
                 <CardContent className="pt-6">
-                  <div className="text-3xl font-bold text-primary">{matches?.filter(m => m.status === "completed").length || 0}</div>
-                  <div className="text-sm text-muted-foreground mt-1">مباريات منتهية</div>
+                  <div className="text-base font-bold text-primary">{matches?.filter(m => m.status === "completed").length || 0}</div>
+                  <div className="text-base text-muted-foreground mt-1">مباريات منتهية</div>
                 </CardContent>
               </Card>
               <Card className="text-center">
                 <CardContent className="pt-6">
-                  <div className="text-3xl font-bold text-emerald-500">
+                  <div className="text-base font-bold text-emerald-500">
                     {matches?.filter(m => m.status === "completed").reduce((sum, m) => sum + (m.homeScore || 0) + (m.awayScore || 0), 0) || 0}
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">إجمالي الأهداف</div>
+                  <div className="text-base text-muted-foreground mt-1">إجمالي الأهداف</div>
                 </CardContent>
               </Card>
               <Card className="text-center">
                 <CardContent className="pt-6">
-                  <div className="text-3xl font-bold text-yellow-500">
+                  <div className="text-base font-bold text-yellow-500">
                     {topScorers?.reduce((sum, p) => sum + (p.yellowCards || 0), 0) || 0}
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">بطاقات صفراء</div>
+                  <div className="text-base text-muted-foreground mt-1">بطاقات صفراء</div>
                 </CardContent>
               </Card>
               <Card className="text-center">
                 <CardContent className="pt-6">
-                  <div className="text-3xl font-bold text-red-500">
+                  <div className="text-base font-bold text-red-500">
                     {topScorers?.reduce((sum, p) => sum + (p.redCards || 0), 0) || 0}
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">بطاقات حمراء</div>
+                  <div className="text-base text-muted-foreground mt-1">بطاقات حمراء</div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
           <TabsContent value="teams">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {teams?.map((team) => (
                 <Card key={team.id} className="hover-elevate" data-testid={`card-team-${team.id}`}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                        <Users className="h-8 w-8 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg">{team.name}</h3>
-                        <p className="text-sm text-muted-foreground">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2 justify-start" dir="ltr">
+                      {team.logoUrl ? (
+                        <img 
+                          src={team.logoUrl} 
+                          alt={team.name} 
+                          className="w-10 h-10 rounded-full object-cover border-2 border-primary/20 flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Users className="h-5 w-5 text-primary" />
+                        </div>
+                      )}
+                      <div className="text-left min-w-0 flex-1">
+                        <h3 className="font-bold text-xs break-words hyphens-auto">{team.name}</h3>
+                        <p className="text-[10px] text-muted-foreground">
                           {team.points} نقطة
                         </p>
                       </div>
                     </div>
-                    <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
-                      <div className="bg-emerald-500/10 rounded p-2">
-                        <div className="font-bold text-emerald-500">{team.won}</div>
-                        <div className="text-xs text-muted-foreground">فوز</div>
+                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+                      <div className="bg-emerald-500/10 rounded p-1.5">
+                        <div className="text-xs font-bold text-emerald-500">{team.won}</div>
+                        <div className="text-[10px] text-muted-foreground">فوز</div>
                       </div>
-                      <div className="bg-gray-500/10 rounded p-2">
-                        <div className="font-bold text-gray-500">{team.drawn}</div>
-                        <div className="text-xs text-muted-foreground">تعادل</div>
+                      <div className="bg-gray-500/10 rounded p-1.5">
+                        <div className="text-xs font-bold text-gray-500">{team.drawn}</div>
+                        <div className="text-[10px] text-muted-foreground">تعادل</div>
                       </div>
-                      <div className="bg-red-500/10 rounded p-2">
-                        <div className="font-bold text-red-500">{team.lost}</div>
-                        <div className="text-xs text-muted-foreground">خسارة</div>
+                      <div className="bg-red-500/10 rounded p-1.5">
+                        <div className="text-xs font-bold text-red-500">{team.lost}</div>
+                        <div className="text-[10px] text-muted-foreground">خسارة</div>
                       </div>
                     </div>
+                    {isAuthenticated && (
+                      <div className="mt-2">
+                        <TeamChatDialog teamId={team.id} teamName={team.name} />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
               {(!teams || teams.length === 0) && (
-                <div className="col-span-full text-center py-12 text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>لم يتم تسجيل أي فرق بعد</p>
+                <div className="col-span-full text-center py-8 text-muted-foreground">
+                  <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">لم يتم تسجيل أي فرق بعد</p>
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="comments" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2" dir="rtl">
+                  <MessageSquare className="h-5 w-5" />
+                  <span>تعليقات البطولة</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {tournamentId && <TournamentComments tournamentId={tournamentId} />}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
@@ -975,7 +1115,31 @@ export default function LeagueDetail() {
   );
 }
 
-// Format time range for match (e.g., "4:10–4:45 م")
+// Team Chat Dialog Component
+function TeamChatDialog({ teamId, teamName }: { teamId: string; teamName: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="w-full text-xs h-7">
+          <MessageCircle className="h-3 w-3 ml-1" />
+          محادثة الفريق
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[80vh]" dir="rtl">
+        <DialogHeader>
+          <DialogTitle>محادثة {teamName}</DialogTitle>
+        </DialogHeader>
+        <div className="mt-4">
+          <TeamChat teamId={teamId} />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Format time range for match (e.g., "4:10 PM–4:45 PM")
 // Default duration: 2 halves of 20 min + 5 min break = 45 min (typical for company tournaments)
 // Uses Asia/Muscat timezone to display correct Muscat wall-clock time
 function formatMatchTimeRange(matchDate: Date, durationMinutes: number = 45): string {
@@ -986,8 +1150,8 @@ function formatMatchTimeRange(matchDate: Date, durationMinutes: number = 45): st
   
   const endDate = new Date(matchDate.getTime() + duration * 60 * 1000);
   
-  // Use Intl.DateTimeFormat with Asia/Muscat timezone and 12-hour format
-  const timeFormatter = new Intl.DateTimeFormat('ar-SA', {
+  // Use Intl.DateTimeFormat with Asia/Muscat timezone and 12-hour format in English
+  const timeFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Muscat',
     hour: 'numeric',
     minute: '2-digit',
@@ -1003,61 +1167,7 @@ function formatMatchTimeRange(matchDate: Date, durationMinutes: number = 45): st
 }
 
 // Schedule Match Cell - for grid layout with multiple venues
-function ScheduleMatchCell({ match }: { match: MatchWithTeams }) {
-  const isCompleted = match.status === "completed";
-  const isLive = match.status === "live";
-  const homeScore = match.homeScore ?? 0;
-  const awayScore = match.awayScore ?? 0;
-  const homeWon = isCompleted && homeScore > awayScore;
-  const awayWon = isCompleted && awayScore > homeScore;
-  
-  return (
-    <Link href={`/matches/${match.id}`}>
-      <motion.div
-        whileHover={{ scale: 1.02 }}
-        className={`p-3 bg-card border rounded-xl cursor-pointer hover-elevate ${isLive ? "ring-2 ring-red-500" : ""}`}
-        data-testid={`schedule-cell-${match.id}`}
-      >
-        <div className="flex items-center gap-2 justify-center">
-          {/* Home Team */}
-          <TeamBox 
-            team={match.homeTeam} 
-            showLogo={true}
-            isWinner={homeWon}
-            score={isCompleted || isLive ? homeScore : undefined}
-          />
-          
-          {/* VS or Score */}
-          <div className="px-2 flex flex-col items-center">
-            {isLive && <Badge className="bg-red-500 animate-pulse text-xs mb-1">مباشر</Badge>}
-            {!isCompleted && !isLive && (
-              <span className="text-lg font-bold text-muted-foreground">VS</span>
-            )}
-            {isCompleted && (
-              <span className="text-xs text-muted-foreground">انتهت</span>
-            )}
-          </div>
-          
-          {/* Away Team */}
-          <TeamBox 
-            team={match.awayTeam} 
-            showLogo={true}
-            isWinner={awayWon}
-            score={isCompleted || isLive ? awayScore : undefined}
-          />
-        </div>
-        
-        <div className="text-center mt-2 text-xs text-muted-foreground">
-          {getMatchLabel(match)}
-          {match.leg === 2 && " - إياب"}
-        </div>
-      </motion.div>
-    </Link>
-  );
-}
-
-// Schedule Match Row - single venue layout with time on left
-function ScheduleMatchRow({ match, showTime = true }: { match: MatchWithTeams; showTime?: boolean }) {
+function ScheduleMatchCell({ match, tournament }: { match: MatchWithTeams; tournament?: Tournament }) {
   const isCompleted = match.status === "completed";
   const isLive = match.status === "live";
   const homeScore = match.homeScore ?? 0;
@@ -1070,85 +1180,236 @@ function ScheduleMatchRow({ match, showTime = true }: { match: MatchWithTeams; s
   
   return (
     <Link href={`/matches/${match.id}`}>
-      <motion.div
-        whileHover={{ x: -3 }}
-        className={`flex items-center gap-4 p-3 bg-card border rounded-xl cursor-pointer hover-elevate ${isLive ? "ring-2 ring-red-500" : ""}`}
-        data-testid={`schedule-row-${match.id}`}
+      <div
+        className={`bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50 rounded-lg p-2 sm:p-4 cursor-pointer hover:shadow-md transition-all min-h-[100px] sm:min-h-[140px] flex flex-col pb-0 ${isLive ? "ring-2 ring-red-500" : ""}`}
+        data-testid={`schedule-cell-${match.id}`}
       >
-        {/* Time Column */}
-        {showTime && (
-          <div className="min-w-[90px] text-center py-2 px-3 bg-primary/10 rounded-lg">
-            <Clock className="h-4 w-4 mx-auto mb-1 text-primary" />
-            <span dir="ltr" className="text-xs font-medium text-primary whitespace-nowrap">{timeRange}</span>
-          </div>
-        )}
-        
-        {/* Match Content */}
-        <div className="flex-1 flex items-center justify-center gap-3">
-          {/* Home Team */}
-          <div className="flex-1">
-            <TeamBox 
-              team={match.homeTeam} 
-              showLogo={true}
-              isWinner={homeWon}
-              score={isCompleted || isLive ? homeScore : undefined}
+        {/* Main Content - Large Logos with Team Names and Score */}
+        <div className="flex items-center justify-center gap-1.5 sm:gap-3 md:gap-4 flex-1">
+          {/* Home Team Section */}
+          <div className="flex flex-col items-center gap-1 sm:gap-2 flex-1">
+            {/* Large Home Team Logo */}
+            <div className="flex items-center justify-center">
+              {match.homeTeam?.logoUrl ? (
+                <img 
+                  src={match.homeTeam.logoUrl} 
+                  alt={match.homeTeam.name || "شعار الفريق"}
+                  className="w-12 h-12 sm:w-20 sm:h-20 md:w-28 md:h-28 object-contain flex-shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <Users className="w-6 h-6 sm:w-10 sm:h-10 md:w-14 md:h-14 text-gray-400" />
+                </div>
+              )}
+            </div>
+            {/* Home Team Name */}
+            <TeamNameDisplay 
+              name={match.homeTeam?.name || "فريق غير محدد"}
+              className="text-gray-900 font-bold text-center leading-tight text-[9px] sm:text-xs md:text-sm max-w-full"
             />
           </div>
           
-          {/* VS or Status */}
-          <div className="px-3 flex flex-col items-center">
-            {isLive && <Badge className="bg-red-500 animate-pulse">مباشر</Badge>}
-            {!isCompleted && !isLive && (
-              <span className="text-xl font-bold text-muted-foreground bg-muted px-3 py-1 rounded-lg">VS</span>
+          {/* Center Section - Tournament Logo or VS/Score */}
+          <div className="flex flex-col items-center justify-center gap-0.5 sm:gap-1 flex-shrink-0">
+            {/* Tournament Logo (if available) */}
+            {tournament?.imageUrl && (
+              <div className="mb-0.5 sm:mb-1">
+                <img 
+                  src={tournament.imageUrl} 
+                  alt={tournament.name || "شعار البطولة"}
+                  className="w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16 object-contain"
+                />
+              </div>
             )}
-            {isCompleted && (
-              <Badge variant="secondary" className="text-xs">انتهت</Badge>
+            {/* Live Badge */}
+            {isLive && (
+              <Badge className="bg-red-500 text-white animate-pulse text-[8px] sm:text-[10px] md:text-xs mb-0.5 sm:mb-1">مباشر</Badge>
+            )}
+            {/* Score or VS */}
+            {isCompleted || isLive ? (
+              <div className="bg-white text-gray-900 border-2 border-gray-300 rounded-lg px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2 min-w-[45px] sm:min-w-[60px] md:min-w-[70px] text-center shadow-sm">
+                <div className="text-xs sm:text-base md:text-lg font-bold">
+                  {homeScore} - {awayScore}
+                </div>
+              </div>
+            ) : (
+              <div className="text-lg sm:text-2xl md:text-3xl font-extrabold text-gray-400">VS</div>
             )}
           </div>
           
-          {/* Away Team */}
-          <div className="flex-1">
-            <TeamBox 
-              team={match.awayTeam} 
-              showLogo={true}
-              isWinner={awayWon}
-              score={isCompleted || isLive ? awayScore : undefined}
+          {/* Away Team Section */}
+          <div className="flex flex-col items-center gap-1 sm:gap-2 flex-1">
+            {/* Large Away Team Logo */}
+            <div className="flex items-center justify-center">
+              {match.awayTeam?.logoUrl ? (
+                <img 
+                  src={match.awayTeam.logoUrl} 
+                  alt={match.awayTeam.name || "شعار الفريق"}
+                  className="w-12 h-12 sm:w-20 sm:h-20 md:w-28 md:h-28 object-contain flex-shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <Users className="w-6 h-6 sm:w-10 sm:h-10 md:w-14 md:h-14 text-gray-400" />
+                </div>
+              )}
+            </div>
+            {/* Away Team Name */}
+            <TeamNameDisplay 
+              name={match.awayTeam?.name || "فريق غير محدد"}
+              className="text-gray-900 font-bold text-center leading-tight text-[9px] sm:text-xs md:text-sm max-w-full"
             />
           </div>
         </div>
         
-        {/* Info Column */}
-        <div className="text-right min-w-[80px]">
-          <div className="text-xs text-muted-foreground">{getMatchLabel(match)}</div>
-          {match.venue && (
-            <div className="text-xs text-muted-foreground flex items-center gap-1 justify-end mt-1">
-              <MapPin className="h-3 w-3" />
-              {match.venue}
+        {/* Bottom Section - Venue/Time */}
+        <div className="mt-auto pt-1.5 sm:pt-3 border-t border-gray-200">
+          {/* Venue Name and Time */}
+          {(match.venue || timeRange) && (
+            <div className="flex items-center justify-center gap-1 sm:gap-2">
+              {match.venue && (
+                <>
+                  <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-gray-500" />
+                  <span className="text-[9px] sm:text-xs text-gray-600">{match.venue}</span>
+                </>
+              )}
+              {timeRange && (
+                <>
+                  {match.venue && <span className="text-[9px] sm:text-xs text-gray-400">•</span>}
+                  <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-gray-500" />
+                  <span dir="ltr" className="text-[9px] sm:text-xs text-gray-600 whitespace-nowrap">{timeRange}</span>
+                </>
+              )}
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
     </Link>
   );
 }
 
-function MatchesView({ matches }: { matches: MatchWithTeams[] }) {
-  const [viewMode, setViewMode] = useState<"status" | "round" | "day">("day");
+// Schedule Match Row - single venue layout with time on left
+function ScheduleMatchRow({ match, showTime = true, tournament }: { match: MatchWithTeams; showTime?: boolean; tournament?: Tournament }) {
+  const isCompleted = match.status === "completed";
+  const isLive = match.status === "live";
+  const homeScore = match.homeScore ?? 0;
+  const awayScore = match.awayScore ?? 0;
+  const homeWon = isCompleted && homeScore > awayScore;
+  const awayWon = isCompleted && awayScore > homeScore;
   
+  const matchDate = match.matchDate ? new Date(match.matchDate) : null;
+  const timeRange = matchDate ? formatMatchTimeRange(matchDate, 35) : "";
+  
+  return (
+    <Link href={`/matches/${match.id}`}>
+      <div
+        className={`bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50 rounded-lg p-2 sm:p-4 cursor-pointer hover:shadow-md transition-all min-h-[100px] sm:min-h-[140px] flex flex-col pb-0 ${isLive ? "ring-2 ring-red-500" : ""}`}
+        data-testid={`schedule-row-${match.id}`}
+      >
+        {/* Match Content */}
+        <div className="flex-1 flex items-center gap-2 sm:gap-4">
+          {/* Teams and Score - Large Logos with Names */}
+          <div className="flex-1 flex items-center justify-center gap-1.5 sm:gap-3 md:gap-4">
+            {/* Home Team Section */}
+            <div className="flex flex-col items-center gap-1 sm:gap-2 flex-1">
+              {/* Large Home Team Logo */}
+              <div className="flex items-center justify-center">
+                {match.homeTeam?.logoUrl ? (
+                  <img 
+                    src={match.homeTeam.logoUrl} 
+                    alt={match.homeTeam.name || "شعار الفريق"}
+                    className="w-12 h-12 sm:w-20 sm:h-20 md:w-28 md:h-28 object-contain flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-12 h-12 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <Users className="w-6 h-6 sm:w-10 sm:h-10 md:w-14 md:h-14 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              {/* Home Team Name */}
+              <TeamNameDisplay 
+                name={match.homeTeam?.name || "فريق غير محدد"}
+                className="text-gray-900 font-bold text-center leading-tight text-[9px] sm:text-xs md:text-sm max-w-full"
+              />
+            </div>
+            
+            {/* Center Section - Tournament Logo or VS/Score */}
+            <div className="flex flex-col items-center justify-center gap-0.5 sm:gap-1 flex-shrink-0">
+              {/* Tournament Logo (if available) */}
+              {tournament?.imageUrl && (
+                <div className="mb-0.5 sm:mb-1">
+                  <img 
+                    src={tournament.imageUrl} 
+                    alt={tournament.name || "شعار البطولة"}
+                    className="w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16 object-contain"
+                  />
+                </div>
+              )}
+              {/* Live Badge */}
+              {isLive && (
+                <Badge className="bg-red-500 text-white animate-pulse text-[8px] sm:text-[10px] md:text-xs mb-0.5 sm:mb-1">مباشر</Badge>
+              )}
+              {/* Score or VS */}
+              {isCompleted || isLive ? (
+                <div className="bg-white text-gray-900 border-2 border-gray-300 rounded-lg px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2 min-w-[45px] sm:min-w-[60px] md:min-w-[70px] text-center shadow-sm">
+                  <div className="text-xs sm:text-base md:text-lg font-bold">
+                    {homeScore} - {awayScore}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-lg sm:text-2xl md:text-3xl font-extrabold text-gray-400">VS</div>
+              )}
+            </div>
+            
+            {/* Away Team Section */}
+            <div className="flex flex-col items-center gap-1 sm:gap-2 flex-1">
+              {/* Large Away Team Logo */}
+              <div className="flex items-center justify-center">
+                {match.awayTeam?.logoUrl ? (
+                  <img 
+                    src={match.awayTeam.logoUrl} 
+                    alt={match.awayTeam.name || "شعار الفريق"}
+                    className="w-12 h-12 sm:w-20 sm:h-20 md:w-28 md:h-28 object-contain flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-12 h-12 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <Users className="w-6 h-6 sm:w-10 sm:h-10 md:w-14 md:h-14 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              {/* Away Team Name */}
+              <TeamNameDisplay 
+                name={match.awayTeam?.name || "فريق غير محدد"}
+                className="text-gray-900 font-bold text-center leading-tight text-[9px] sm:text-xs md:text-sm max-w-full"
+              />
+            </div>
+          </div>
+          
+          {/* Time Column - Only if showTime is true */}
+          {showTime && timeRange && (
+            <div className="text-center min-w-[70px] sm:min-w-[90px] text-[9px] sm:text-sm text-gray-600 flex-shrink-0 border-r border-gray-200 pr-2 sm:pr-3">
+              <div dir="ltr" className="whitespace-nowrap">{timeRange}</div>
+            </div>
+          )}
+        </div>
+        
+        {/* Bottom Section - Venue/Time */}
+        <div className="mt-auto pt-1.5 sm:pt-3 border-t border-gray-200">
+          {/* Venue Name and Time */}
+          {match.venue && (
+            <div className="flex items-center justify-center gap-1 sm:gap-2">
+              <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-gray-500" />
+              <span className="text-[9px] sm:text-xs text-gray-600">{match.venue}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function MatchesView({ matches, tournament }: { matches: MatchWithTeams[]; tournament: Tournament }) {
   const upcomingMatches = matches.filter(m => m.status === "scheduled" || m.status === "live");
   const completedMatches = matches.filter(m => m.status === "completed");
-  
-  // Group matches by round
-  const matchesByRound = matches.reduce((acc, match) => {
-    const round = match.round || 1;
-    if (!acc[round]) {
-      acc[round] = [];
-    }
-    acc[round].push(match);
-    return acc;
-  }, {} as Record<number, MatchWithTeams[]>);
-  
-  const roundNumbers = Object.keys(matchesByRound).map(Number).sort((a, b) => a - b);
   
   // Group matches by day
   const matchesByDay = matches.reduce((acc, match) => {
@@ -1173,269 +1434,124 @@ function MatchesView({ matches }: { matches: MatchWithTeams[] }) {
   });
   
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4" data-testid="matches-summary">
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500" />
-            <span data-testid="text-upcoming-count">قادمة: {upcomingMatches.length}</span>
+    <div className="space-y-3 sm:space-y-6" dir="ltr">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 mb-2 sm:mb-4" data-testid="matches-summary">
+        <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-base text-muted-foreground">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-blue-500 flex-shrink-0" />
+            <span data-testid="text-upcoming-count" className="text-[10px] sm:text-base">قادمة: {upcomingMatches.length}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-emerald-500" />
-            <span data-testid="text-completed-count">منتهية: {completedMatches.length}</span>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-emerald-500 flex-shrink-0" />
+            <span data-testid="text-completed-count" className="text-[10px] sm:text-base">منتهية: {completedMatches.length}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-muted-foreground" data-testid="badge-total-matches">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Badge variant="outline" className="text-muted-foreground text-[10px] sm:text-sm" data-testid="badge-total-matches">
             إجمالي: {matches.length} مباراة
           </Badge>
-          <div className="flex border rounded-lg overflow-hidden">
-            <Button 
-              variant={viewMode === "day" ? "default" : "ghost"} 
-              size="sm"
-              onClick={() => setViewMode("day")}
-              className="rounded-none"
-              data-testid="button-view-by-day"
-            >
-              حسب اليوم
-            </Button>
-            <Button 
-              variant={viewMode === "round" ? "default" : "ghost"} 
-              size="sm"
-              onClick={() => setViewMode("round")}
-              className="rounded-none"
-              data-testid="button-view-by-round"
-            >
-              حسب الجولة
-            </Button>
-            <Button 
-              variant={viewMode === "status" ? "default" : "ghost"} 
-              size="sm"
-              onClick={() => setViewMode("status")}
-              className="rounded-none"
-              data-testid="button-view-by-status"
-            >
-              حسب الحالة
-            </Button>
-          </div>
         </div>
       </div>
 
-      {viewMode === "day" ? (
-        <div className="space-y-8">
-          {dayKeys.map((dayKey) => {
-            const dayMatches = matchesByDay[dayKey];
-            const completedCount = dayMatches.filter(m => m.status === "completed").length;
-            const totalCount = dayMatches.length;
-            const formattedDate = dayKey === "غير محدد" 
-              ? "تاريخ غير محدد" 
-              : format(new Date(dayKey), "EEEE d MMMM", { locale: ar });
-            
-            // Sort matches by time
-            const sortedDayMatches = [...dayMatches].sort((a, b) => {
-              const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
-              const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
-              return dateA - dateB;
-            });
-            
-            // Group by venue
-            const venues = Array.from(new Set(sortedDayMatches.map(m => m.venue || "الملعب الرئيسي")));
-            
-            // Group by time slot
-            const timeSlots = sortedDayMatches.reduce((acc, match) => {
-              const timeKey = match.matchDate 
-                ? format(new Date(match.matchDate), "HH:mm")
-                : "00:00";
-              if (!acc[timeKey]) acc[timeKey] = [];
-              acc[timeKey].push(match);
-              return acc;
-            }, {} as Record<string, MatchWithTeams[]>);
-            
-            const timeSlotKeys = Object.keys(timeSlots).sort();
-            
-            return (
-              <div key={dayKey} data-testid={`card-day-${dayKey}`} className="space-y-4">
-                {/* Day Header - Big and Bold */}
-                <div className="text-center py-4 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-lg">
-                  <h2 className="text-2xl md:text-3xl font-bold text-white uppercase tracking-wide">
-                    {formattedDate}
-                  </h2>
-                  <div className="flex items-center justify-center gap-3 mt-2">
-                    <Badge className="bg-white/20 text-white border-none">
-                      {totalCount} مباريات
-                    </Badge>
-                    {completedCount === totalCount && totalCount > 0 && (
-                      <Badge className="bg-emerald-400 text-white border-none">مكتملة</Badge>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Venue Headers */}
-                {venues.length > 1 && (
-                  <div className="grid gap-4" style={{ gridTemplateColumns: `100px repeat(${venues.length}, 1fr)` }}>
-                    <div></div>
-                    {venues.map((venue, idx) => (
-                      <div key={venue} className="text-center py-2 bg-muted/50 rounded-lg font-bold text-sm">
-                        <MapPin className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                        {venue}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Time Slots with Matches */}
-                <div className="space-y-3">
-                  {timeSlotKeys.map((timeKey) => {
-                    const slotMatches = timeSlots[timeKey];
-                    const firstMatch = slotMatches[0];
-                    const matchDate = firstMatch.matchDate ? new Date(firstMatch.matchDate) : null;
-                    const timeRange = matchDate ? formatMatchTimeRange(matchDate, 35) : timeKey;
-                    
-                    if (venues.length > 1) {
-                      // Multi-venue grid layout
-                      return (
-                        <div 
-                          key={timeKey} 
-                          className="grid gap-4 items-center"
-                          style={{ gridTemplateColumns: `100px repeat(${venues.length}, 1fr)` }}
-                        >
-                          {/* Time Column */}
-                          <div className="text-center py-2 bg-primary/10 rounded-lg">
-                            <Clock className="h-4 w-4 mx-auto mb-1 text-primary" />
-                            <span dir="ltr" className="text-xs font-medium text-primary whitespace-nowrap">{timeRange}</span>
-                          </div>
-                          
-                          {/* Match for each venue */}
-                          {venues.map((venue) => {
-                            const venueMatch = slotMatches.find(m => (m.venue || "الملعب الرئيسي") === venue);
-                            if (!venueMatch) {
-                              return <div key={venue} className="p-4 bg-muted/20 rounded-lg text-center text-muted-foreground text-sm">-</div>;
-                            }
-                            return (
-                              <ScheduleMatchCell key={venueMatch.id} match={venueMatch} />
-                            );
-                          })}
-                        </div>
-                      );
-                    } else {
-                      // Single venue - show all matches in row with time
-                      return (
-                        <div key={timeKey} className="space-y-2">
-                          {slotMatches.map((match) => (
-                            <ScheduleMatchRow key={match.id} match={match} showTime={true} />
-                          ))}
-                        </div>
-                      );
-                    }
-                  })}
-                </div>
+      <div className="space-y-4 sm:space-y-8">
+        {dayKeys.map((dayKey) => {
+          const dayMatches = matchesByDay[dayKey];
+          const completedCount = dayMatches.filter(m => m.status === "completed").length;
+          const totalCount = dayMatches.length;
+          const formattedDate = dayKey === "غير محدد" 
+            ? "تاريخ غير محدد" 
+            : format(new Date(dayKey), "EEEE d/MM/yyyy", { locale: ar });
+          
+          // Sort matches by time
+          const sortedDayMatches = [...dayMatches].sort((a, b) => {
+            const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
+            const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
+            return dateA - dateB;
+          });
+          
+          // Group by venue
+          const venues = Array.from(new Set(sortedDayMatches.map(m => m.venue || "الملعب الرئيسي")));
+          
+          // Group by time slot
+          const timeSlots = sortedDayMatches.reduce((acc, match) => {
+            const timeKey = match.matchDate 
+              ? format(new Date(match.matchDate), "HH:mm")
+              : "00:00";
+            if (!acc[timeKey]) acc[timeKey] = [];
+            acc[timeKey].push(match);
+            return acc;
+          }, {} as Record<string, MatchWithTeams[]>);
+          
+          const timeSlotKeys = Object.keys(timeSlots).sort();
+          
+          return (
+            <div key={dayKey} data-testid={`card-day-${dayKey}`} className="space-y-2 sm:space-y-4">
+              {/* Day Header - Big and Bold */}
+              <div className="text-center py-0.5 sm:py-1 px-1.5 sm:px-2 bg-primary text-primary-foreground rounded-lg shadow-sm" dir="rtl">
+                <h2 className="text-sm sm:text-xl md:text-2xl font-semibold uppercase tracking-wide">
+                  {formattedDate}
+                </h2>
               </div>
-            );
-          })}
-        </div>
-      ) : viewMode === "round" ? (
-        <div className="space-y-6">
-          {roundNumbers.map((roundNum) => {
-            const roundMatches = matchesByRound[roundNum];
-            const completedCount = roundMatches.filter(m => m.status === "completed").length;
-            const totalCount = roundMatches.length;
-            
-            return (
-              <Card key={roundNum} data-testid={`card-round-${roundNum}`}>
-                <CardHeader className="bg-primary/5 border-b">
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-primary font-bold">{roundNum}</span>
+              
+              {/* Venue Headers - Removed, venue name shown inside match cards */}
+              
+              {/* Time Slots with Matches */}
+              <div className="space-y-1.5 sm:space-y-3">
+                {timeSlotKeys.map((timeKey) => {
+                  const slotMatches = timeSlots[timeKey];
+                  const firstMatch = slotMatches[0];
+                  const matchDate = firstMatch.matchDate ? new Date(firstMatch.matchDate) : null;
+                  const timeRange = matchDate ? formatMatchTimeRange(matchDate, 35) : timeKey;
+                  
+                  if (venues.length > 1) {
+                    // Multi-venue grid layout - time shown inside match cards
+                    return (
+                      <div 
+                        key={timeKey} 
+                        className="grid gap-2 sm:gap-4 items-center"
+                        style={{ gridTemplateColumns: `repeat(${venues.length}, 1fr)` }}
+                      >
+                        {/* Match for each venue */}
+                        {venues.map((venue) => {
+                          const venueMatch = slotMatches.find(m => (m.venue || "الملعب الرئيسي") === venue);
+                          if (!venueMatch) {
+                            return (
+                              <div 
+                                key={venue} 
+                                className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-lg p-3 sm:p-6 text-center text-slate-400 min-h-[80px] sm:min-h-[100px] flex items-center justify-center"
+                              >
+                                —
+                              </div>
+                            );
+                          }
+                          return (
+                            <ScheduleMatchCell key={venueMatch.id} match={venueMatch} tournament={tournament} />
+                          );
+                        })}
                       </div>
-                      <span>الجولة {roundNum}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {completedCount}/{totalCount} مباريات
-                      </Badge>
-                      {completedCount === totalCount && (
-                        <Badge className="bg-emerald-500 text-xs">مكتملة</Badge>
-                      )}
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 space-y-3">
-                  {roundMatches
-                    .sort((a, b) => {
-                      const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
-                      const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
-                      return dateA - dateB;
-                    })
-                    .map((match) => (
-                      match.status === "completed" ? 
-                        <CompletedMatchCard key={match.id} match={match} /> :
-                        <MatchCard key={match.id} match={match} />
-                    ))}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {upcomingMatches.length > 0 && (
-            <Card className="border-blue-500/20">
-              <CardHeader className="bg-blue-500/5 border-b border-blue-500/10">
-                <CardTitle className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                  <Clock className="h-5 w-5" />
-                  المباريات القادمة
-                  <Badge variant="secondary" className="mr-auto text-xs">
-                    {upcomingMatches.length}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                {upcomingMatches
-                  .sort((a, b) => {
-                    const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
-                    const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
-                    return dateA - dateB;
-                  })
-                  .map((match) => (
-                    <MatchCard key={match.id} match={match} />
-                  ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {completedMatches.length > 0 && (
-            <Card className="border-emerald-500/20">
-              <CardHeader className="bg-emerald-500/5 border-b border-emerald-500/10">
-                <CardTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="h-5 w-5" />
-                  المباريات المنتهية
-                  <Badge variant="secondary" className="mr-auto text-xs">
-                    {completedMatches.length}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                {completedMatches
-                  .sort((a, b) => {
-                    const dateA = a.matchDate ? new Date(a.matchDate).getTime() : 0;
-                    const dateB = b.matchDate ? new Date(b.matchDate).getTime() : 0;
-                    return dateB - dateA;
-                  })
-                  .map((match) => (
-                    <CompletedMatchCard key={match.id} match={match} />
-                  ))}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
+                    );
+                  } else {
+                    // Single venue - show all matches in row, time shown inside match cards
+                    return (
+                      <div key={timeKey} className="space-y-1 sm:space-y-2">
+                        {slotMatches.map((match) => (
+                          <ScheduleMatchRow key={match.id} match={match} showTime={false} tournament={tournament} />
+                        ))}
+                      </div>
+                    );
+                  }
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {matches.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
           <Calendar className="h-16 w-16 mx-auto mb-4 opacity-30" />
-          <h3 className="text-lg font-medium mb-2">لم يتم إنشاء جدول المباريات بعد</h3>
-          <p className="text-sm">سيتم عرض جدول المباريات هنا بمجرد إنشائه من لوحة التحكم</p>
+          <h3 className="text-xl font-medium mb-2">لم يتم إنشاء جدول المباريات بعد</h3>
+          <p className="text-base">سيتم عرض جدول المباريات هنا بمجرد إنشائه من لوحة التحكم</p>
         </div>
       )}
     </div>
@@ -1458,32 +1574,38 @@ function CompletedMatchCard({ match }: { match: MatchWithTeams }) {
       >
         <div className="flex items-center gap-4">
           <div className={`flex-1 flex items-center gap-3 justify-end ${homeWon ? "font-bold" : ""}`} data-testid={`completed-match-home-${match.id}`}>
-            <span className={homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}>{match.homeTeam?.name || getKnockoutTeamLabel(match, true)}</span>
+            <TeamNameDisplay 
+              name={match.homeTeam?.name || getKnockoutTeamLabel(match, true)}
+              className={homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}
+            />
             {homeWon && <Trophy className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
           </div>
           
           <div className="flex items-center gap-3 px-4 py-1 bg-background rounded-full border" data-testid={`completed-match-score-${match.id}`}>
-            <span className={`text-xl font-bold min-w-[24px] text-center ${homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+            <span className={`text-base font-bold min-w-[24px] text-center ${homeWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
               {homeScore}
             </span>
             <span className="text-muted-foreground">-</span>
-            <span className={`text-xl font-bold min-w-[24px] text-center ${awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+            <span className={`text-base font-bold min-w-[24px] text-center ${awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
               {awayScore}
             </span>
           </div>
 
           <div className={`flex-1 flex items-center gap-3 ${awayWon ? "font-bold" : ""}`} data-testid={`completed-match-away-${match.id}`}>
             {awayWon && <Trophy className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
-            <span className={awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}>{match.awayTeam?.name || getKnockoutTeamLabel(match, false)}</span>
+            <TeamNameDisplay 
+              name={match.awayTeam?.name || getKnockoutTeamLabel(match, false)}
+              className={awayWon ? "text-emerald-600 dark:text-emerald-400" : ""}
+            />
           </div>
         </div>
         
-        <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+        <div className="flex items-center justify-between mt-2 text-base text-muted-foreground">
           <div className="flex items-center gap-2">
             <Calendar className="h-3 w-3" />
             {match.matchDate ? format(new Date(match.matchDate), "dd/MM/yyyy", { locale: ar }) : "غير محدد"}
           </div>
-          {isDraw && <Badge variant="outline" className="text-xs">تعادل</Badge>}
+          {isDraw && <Badge variant="outline" className="text-sm">تعادل</Badge>}
           <div className="flex items-center gap-2">
             {match.venue && (
               <>
@@ -1491,7 +1613,7 @@ function CompletedMatchCard({ match }: { match: MatchWithTeams }) {
                 <span>{match.venue}</span>
               </>
             )}
-            <span className="text-xs">{getMatchLabel(match)}</span>
+            <span className="text-base">{getMatchLabel(match)}</span>
           </div>
         </div>
       </motion.div>
@@ -1511,10 +1633,10 @@ function MatchCard({ match }: { match: MatchWithTeams }) {
       >
         <div className="flex items-center justify-between mb-3">
           <Badge className={matchStatusColors[match.status]}>
-            {isLive && <Play className="h-3 w-3 ml-1" />}
+            {isLive && <Play className="h-3 w-3 mr-1" />}
             {matchStatusLabels[match.status]}
           </Badge>
-          <div className="text-sm text-muted-foreground flex items-center gap-2">
+          <div className="text-base text-muted-foreground flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             {match.matchDate ? format(new Date(match.matchDate), "EEEE dd/MM/yyyy - HH:mm", { locale: ar }) : "غير محدد"}
           </div>
@@ -1522,39 +1644,45 @@ function MatchCard({ match }: { match: MatchWithTeams }) {
 
         <div className="flex items-center justify-between">
           <div className="flex-1 text-right">
-            <div className="font-bold text-lg">{match.homeTeam?.name || getKnockoutTeamLabel(match, true)}</div>
-            <div className="text-xs text-muted-foreground">الفريق المضيف</div>
+            <TeamNameDisplay 
+              name={match.homeTeam?.name || getKnockoutTeamLabel(match, true)}
+              className="font-bold text-base"
+            />
+            <div className="text-base text-muted-foreground">الفريق المضيف</div>
           </div>
           
           <div className="px-6 py-3">
             {isLive ? (
-              <div className="text-2xl font-bold flex items-center gap-2 animate-pulse">
+              <div className="text-base font-bold flex items-center gap-2 animate-pulse">
                 <span className="text-red-500">{match.homeScore ?? 0}</span>
                 <span className="text-muted-foreground">-</span>
                 <span className="text-red-500">{match.awayScore ?? 0}</span>
               </div>
             ) : (
-              <div className="text-xl font-bold text-muted-foreground bg-muted px-4 py-2 rounded-lg">VS</div>
+              <div className="text-base font-bold text-muted-foreground bg-muted px-4 py-2 rounded-lg">VS</div>
             )}
           </div>
 
-          <div className="flex-1 text-left">
-            <div className="font-bold text-lg">{match.awayTeam?.name || getKnockoutTeamLabel(match, false)}</div>
-            <div className="text-xs text-muted-foreground">الفريق الضيف</div>
+          <div className="flex-1 text-right">
+            <TeamNameDisplay 
+              name={match.awayTeam?.name || getKnockoutTeamLabel(match, false)}
+              className="font-bold text-base"
+            />
+            <div className="text-base text-muted-foreground">الفريق الضيف</div>
           </div>
         </div>
 
         {match.venue && (
-          <div className="mt-3 text-sm text-muted-foreground flex items-center justify-center gap-2">
+          <div className="mt-3 text-base text-muted-foreground flex items-center justify-center gap-2">
             <MapPin className="h-4 w-4" />
             {match.venue}
           </div>
         )}
 
-        <div className="mt-2 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+        <div className="mt-2 flex items-center justify-center gap-4 text-base text-muted-foreground">
           <span>{getMatchLabel(match)}</span>
           {match.stage === "group" && match.groupNumber && (
-            <Badge variant="outline" className="text-xs">{groupLabels[match.groupNumber]}</Badge>
+            <Badge variant="outline" className="text-sm">{groupLabels[match.groupNumber]}</Badge>
           )}
         </div>
       </motion.div>

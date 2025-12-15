@@ -1,4 +1,5 @@
 import { Shield } from "lucide-react";
+import { TeamNameDisplay } from "@/utils/teamNameUtils";
 
 export interface TeamBoxProps {
   team?: { 
@@ -108,9 +109,15 @@ export function TeamBox({
   const textColor = isLightColor(bgColor) ? "#1f2937" : "#ffffff";
   
   const sizeClasses = {
-    sm: "px-2 py-1 min-w-[80px] text-xs",
-    md: "px-3 py-2 min-w-[120px] text-sm",
-    lg: "px-4 py-3 min-w-[150px] text-base"
+    sm: "px-2 py-1.5 min-h-[50px] w-full max-w-[140px]",
+    md: "px-3 py-2 min-h-[60px] w-full max-w-[160px]",
+    lg: "px-4 py-3 min-h-[70px] w-full max-w-[180px]"
+  };
+  
+  const fontSizeClasses = {
+    sm: "text-base leading-tight",
+    md: "text-base leading-tight",
+    lg: "text-base leading-tight"
   };
   
   const logoSizes = {
@@ -127,12 +134,12 @@ export function TeamBox({
   
   return (
     <div 
-      className={`flex items-center gap-2 rounded-lg ${sizeClasses[size]} ${isWinner ? "ring-2 ring-yellow-400 ring-offset-1" : ""} ${className}`}
+      className={`flex items-center gap-1.5 rounded-lg ${sizeClasses[size]} ${isWinner ? "ring-2 ring-yellow-400 ring-offset-1" : ""} ${className}`}
       style={{ backgroundColor: bgColor }}
       data-testid={`team-box-${team?.id}`}
     >
       {showLogo && (
-        <div className={`${logoSizes[size]} rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 overflow-hidden`}>
+        <div className={`${logoSizes[size]} rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 overflow-hidden self-start mt-1`}>
           {team?.logoUrl ? (
             <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
           ) : (
@@ -140,15 +147,15 @@ export function TeamBox({
           )}
         </div>
       )}
-      <span 
-        className="font-bold truncate flex-1"
-        style={{ color: textColor }}
-      >
-        {team?.name || "غير محدد"}
-      </span>
+      <TeamNameDisplay 
+        name={team?.name}
+        className="font-bold flex-1 text-center"
+        fontSizeClass={fontSizeClasses[size]}
+        style={{ color: textColor, wordBreak: 'break-word', overflowWrap: 'break-word' }}
+      />
       {score !== undefined && score !== null && (
         <span 
-          className="font-bold min-w-[24px] text-center"
+          className={`font-bold min-w-[20px] text-center flex-shrink-0 self-start ${fontSizeClasses[size]}`}
           style={{ color: textColor }}
         >
           {score}
@@ -171,7 +178,7 @@ export function TeamColorPicker({
   
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium">{label}</label>
+      <label className="text-base font-medium">{label}</label>
       <div className="flex flex-wrap gap-2">
         {TEAM_COLORS.map((color) => (
           <button

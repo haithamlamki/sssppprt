@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { Trophy, Calendar, Play } from "lucide-react";
+import { Trophy, Calendar, Play, Clock, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MatchWithTeams, Tournament } from "@shared/schema";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
+import stadiumBackground from "@assets/stadium-background.png";
 
 interface KnockoutBracketProps {
   matches: MatchWithTeams[];
@@ -28,6 +29,53 @@ function getKnockoutMatchLabel(stage: string, matchIndex: number): string {
     return stageLabel;
   }
   return `${stageLabel} ${matchIndex + 1}`;
+}
+
+/**
+ * Get intelligent source text from team source reference
+ * Converts "WINNER_OF:match_id" or "LOSER_OF:match_id" to readable Arabic text
+ * For group stage matches, shows position labels like "أ1" or "ب2"
+ */
+function getIntelligentSourceText(
+  source: string | null | undefined,
+  allMatches: MatchWithTeams[],
+  matchIndex?: number,
+  numGroups?: number,
+  isHome?: boolean
+): string {
+  if (!source) return "";
+  
+  // Handle SEED references
+  if (source.startsWith("SEED:")) {
+    const seedNum = parseInt(source.split(":")[1]);
+    return `البذرة ${seedNum}`;
+  }
+  
+  // Handle WINNER_OF and LOSER_OF references
+  const [sourceType, sourceMatchId] = source.split(":");
+  if (!sourceMatchId) return "";
+  
+  const sourceMatch = allMatches.find(m => m.id === sourceMatchId);
+  if (!sourceMatch) return "";
+  
+  // إذا كانت المباراة المصدر من مرحلة المجموعات، استخدم التسمية البسيطة (أ1، ب2)
+  if (sourceMatch.stage === "group") {
+    const groupNum = sourceMatch.groupNumber || 1;
+    const position = sourceType === "WINNER_OF" ? 1 : 2;
+    return `${groupLetters[groupNum] || groupNum}${position}`;
+  }
+  
+  // للمباريات الأخرى، استخدم النص الوصفي
+  const stageLabel = stageLabels[sourceMatch.stage || ""] || sourceMatch.stage || "";
+  const matchLabel = getKnockoutMatchLabel(sourceMatch.stage || "", sourceMatch.bracketPosition || sourceMatch.round || 0);
+  
+  if (sourceType === "WINNER_OF") {
+    return `الفائز من ${matchLabel}`;
+  } else if (sourceType === "LOSER_OF") {
+    return `الخاسر من ${matchLabel}`;
+  }
+  
+  return "";
 }
 
 // Arabic group letters
@@ -67,7 +115,7 @@ function generateKnockoutPairings(numGroups: number): { home: string; away: stri
 function getPositionLabel(matchIndex: number, isHome: boolean, stage: string, numGroups: number = 2): string {
   // For final - winners from semi-finals
   if (stage === "final") {
-    return isHome ? "فائز 1" : "فائز 2";
+    return isHome ? "فائز نصف النهائي 1" : "فائز نصف النهائي 2";
   }
   
   // For third place match
@@ -120,66 +168,139 @@ function CompactMatchCard({
   isRightSide = false,
   matchIndex = 0,
   numGroups = 2,
+  allMatches = [],
+  isThirdPlace = false,
 }: { 
   match: MatchWithTeams; 
   groupStageComplete?: boolean;
   isRightSide?: boolean;
   matchIndex?: number;
   numGroups?: number;
+  allMatches?: MatchWithTeams[];
+  isThirdPlace?: boolean;
 }) {
   const isCompleted = match.status === "completed";
   const isLive = match.status === "live";
+  const isScheduled = match.status === "scheduled";
   const showScores = isCompleted || isLive;
   
   const homeWon = isCompleted && (match.homeScore ?? 0) > (match.awayScore ?? 0);
   const awayWon = isCompleted && (match.awayScore ?? 0) > (match.homeScore ?? 0);
+  
+  // Show penalty scores if match went to penalties
+  const showPenalties = isCompleted && (match as any).wentToPenalties && 
+    (match as any).homePenaltyScore !== null && (match as any).awayPenaltyScore !== null;
 
-  const homeTeamName = groupStageComplete 
-    ? (match.homeTeam?.name || "TBD") 
-    : getPositionLabel(matchIndex, true, match.stage || "semi_final", numGroups);
-  const awayTeamName = groupStageComplete 
-    ? (match.awayTeam?.name || "TBD") 
-    : getPositionLabel(matchIndex, false, match.stage || "semi_final", numGroups);
-
-  const getShortName = (name: string) => {
-    if (name === "TBD") return "TBD";
-    const words = name.split(/[\s&]+/).filter(w => w.length > 0);
-    if (words.length >= 2) {
-      return words.slice(0, 2).map(w => w.substring(0, 3).toUpperCase()).join(" ");
+  // Get intelligent team names - prefer actual team, then source text, then position label
+  let homeTeamName: string;
+  if (match.homeTeam?.name) {
+    homeTeamName = match.homeTeam.name;
+  } else if ((match as any).homeTeamSource) {
+    const sourceText = getIntelligentSourceText((match as any).homeTeamSource, allMatches, matchIndex, numGroups, true);
+    if (sourceText) {
+      homeTeamName = sourceText;
+    } else {
+      // إذا لم نجد نص ذكي، استخدم التسمية حسب الموضع (أ1، ب2، إلخ)
+      homeTeamName = getPositionLabel(matchIndex, true, match.stage || "semi_final", numGroups);
     }
-    return name.substring(0, 6).toUpperCase();
+  } else {
+    // استخدم التسمية حسب الموضع لإظهار التوزيع الصحيح (أ1 vs ب2)
+    homeTeamName = getPositionLabel(matchIndex, true, match.stage || "semi_final", numGroups);
+  }
+
+  let awayTeamName: string;
+  if (match.awayTeam?.name) {
+    awayTeamName = match.awayTeam.name;
+  } else if ((match as any).awayTeamSource) {
+    const sourceText = getIntelligentSourceText((match as any).awayTeamSource, allMatches, matchIndex, numGroups, false);
+    if (sourceText) {
+      awayTeamName = sourceText;
+    } else {
+      // إذا لم نجد نص ذكي، استخدم التسمية حسب الموضع (أ1، ب2، إلخ)
+      awayTeamName = getPositionLabel(matchIndex, false, match.stage || "semi_final", numGroups);
+    }
+  } else {
+    // استخدم التسمية حسب الموضع لإظهار التوزيع الصحيح (أ1 vs ب2)
+    awayTeamName = getPositionLabel(matchIndex, false, match.stage || "semi_final", numGroups);
+  }
+
+  // إرجاع النص الكامل بدون تقطيع
+  const getDisplayName = (name: string) => {
+    return name;
   };
+
+  // تحديد لون البطاقة حسب الحالة
+  const getCardBorderColor = () => {
+    if (isLive) return "border-red-500";
+    if (isCompleted) return "border-emerald-500";
+    if (isScheduled) return "border-blue-500";
+    return "border-primary/20";
+  };
+
+  const getCardBgColor = () => {
+    if (isLive) return "bg-red-500/5";
+    if (isCompleted) return "bg-emerald-500/5";
+    if (isScheduled) return "bg-blue-500/5";
+    return "bg-card";
+  };
+
+  // تصغير المركز الثالث بصرياً
+  const cardClasses = isThirdPlace 
+    ? `bg-card border-2 ${getCardBorderColor()} rounded-lg overflow-hidden cursor-pointer hover-elevate w-[180px] sm:w-[200px] shadow-sm opacity-75`
+    : `bg-card border-2 ${getCardBorderColor()} rounded-lg overflow-hidden cursor-pointer hover-elevate w-[180px] sm:w-[200px] shadow-md`;
 
   return (
     <Link href={`/matches/${match.id}`}>
       <motion.div
-        whileHover={{ scale: 1.03 }}
-        className="bg-card border-2 border-primary/20 rounded-lg overflow-hidden cursor-pointer hover-elevate w-[140px] shadow-md"
+        whileHover={{ scale: isThirdPlace ? 1.02 : 1.03 }}
+        className={cardClasses}
         data-testid={`bracket-match-${match.id}`}
       >
-        <div className={`flex items-center justify-between px-2 py-1 ${homeWon ? "bg-emerald-500/20" : "bg-muted/50"}`}>
-          <span className={`text-xs font-bold truncate flex-1 ${homeWon ? "text-emerald-600 dark:text-emerald-400" : ""} ${!groupStageComplete ? "text-muted-foreground italic" : ""}`}>
-            {getShortName(homeTeamName)}
+        <div className={`flex flex-col items-center justify-center ${isThirdPlace ? "px-1.5 py-1.5" : "px-2 py-2"} ${homeWon ? "bg-emerald-500/20" : "bg-muted/50"}`}>
+          <span className={`${isThirdPlace ? "text-[10px] sm:text-xs" : "text-xs sm:text-sm"} font-bold text-center break-words w-full ${homeWon ? "text-emerald-600 dark:text-emerald-400" : ""} ${!groupStageComplete && !match.homeTeam ? "text-muted-foreground italic" : ""}`}>
+            {getDisplayName(homeTeamName)}
           </span>
-          <span className={`text-xs font-bold min-w-[20px] text-center rounded px-1 ${homeWon ? "bg-emerald-500 text-white" : "bg-muted"}`}>
+          <span className={`${isThirdPlace ? "text-sm sm:text-base" : "text-base sm:text-lg"} font-bold min-w-[20px] sm:min-w-[24px] text-center rounded ${isThirdPlace ? "px-1" : "px-1.5"} mt-1 ${homeWon ? "bg-emerald-500 text-white" : "bg-muted"}`}>
             {showScores ? (match.homeScore ?? 0) : "-"}
           </span>
         </div>
 
-        <div className={`flex items-center justify-between px-2 py-1 ${awayWon ? "bg-emerald-500/20" : "bg-muted/50"}`}>
-          <span className={`text-xs font-bold truncate flex-1 ${awayWon ? "text-emerald-600 dark:text-emerald-400" : ""} ${!groupStageComplete ? "text-muted-foreground italic" : ""}`}>
-            {getShortName(awayTeamName)}
+        <div className={`flex flex-col items-center justify-center ${isThirdPlace ? "px-1.5 py-1.5" : "px-2 py-2"} ${awayWon ? "bg-emerald-500/20" : "bg-muted/50"}`}>
+          <span className={`${isThirdPlace ? "text-[10px] sm:text-xs" : "text-xs sm:text-sm"} font-bold text-center break-words w-full ${awayWon ? "text-emerald-600 dark:text-emerald-400" : ""} ${!groupStageComplete && !match.awayTeam ? "text-muted-foreground italic" : ""}`}>
+            {getDisplayName(awayTeamName)}
           </span>
-          <span className={`text-xs font-bold min-w-[20px] text-center rounded px-1 ${awayWon ? "bg-emerald-500 text-white" : "bg-muted"}`}>
+          <span className={`${isThirdPlace ? "text-sm sm:text-base" : "text-base sm:text-lg"} font-bold min-w-[20px] sm:min-w-[24px] text-center rounded ${isThirdPlace ? "px-1" : "px-1.5"} mt-1 ${awayWon ? "bg-emerald-500 text-white" : "bg-muted"}`}>
             {showScores ? (match.awayScore ?? 0) : "-"}
           </span>
         </div>
 
-        <div className="flex items-center justify-center px-1 py-0.5 bg-primary/5 text-[10px] text-muted-foreground">
+        {/* معلومات التاريخ والوقت والملعب */}
+        <div className={`${isThirdPlace ? "px-1.5 py-1" : "px-2 py-1.5"} ${getCardBgColor()} border-t border-border/50`}>
           {match.matchDate ? (
-            format(new Date(match.matchDate), "dd/MM/yyyy HH:mm", { locale: ar })
-          ) : (
-            "موعد غير محدد"
+            <div className={`flex items-center gap-0.5 sm:gap-1 ${isThirdPlace ? "text-[9px]" : "text-[10px] sm:text-xs"} text-muted-foreground mb-0.5 sm:mb-1`}>
+              <Calendar className={`${isThirdPlace ? "h-2.5 w-2.5" : "h-3 w-3"} flex-shrink-0`} />
+              <span>{format(new Date(match.matchDate), "dd/MM/yyyy", { locale: ar })}</span>
+            </div>
+          ) : null}
+          {match.matchDate ? (
+            <div className={`flex items-center gap-0.5 sm:gap-1 ${isThirdPlace ? "text-[9px]" : "text-[10px] sm:text-xs"} text-muted-foreground mb-0.5 sm:mb-1`}>
+              <Clock className={`${isThirdPlace ? "h-2.5 w-2.5" : "h-3 w-3"} flex-shrink-0`} />
+              <span dir="ltr">{format(new Date(match.matchDate), "HH:mm", { locale: ar })}</span>
+            </div>
+          ) : null}
+          {match.venue ? (
+            <div className={`flex items-center gap-0.5 sm:gap-1 ${isThirdPlace ? "text-[9px]" : "text-[10px] sm:text-xs"} text-muted-foreground`}>
+              <MapPin className={`${isThirdPlace ? "h-2.5 w-2.5" : "h-3 w-3"} flex-shrink-0`} />
+              <span className="truncate">{match.venue}</span>
+            </div>
+          ) : null}
+          {!match.matchDate && !match.venue && (
+            <span className={`${isThirdPlace ? "text-[9px]" : "text-[10px]"} text-muted-foreground`}>موعد غير محدد</span>
+          )}
+          {showPenalties && (
+            <div className={`mt-0.5 sm:mt-1 ${isThirdPlace ? "text-[9px]" : "text-[10px]"} font-bold text-primary`}>
+              ترجيح: {(match as any).homePenaltyScore}-{(match as any).awayPenaltyScore}
+            </div>
           )}
         </div>
       </motion.div>
@@ -230,11 +351,11 @@ function HorizontalBracket({
           <div className="flex flex-col gap-4">
             {hasR16 && (
               <div className="flex flex-col gap-8">
-                <div className="text-center text-xs font-medium text-muted-foreground mb-2">دور الـ 16</div>
+                <div className="text-center text-base font-medium text-muted-foreground mb-2">دور الـ 16</div>
                 {leftR16.map((match, i) => (
                   <div key={match.id} className="relative">
-                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} matchIndex={i} numGroups={numGroups} />
-                    <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} matchIndex={i} numGroups={numGroups} allMatches={matches} />
+                    <div className="absolute top-1/2 -left-4 w-4 h-1 bg-yellow-500/60" />
                   </div>
                 ))}
               </div>
@@ -244,12 +365,12 @@ function HorizontalBracket({
           {hasQF && (
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-20">
-                <div className="text-center text-xs font-medium text-muted-foreground mb-2">ربع النهائي</div>
+                <div className="text-center text-base font-medium text-muted-foreground mb-2">ربع النهائي</div>
                 {leftQF.map((match, i) => (
                   <div key={match.id} className="relative">
-                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} matchIndex={i} numGroups={numGroups} />
-                    <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
-                    <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} matchIndex={i} numGroups={numGroups} allMatches={matches} />
+                    <div className="absolute top-1/2 -left-4 w-4 h-1 bg-yellow-500/60" />
+                    <div className="absolute top-1/2 -right-4 w-4 h-1 bg-yellow-500/60" />
                   </div>
                 ))}
               </div>
@@ -259,12 +380,12 @@ function HorizontalBracket({
           {hasSF && (
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-32">
-                <div className="text-center text-xs font-medium text-muted-foreground mb-2">نصف النهائي</div>
+                <div className="text-center text-base font-medium text-muted-foreground mb-2">نصف النهائي</div>
                 {leftSF.map((match) => (
                   <div key={match.id} className="relative">
-                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} matchIndex={0} numGroups={numGroups} />
-                    <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
-                    <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} matchIndex={0} numGroups={numGroups} allMatches={matches} />
+                    <div className="absolute top-1/2 -left-4 w-4 h-1 bg-yellow-500/60" />
+                    <div className="absolute top-1/2 -right-4 w-4 h-1 bg-yellow-500/60" />
                   </div>
                 ))}
               </div>
@@ -286,14 +407,14 @@ function HorizontalBracket({
             
             {hasFinal && final && (
               <div className="mt-4">
-                <CompactMatchCard match={final} groupStageComplete={groupStageComplete} matchIndex={0} numGroups={numGroups} />
+                <CompactMatchCard match={final} groupStageComplete={groupStageComplete} matchIndex={0} numGroups={numGroups} allMatches={matches} />
               </div>
             )}
 
             {thirdPlace && (
               <div className="mt-4">
-                <div className="text-center text-xs font-medium text-muted-foreground mb-2">المركز الثالث</div>
-                <CompactMatchCard match={thirdPlace} groupStageComplete={groupStageComplete} matchIndex={0} numGroups={numGroups} />
+                <div className="text-center text-sm font-medium text-muted-foreground mb-1 opacity-75">المركز الثالث</div>
+                <CompactMatchCard match={thirdPlace} groupStageComplete={groupStageComplete} matchIndex={0} numGroups={numGroups} allMatches={matches} isThirdPlace={true} />
               </div>
             )}
           </div>
@@ -301,12 +422,12 @@ function HorizontalBracket({
           {hasSF && (
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-32">
-                <div className="text-center text-xs font-medium text-muted-foreground mb-2">نصف النهائي</div>
+                <div className="text-center text-base font-medium text-muted-foreground mb-2">نصف النهائي</div>
                 {rightSF.map((match) => (
                   <div key={match.id} className="relative">
-                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide matchIndex={1} numGroups={numGroups} />
-                    <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
-                    <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide matchIndex={1} numGroups={numGroups} allMatches={matches} />
+                    <div className="absolute top-1/2 -left-4 w-4 h-1 bg-yellow-500/60" />
+                    <div className="absolute top-1/2 -right-4 w-4 h-1 bg-yellow-500/60" />
                   </div>
                 ))}
               </div>
@@ -316,12 +437,12 @@ function HorizontalBracket({
           {hasQF && (
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-20">
-                <div className="text-center text-xs font-medium text-muted-foreground mb-2">ربع النهائي</div>
+                <div className="text-center text-base font-medium text-muted-foreground mb-2">ربع النهائي</div>
                 {rightQF.map((match, i) => (
                   <div key={match.id} className="relative">
-                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide matchIndex={i + 2} numGroups={numGroups} />
-                    <div className="absolute top-1/2 -left-4 w-4 h-px bg-primary/30" />
-                    <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide matchIndex={i + 2} numGroups={numGroups} allMatches={matches} />
+                    <div className="absolute top-1/2 -left-4 w-4 h-1 bg-yellow-500/60" />
+                    <div className="absolute top-1/2 -right-4 w-4 h-1 bg-yellow-500/60" />
                   </div>
                 ))}
               </div>
@@ -331,11 +452,11 @@ function HorizontalBracket({
           <div className="flex flex-col gap-4">
             {hasR16 && (
               <div className="flex flex-col gap-8">
-                <div className="text-center text-xs font-medium text-muted-foreground mb-2">دور الـ 16</div>
+                <div className="text-center text-base font-medium text-muted-foreground mb-2">دور الـ 16</div>
                 {rightR16.map((match, i) => (
                   <div key={match.id} className="relative">
-                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide matchIndex={i + 4} numGroups={numGroups} />
-                    <div className="absolute top-1/2 -right-4 w-4 h-px bg-primary/30" />
+                    <CompactMatchCard match={match} groupStageComplete={groupStageComplete} isRightSide matchIndex={i + 4} numGroups={numGroups} allMatches={matches} />
+                    <div className="absolute top-1/2 -right-4 w-4 h-1 bg-yellow-500/60" />
                   </div>
                 ))}
               </div>
@@ -370,9 +491,9 @@ function SimpleBracket({
       <div className="flex flex-col justify-center">
         {leftSF && (
           <div className="relative">
-            <div className="text-center text-xs font-medium text-muted-foreground mb-2">نصف النهائي</div>
-            <CompactMatchCard match={leftSF} groupStageComplete={groupStageComplete} matchIndex={0} numGroups={numGroups} />
-            <div className="absolute top-1/2 -left-2 md:-left-4 w-2 md:w-4 h-px bg-primary/40" />
+            <div className="text-center text-base font-medium text-muted-foreground mb-2">نصف النهائي</div>
+            <CompactMatchCard match={leftSF} groupStageComplete={groupStageComplete} matchIndex={0} numGroups={numGroups} allMatches={matches} />
+            <div className="absolute top-1/2 -left-2 md:-left-4 w-2 md:w-4 h-1 bg-yellow-500/70" />
           </div>
         )}
       </div>
@@ -396,22 +517,22 @@ function SimpleBracket({
         
         {final ? (
           <div>
-            <div className="text-center text-xs font-medium text-yellow-600 dark:text-yellow-400 mb-2">النهائي</div>
-            <CompactMatchCard match={final} groupStageComplete={groupStageComplete} matchIndex={0} numGroups={numGroups} />
+            <div className="text-center text-base font-medium text-yellow-600 dark:text-yellow-400 mb-2">النهائي</div>
+            <CompactMatchCard match={final} groupStageComplete={groupStageComplete} matchIndex={0} numGroups={numGroups} allMatches={matches} />
           </div>
         ) : (
           <div>
-            <div className="text-center text-xs font-medium text-yellow-600 dark:text-yellow-400 mb-2">النهائي</div>
-            <div className="bg-card border-2 border-dashed border-yellow-500/40 rounded-lg w-[140px] shadow-md">
-              <div className="flex items-center justify-between px-2 py-1 bg-muted/30">
-                <span className="text-xs font-bold text-muted-foreground italic">فائز 1</span>
-                <span className="text-xs font-bold min-w-[20px] text-center rounded px-1 bg-muted">-</span>
+            <div className="text-center text-base font-medium text-yellow-600 dark:text-yellow-400 mb-2">النهائي</div>
+            <div className="bg-card border-2 border-dashed border-yellow-500/40 rounded-lg w-[180px] sm:w-[200px] shadow-md">
+              <div className="flex flex-col items-center justify-center px-2 py-2 bg-muted/30">
+                <span className="text-xs sm:text-sm font-bold text-center break-words w-full text-muted-foreground italic">فائز نصف النهائي 1</span>
+                <span className="text-base sm:text-lg font-bold min-w-[24px] text-center rounded px-1.5 mt-1 bg-muted">-</span>
               </div>
-              <div className="flex items-center justify-between px-2 py-1 bg-muted/30">
-                <span className="text-xs font-bold text-muted-foreground italic">فائز 2</span>
-                <span className="text-xs font-bold min-w-[20px] text-center rounded px-1 bg-muted">-</span>
+              <div className="flex flex-col items-center justify-center px-2 py-2 bg-muted/30">
+                <span className="text-xs sm:text-sm font-bold text-center break-words w-full text-muted-foreground italic">فائز نصف النهائي 2</span>
+                <span className="text-base sm:text-lg font-bold min-w-[24px] text-center rounded px-1.5 mt-1 bg-muted">-</span>
               </div>
-              <div className="flex items-center justify-center px-1 py-0.5 bg-primary/5 text-[10px] text-muted-foreground">
+              <div className="flex items-center justify-center px-1 py-0.5 bg-primary/5 text-base text-muted-foreground">
                 موعد غير محدد
               </div>
             </div>
@@ -420,8 +541,8 @@ function SimpleBracket({
 
         {thirdPlace && (
           <div className="mt-2">
-            <div className="text-center text-[10px] font-medium text-muted-foreground mb-1">المركز الثالث</div>
-            <CompactMatchCard match={thirdPlace} groupStageComplete={groupStageComplete} matchIndex={0} numGroups={numGroups} />
+            <div className="text-center text-sm font-medium text-muted-foreground mb-1 opacity-75">المركز الثالث</div>
+                <CompactMatchCard match={thirdPlace} groupStageComplete={groupStageComplete} matchIndex={0} numGroups={numGroups} allMatches={matches} isThirdPlace={true} />
           </div>
         )}
       </div>
@@ -433,9 +554,9 @@ function SimpleBracket({
       <div className="flex flex-col justify-center">
         {rightSF && (
           <div className="relative">
-            <div className="text-center text-xs font-medium text-muted-foreground mb-2">نصف النهائي</div>
-            <CompactMatchCard match={rightSF} groupStageComplete={groupStageComplete} isRightSide matchIndex={1} numGroups={numGroups} />
-            <div className="absolute top-1/2 -right-2 md:-right-4 w-2 md:w-4 h-px bg-primary/40" />
+            <div className="text-center text-base font-medium text-muted-foreground mb-2">نصف النهائي</div>
+            <CompactMatchCard match={rightSF} groupStageComplete={groupStageComplete} isRightSide matchIndex={1} numGroups={numGroups} allMatches={matches} />
+            <div className="absolute top-1/2 -right-2 md:-right-4 w-2 md:w-4 h-1 bg-yellow-500/70" />
           </div>
         )}
       </div>
@@ -451,9 +572,9 @@ export function KnockoutBracket({ matches, tournament, groupStageComplete = true
       <div className="text-center py-12 text-muted-foreground">
         <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
         <p className="font-medium">لم تبدأ مرحلة خروج المغلوب بعد</p>
-        <p className="text-sm mt-2">ستظهر شجرة التصفيات عند بدء الأدوار الإقصائية</p>
+        <p className="text-base mt-2">ستظهر شجرة التصفيات عند بدء الأدوار الإقصائية</p>
         {!groupStageComplete && (
-          <p className="text-sm mt-4 text-orange-500">
+          <p className="text-base mt-4 text-orange-500">
             يجب إكمال مباريات المجموعات أولاً
           </p>
         )}
@@ -468,21 +589,22 @@ export function KnockoutBracket({ matches, tournament, groupStageComplete = true
 
   return (
     <div className="space-y-6">
-      <Card className="bg-gradient-to-b from-blue-950/50 to-blue-900/30 dark:from-blue-950/80 dark:to-blue-900/50 border-blue-500/20">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-white">
-              <Trophy className="h-5 w-5 text-yellow-400" />
-              شجرة خروج المغلوب
-            </div>
-            {!groupStageComplete && (
+      <Card className="relative border-blue-500/20 overflow-hidden">
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-30 dark:opacity-20"
+          style={{ backgroundImage: `url(${stadiumBackground})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-950/70 to-blue-900/50 dark:from-blue-950/80 dark:to-blue-900/60" />
+        {!groupStageComplete && (
+          <CardHeader className="pb-2 relative z-10">
+            <CardTitle className="flex items-center justify-end">
               <Badge variant="outline" className="text-orange-400 border-orange-400/30 bg-orange-500/10">
                 في انتظار نتائج المجموعات
               </Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+            </CardTitle>
+          </CardHeader>
+        )}
+        <CardContent className="relative z-10">
           {(hasR16 || hasQF) ? (
             <HorizontalBracket 
               matches={knockoutMatches} 
@@ -503,7 +625,7 @@ export function KnockoutBracket({ matches, tournament, groupStageComplete = true
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-xl">
             <Calendar className="h-4 w-4" />
             قائمة مباريات خروج المغلوب
           </CardTitle>
@@ -531,10 +653,10 @@ export function KnockoutBracket({ matches, tournament, groupStageComplete = true
                       data-testid={`list-match-${match.id}`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="w-6 h-6 flex items-center justify-center bg-primary/10 rounded-full text-xs font-bold text-primary">
+                        <span className="w-6 h-6 flex items-center justify-center bg-primary/10 rounded-full text-base font-bold text-primary">
                           {index + 1}
                         </span>
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-sm">
                           {getKnockoutMatchLabel(match.stage || "", matchIndex)}
                         </Badge>
                         <span className="font-medium">
@@ -565,7 +687,7 @@ export function KnockoutBracket({ matches, tournament, groupStageComplete = true
       {!groupStageComplete && (
         <Card className="border-orange-500/30 bg-orange-500/5">
           <CardContent className="py-4">
-            <div className="text-center text-sm text-orange-600 dark:text-orange-400">
+            <div className="text-center text-base text-orange-600 dark:text-orange-400">
               <p className="font-medium mb-1">نظام التوزيع في خروج المغلوب</p>
               <p className="text-muted-foreground">
                 الأول يواجه الثاني، الثالث يواجه الرابع، وهكذا

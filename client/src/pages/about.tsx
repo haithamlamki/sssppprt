@@ -1,4 +1,4 @@
-import { Target, Heart, Users, Trophy, TrendingUp, Award, Zap, Star } from "lucide-react";
+﻿import { Target, Heart, Users, Trophy, TrendingUp, Award, Zap, Star } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -71,13 +71,13 @@ export default function About() {
       <div className="container mx-auto px-4 md:px-6">
         {/* Header */}
         <div className="text-center space-y-4 mb-16">
-          <Badge variant="outline" className="text-base px-4 py-2" data-testid="badge-about">
+          <Badge variant="outline" className="text-sm px-4 py-2" data-testid="badge-about">
             من نحن
           </Badge>
-          <h1 className="text-4xl md:text-6xl font-display font-bold">
+          <h1 className="text-3xl md:text-4xl font-display font-bold">
             اللجنة الرياضية
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">
             شركة أبراج لخدمات الطاقة
           </p>
         </div>
@@ -85,10 +85,10 @@ export default function About() {
         {/* Introduction */}
         <Card className="mb-20">
           <CardContent className="p-12 md:p-16 space-y-6">
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-center mb-8">
+            <h2 className="text-2xl md:text-3xl font-display font-bold text-center mb-8">
               نبذة عن اللجنة
             </h2>
-            <p className="text-lg text-muted-foreground leading-relaxed text-center max-w-4xl mx-auto">
+            <p className="text-base text-muted-foreground leading-relaxed text-center max-w-4xl mx-auto">
               اللجنة الرياضية بشركة أبراج لخدمات الطاقة هي منظمة داخلية تهدف إلى تعزيز الصحة البدنية والنفسية للموظفين وأسرهم من خلال تنظيم وإدارة الأنشطة الرياضية والترفيهية المتنوعة. نؤمن بأن الموظف الصحي والسعيد هو أساس نجاح المؤسسة، ولذلك نسعى جاهدين لتوفير بيئة رياضية محفزة وداعمة تشجع على المشاركة الفعالة والتفاعل الإيجابي.
             </p>
           </CardContent>
@@ -102,9 +102,9 @@ export default function About() {
                 <div className="w-16 h-16 rounded-xl bg-primary text-primary-foreground flex items-center justify-center">
                   <Target className="h-9 w-9" />
                 </div>
-                <h3 className="text-3xl font-display font-bold">رؤيتنا</h3>
+                <h3 className="text-xl font-display font-bold">رؤيتنا</h3>
               </div>
-              <p className="text-lg text-muted-foreground leading-relaxed">
+              <p className="text-base text-muted-foreground leading-relaxed">
                 أن نكون المنصة الرياضية الأولى التي تجمع موظفي الشركة وأسرهم في بيئة رياضية محفزة وممتعة، نساهم من خلالها في بناء مجتمع صحي ومتماسك يعزز روح الانتماء والولاء للشركة.
               </p>
             </CardContent>
@@ -116,9 +116,9 @@ export default function About() {
                 <div className="w-16 h-16 rounded-xl bg-victory text-victory-foreground flex items-center justify-center">
                   <Heart className="h-9 w-9" />
                 </div>
-                <h3 className="text-3xl font-display font-bold">رسالتنا</h3>
+                <h3 className="text-xl font-display font-bold">رسالتنا</h3>
               </div>
-              <p className="text-lg text-muted-foreground leading-relaxed">
+              <p className="text-base text-muted-foreground leading-relaxed">
                 تنظيم فعاليات رياضية وترفيهية متنوعة على مدار العام، توفير المرافق الرياضية المناسبة، وتشجيع المشاركة الفعالة من جميع الموظفين بما يعزز الصحة البدنية والنفسية ويقوي روح الفريق.
               </p>
             </CardContent>
@@ -128,8 +128,8 @@ export default function About() {
         {/* Values */}
         <section className="mb-20">
           <div className="text-center space-y-4 mb-12">
-            <h2 className="text-3xl md:text-4xl font-display font-bold">قيمنا</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <h2 className="text-2xl md:text-3xl font-display font-bold">قيمنا</h2>
+            <p className="text-base text-muted-foreground max-w-2xl mx-auto">
               المبادئ التي توجه عملنا وأنشطتنا
             </p>
           </div>
@@ -152,8 +152,8 @@ export default function About() {
         {/* Objectives */}
         <section className="mb-20">
           <div className="text-center space-y-4 mb-12">
-            <h2 className="text-3xl md:text-4xl font-display font-bold">أهدافنا</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <h2 className="text-2xl md:text-3xl font-display font-bold">أهدافنا</h2>
+            <p className="text-base text-muted-foreground max-w-2xl mx-auto">
               ما نسعى لتحقيقه من خلال أنشطتنا وبرامجنا
             </p>
           </div>
@@ -167,8 +167,8 @@ export default function About() {
                       <objective.icon className="h-6 w-6 text-success" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-display font-bold mb-2">{objective.title}</h3>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
+                      <h3 className="text-xl font-display font-bold mb-2">{objective.title}</h3>
+                      <p className="text-base text-muted-foreground leading-relaxed">
                         {objective.description}
                       </p>
                     </div>
@@ -182,16 +182,16 @@ export default function About() {
         {/* Achievements Stats */}
         <Card className="bg-gradient-to-l from-primary via-victory to-success text-primary-foreground border-0">
           <CardContent className="p-12 md:p-16">
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-center mb-12">
+            <h2 className="text-2xl md:text-3xl font-display font-bold text-center mb-12">
               إنجازاتنا بالأرقام
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               {achievements.map((achievement, index) => (
                 <div key={index} className="text-center space-y-2" data-testid={`achievement-${index}`}>
-                  <div className="text-5xl md:text-6xl font-display font-bold">
+                  <div className="text-base md:text-base font-display font-bold">
                     {achievement.number}
                   </div>
-                  <div className="text-lg md:text-xl opacity-95">
+                  <div className="text-base md:text-base opacity-95">
                     {achievement.label}
                   </div>
                 </div>

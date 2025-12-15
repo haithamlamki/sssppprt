@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Trophy, Heart, Footprints, Dumbbell, Filter, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Gallery } from "@shared/schema";
+import { MediaComments } from "@/components/MediaComments";
 import footballImage from "@assets/generated_images/Football_tournament_event_d6ff718f.png";
 import familyImage from "@assets/generated_images/Family_sports_day_fb7dc0d7.png";
 import marathonImage from "@assets/generated_images/Marathon_running_event_b03a4441.png";
@@ -53,13 +54,13 @@ export default function GalleryPage() {
       <div className="container mx-auto px-4 md:px-6">
         {/* Header */}
         <div className="text-center space-y-4 mb-12">
-          <Badge variant="outline" className="text-base px-4 py-2" data-testid="badge-gallery">
+          <Badge variant="outline" className="text-sm px-4 py-2" data-testid="badge-gallery">
             معرض الصور
           </Badge>
-          <h1 className="text-4xl md:text-6xl font-display font-bold">
+          <h1 className="text-3xl md:text-4xl font-display font-bold">
             لحظات لا تُنسى
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">
             استعراض أجمل اللحظات من فعالياتنا وأنشطتنا الرياضية
           </p>
         </div>
@@ -91,7 +92,7 @@ export default function GalleryPage() {
             return (
               <Card 
                 key={item.id} 
-                className="overflow-hidden group hover-elevate active-elevate-2 transition-all cursor-pointer"
+                className="overflow-hidden group hover-elevate active-elevate-2 transition-all"
                 data-testid={`gallery-item-${item.id}`}
               >
                 <div className="relative h-64 overflow-hidden">
@@ -103,12 +104,15 @@ export default function GalleryPage() {
                   <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                     <Badge className="mb-2">{item.eventDate ? new Date(item.eventDate).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long' }) : ""}</Badge>
-                    <h3 className="text-lg font-bold text-foreground">{item.title}</h3>
+                    <h3 className="text-xl font-bold text-foreground">{item.title}</h3>
                     {item.description && (
-                      <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                      <p className="text-base text-muted-foreground mt-1">{item.description}</p>
                     )}
                   </div>
                 </div>
+                <CardContent className="p-4">
+                  <MediaComments mediaType="gallery" mediaId={item.id} />
+                </CardContent>
               </Card>
             );
           })}

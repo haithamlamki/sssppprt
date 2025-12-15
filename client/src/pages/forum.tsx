@@ -67,13 +67,13 @@ export default function Forum() {
       <div className="container mx-auto px-4 md:px-6 max-w-4xl">
         {/* Header */}
         <div className="text-center space-y-4 mb-8">
-          <Badge variant="outline" className="text-base px-4 py-2" data-testid="badge-forum">
+          <Badge variant="outline" className="text-sm px-4 py-2" data-testid="badge-forum">
             المنتدى التفاعلي
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-display font-bold">
+          <h1 className="text-3xl md:text-4xl font-display font-bold">
             تواصل مع زملائك
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base text-muted-foreground max-w-2xl mx-auto">
             شارك أفكارك وتجاربك الرياضية مع الجميع
           </p>
         </div>
@@ -99,7 +99,7 @@ export default function Forum() {
             <CreatePostDialog />
           ) : (
             <Button onClick={() => navigate("/login")} data-testid="button-login-to-post">
-              <Plus className="h-4 w-4 ml-2" />
+              <Plus className="h-4 w-4 mr-2" />
               سجل دخولك للمشاركة
             </Button>
           )}
@@ -189,7 +189,7 @@ function PostCard({
             </Avatar>
             <div>
               <p className="font-medium">{post.user.fullName}</p>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-base text-muted-foreground">
                 <span>{post.user.department}</span>
                 <span>·</span>
                 <span>{new Date(post.createdAt).toLocaleDateString('ar-SA')}</span>
@@ -232,7 +232,7 @@ function PostCard({
             className={isLiked ? "text-destructive" : ""}
             data-testid={`like-post-${post.id}`}
           >
-            <Heart className={`h-4 w-4 ml-1 ${isLiked ? "fill-current" : ""}`} />
+            <Heart className={`h-4 w-4 mr-1 ${isLiked ? "fill-current" : ""}`} />
             {likesCount}
           </Button>
           <Button
@@ -241,7 +241,7 @@ function PostCard({
             onClick={onToggleExpand}
             data-testid={`comments-post-${post.id}`}
           >
-            <MessageSquare className="h-4 w-4 ml-1" />
+            <MessageSquare className="h-4 w-4 mr-1" />
             {post.commentsCount} تعليق
           </Button>
         </div>
@@ -312,13 +312,13 @@ function CommentsSection({ postId }: { postId: string }) {
           {comments.map((comment) => (
             <div key={comment.id} className="flex gap-3 bg-muted/50 rounded-lg p-3">
               <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-xs">{comment.user.fullName.charAt(0)}</AvatarFallback>
+                <AvatarFallback className="text-base">{comment.user.fullName.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium">{comment.user.fullName}</p>
-                    <span className="text-xs text-muted-foreground">
+                    <p className="text-base font-medium">{comment.user.fullName}</p>
+                    <span className="text-base text-muted-foreground">
                       {new Date(comment.createdAt).toLocaleDateString('ar-SA')}
                     </span>
                   </div>
@@ -335,7 +335,7 @@ function CommentsSection({ postId }: { postId: string }) {
                     </Button>
                   )}
                 </div>
-                <p className="text-sm">{comment.content}</p>
+                <p className="text-base">{comment.content}</p>
               </div>
             </div>
           ))}
@@ -365,7 +365,7 @@ function CommentsSection({ postId }: { postId: string }) {
           </Button>
         </form>
       ) : (
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-base text-muted-foreground">
           سجل دخولك لإضافة تعليق
         </p>
       )}
@@ -407,7 +407,7 @@ function CreatePostDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button data-testid="button-create-post">
-          <Plus className="h-4 w-4 ml-2" />
+          <Plus className="h-4 w-4 mr-2" />
           منشور جديد
         </Button>
       </DialogTrigger>

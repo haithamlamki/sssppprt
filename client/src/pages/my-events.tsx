@@ -119,13 +119,13 @@ export default function MyEvents() {
       <div className="container mx-auto px-4 md:px-6">
         {/* Header */}
         <div className="text-center space-y-4 mb-12">
-          <Badge variant="outline" className="text-base px-4 py-2" data-testid="badge-my-events">
+          <Badge variant="outline" className="text-sm px-4 py-2" data-testid="badge-my-events">
             فعالياتي
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-display font-bold">
+          <h1 className="text-3xl md:text-4xl font-display font-bold">
             الفعاليات المسجل فيها
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base text-muted-foreground max-w-2xl mx-auto">
             تابع جميع الفعاليات التي سجلت فيها وإدارة مشاركاتك
           </p>
         </div>
@@ -154,7 +154,7 @@ export default function MyEvents() {
                 <Card key={registration.id} className="hover-elevate transition-all" data-testid={`card-registration-${registration.id}`}>
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start gap-2">
-                      <CardTitle className="text-lg font-display leading-tight">
+                      <CardTitle className="text-xl font-display leading-tight">
                         {event.title}
                       </CardTitle>
                       <Badge className={statusColors[registration.status]}>
@@ -166,7 +166,7 @@ export default function MyEvents() {
                     </Badge>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2 text-sm">
+                    <div className="space-y-2 text-base">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Calendar className="h-4 w-4" />
                         <span>
@@ -192,7 +192,7 @@ export default function MyEvents() {
 
                     {registration.teamName && (
                       <div className="bg-muted/50 rounded-md p-3">
-                        <p className="text-sm">
+                        <p className="text-base">
                           <span className="font-medium">الفريق:</span> {registration.teamName}
                         </p>
                       </div>
@@ -201,7 +201,7 @@ export default function MyEvents() {
                     <div className="flex gap-2 pt-2">
                       {isPast ? (
                         <Badge variant="outline" className="w-full justify-center py-2">
-                          <CheckCircle className="h-4 w-4 ml-1" />
+                          <CheckCircle className="h-4 w-4 mr-1" />
                           فعالية منتهية
                         </Badge>
                       ) : registration.status !== "cancelled" ? (
@@ -212,7 +212,7 @@ export default function MyEvents() {
                               className="w-full"
                               data-testid={`button-cancel-${registration.id}`}
                             >
-                              <Trash2 className="h-4 w-4 ml-1" />
+                              <Trash2 className="h-4 w-4 mr-1" />
                               إلغاء التسجيل
                             </Button>
                           </AlertDialogTrigger>
@@ -256,26 +256,26 @@ export default function MyEvents() {
         {registrations.length > 0 && (
           <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="p-6 text-center">
-              <p className="text-3xl font-bold text-primary">{registrations.length}</p>
-              <p className="text-sm text-muted-foreground">إجمالي التسجيلات</p>
+              <p className="text-base font-bold text-primary">{registrations.length}</p>
+              <p className="text-base text-muted-foreground">إجمالي التسجيلات</p>
             </Card>
             <Card className="p-6 text-center">
-              <p className="text-3xl font-bold text-success">
+              <p className="text-base font-bold text-success">
                 {registrations.filter((r) => r.status === "confirmed").length}
               </p>
-              <p className="text-sm text-muted-foreground">تسجيلات مؤكدة</p>
+              <p className="text-base text-muted-foreground">تسجيلات مؤكدة</p>
             </Card>
             <Card className="p-6 text-center">
-              <p className="text-3xl font-bold text-gold">
+              <p className="text-base font-bold text-gold">
                 {registrations.filter((r) => r.status === "waitlist").length}
               </p>
-              <p className="text-sm text-muted-foreground">قائمة انتظار</p>
+              <p className="text-base text-muted-foreground">قائمة انتظار</p>
             </Card>
             <Card className="p-6 text-center">
-              <p className="text-3xl font-bold text-muted-foreground">
+              <p className="text-base font-bold text-muted-foreground">
                 {registrations.filter((r) => r.status === "attended").length}
               </p>
-              <p className="text-sm text-muted-foreground">تم الحضور</p>
+              <p className="text-base text-muted-foreground">تم الحضور</p>
             </Card>
           </div>
         )}

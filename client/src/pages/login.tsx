@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,7 @@ export default function Login() {
               <Trophy className="w-12 h-12 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl">تسجيل الدخول</CardTitle>
+          <CardTitle className="text-xl">تسجيل الدخول</CardTitle>
           <CardDescription>
             مرحباً بك في اللجنة الرياضية - شركة أبراج
           </CardDescription>
@@ -96,7 +96,7 @@ export default function Login() {
             >
               {isLoading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
             </Button>
-            <div className="text-sm text-center text-muted-foreground">
+            <div className="text-base text-center text-muted-foreground">
               ليس لديك حساب؟{" "}
               <button
                 type="button"

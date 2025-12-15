@@ -1,9 +1,7 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import "dotenv/config";
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
-
-neonConfig.webSocketConstructor = ws;
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -11,5 +9,22 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Parse DATABASE_URL - handle special characters in password
+let connectionString = process.env.DATABASE_URL;
+// URL constructor doesn't handle special chars in password, so parse manually
+const match = connectionString.match(/^postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)$/);
+if (!match) {
+  throw new Error("Invalid DATABASE_URL format");
+}
+
+const [, user, password, host, port, database] = match;
+
+export const pool = new Pool({ 
+  host,
+  port: parseInt(port, 10),
+  database,
+  user,
+  password,
+  ssl: { rejectUnauthorized: false } // Supabase requires SSL
+});
 export const db = drizzle({ client: pool, schema });

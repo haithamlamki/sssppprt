@@ -37,6 +37,18 @@ import {
   type InsertMatchLineup,
   type MatchComment,
   type InsertMatchComment,
+  type TournamentComment,
+  type InsertTournamentComment,
+  type TeamChatMessage,
+  type InsertTeamChatMessage,
+  type MediaComment,
+  type InsertMediaComment,
+  type CommentReaction,
+  type InsertCommentReaction,
+  type PollVote,
+  type InsertPollVote,
+  type ChatMessage,
+  type InsertChatMessage,
   type TeamEvaluation,
   type InsertTeamEvaluation,
   type Referee,
@@ -63,12 +75,23 @@ import {
   matchEvents,
   matchLineups,
   matchComments,
+  tournamentComments,
+  teamChatRooms,
+  teamChatMessages,
+  eventHubs,
+  polls,
+  pollVotes,
+  mediaComments,
+  commentReactions,
+  chatRooms,
+  chatRoomMembers,
+  chatMessages,
   teamEvaluations,
   referees,
   siteSettings
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and, asc } from "drizzle-orm";
+import { eq, desc, sql, and, asc, inArray } from "drizzle-orm";
 
 // Helper to create a Date with proper Muscat timezone (UTC+4)
 // This ensures the entered wall-clock time is preserved when stored/displayed
@@ -119,6 +142,8 @@ export interface IStorage {
   getAllEvents(): Promise<Event[]>;
   getEventById(id: string): Promise<Event | undefined>;
   createEvent(event: InsertEvent): Promise<Event>;
+  updateEvent(id: string, updates: Partial<Event>): Promise<Event | undefined>;
+  deleteEvent(id: string): Promise<boolean>;
   
   // News
   getAllNews(): Promise<News[]>;
@@ -232,6 +257,7 @@ export interface IStorage {
   getMatchEvents(matchId: string): Promise<MatchEvent[]>;
   createMatchEvent(event: InsertMatchEvent): Promise<MatchEvent>;
   deleteMatchEvent(id: string): Promise<boolean>;
+  recalculatePlayerStats(tournamentId?: string): Promise<{ playersUpdated: number }>;
   
   // Match Lineups
   getMatchLineups(matchId: string, teamId?: string): Promise<MatchLineup[]>;
@@ -243,6 +269,46 @@ export interface IStorage {
   getMatchComments(matchId: string): Promise<MatchCommentWithUser[]>;
   createMatchComment(comment: InsertMatchComment): Promise<MatchComment>;
   deleteMatchComment(id: string, userId: string): Promise<boolean>;
+  
+  // Tournament Comments
+  getTournamentComments(tournamentId: string): Promise<(TournamentComment & { user: { id: string; fullName: string } })[]>;
+  createTournamentComment(comment: InsertTournamentComment): Promise<TournamentComment>;
+  deleteTournamentComment(id: string, userId: string): Promise<boolean>;
+  
+  // Team Chats
+  getTeamChatRoom(teamId: string): Promise<{ id: string; teamId: string; name: string } | null>;
+  getTeamChatMessages(roomId: string): Promise<(TeamChatMessage & { user: { id: string; fullName: string } })[]>;
+  createTeamChatMessage(message: InsertTeamChatMessage): Promise<TeamChatMessage>;
+  checkTeamMemberAccess(teamId: string, userId: string): Promise<boolean>;
+  
+  // Event Hubs
+  getEventHub(id: string): Promise<(typeof eventHubs.$inferSelect & { polls: any[] }) | null>;
+  getEventHubs(tournamentId?: string, matchId?: string): Promise<typeof eventHubs.$inferSelect[]>;
+  createEventHub(hub: { tournamentId?: string; matchId?: string; title: string; description?: string }): Promise<typeof eventHubs.$inferSelect>;
+  getHubPolls(hubId: string): Promise<(typeof polls.$inferSelect & { votes: typeof pollVotes.$inferSelect[] })[]>;
+  createPoll(poll: { hubId: string; question: string; type: string; options: string; closesAt?: Date }): Promise<typeof polls.$inferSelect>;
+  votePoll(vote: InsertPollVote): Promise<PollVote>;
+  getPollResults(pollId: string): Promise<{ option: string; votes: number; percentage: number }[]>;
+  hasUserVoted(pollId: string, userId: string): Promise<boolean>;
+  
+  // Media Comments
+  getMediaComments(mediaType: string, mediaId: string): Promise<(MediaComment & { user: { id: string; fullName: string } })[]>;
+  createMediaComment(comment: InsertMediaComment): Promise<MediaComment>;
+  deleteMediaComment(id: string, userId: string): Promise<boolean>;
+  
+  // Reactions
+  addReaction(reaction: InsertCommentReaction): Promise<CommentReaction>;
+  removeReaction(commentType: string, commentId: string, userId: string): Promise<boolean>;
+  getCommentReactions(commentType: string, commentId: string): Promise<{ reactionType: string; count: number; userReaction?: string }[]>;
+  
+  // Private Chats
+  getUserChatRooms(userId: string): Promise<(typeof chatRooms.$inferSelect & { members: { userId: string; fullName: string }[]; lastMessage?: { content: string; createdAt: Date } })[]>;
+  createChatRoom(room: { type: string; name?: string; createdBy: string; memberIds: string[] }): Promise<typeof chatRooms.$inferSelect>;
+  addChatMember(roomId: string, userId: string): Promise<void>;
+  getChatMessages(roomId: string): Promise<(ChatMessage & { user: { id: string; fullName: string } })[]>;
+  createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
+  markChatAsRead(roomId: string, userId: string): Promise<void>;
+  getUnreadCount(roomId: string, userId: string): Promise<number>;
   
   // Team Evaluations
   getTeamEvaluations(teamId: string): Promise<TeamEvaluation[]>;
@@ -274,6 +340,23 @@ export class DatabaseStorage implements IStorage {
   async createEvent(insertEvent: InsertEvent): Promise<Event> {
     const [event] = await db.insert(events).values(insertEvent).returning();
     return event;
+  }
+
+  async updateEvent(id: string, updates: Partial<Event>): Promise<Event | undefined> {
+    const [updated] = await db
+      .update(events)
+      .set(updates)
+      .where(eq(events.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteEvent(id: string): Promise<boolean> {
+    // First delete all registrations for this event
+    await db.delete(eventRegistrations).where(eq(eventRegistrations.eventId, id));
+    // Then delete the event
+    const result = await db.delete(events).where(eq(events.id, id)).returning();
+    return result.length > 0;
   }
 
   // News
@@ -670,6 +753,18 @@ export class DatabaseStorage implements IStorage {
         shiftPattern: "normal",
         role: "admin",
       },
+      {
+        username: "haithamlamki",
+        password: hashedPassword,
+        fullName: "حساب مسؤول النظام",
+        email: "haithamlamki@gmail.com",
+        employeeId: "SYS001",
+        department: "نظم المعلومات",
+        position: "مسؤول النظام",
+        phoneNumber: "",
+        shiftPattern: "normal",
+        role: "admin",
+      },
     ]);
 
     // Sample Events
@@ -1026,22 +1121,66 @@ export class DatabaseStorage implements IStorage {
     const teamIds = tournamentTeams.map(t => t.id);
     if (teamIds.length === 0) return [];
 
+    // Get all matches for this tournament
+    const tournamentMatches = await db
+      .select({ id: matches.id })
+      .from(matches)
+      .where(eq(matches.tournamentId, tournamentId));
+    const matchIds = tournamentMatches.map(m => m.id);
+
+    // Get all goal events for this tournament (only 'goal', exclude 'own_goal')
+    let goalEvents: typeof matchEvents.$inferSelect[] = [];
+    if (matchIds.length > 0) {
+      goalEvents = await db
+        .select()
+        .from(matchEvents)
+        .where(and(
+          inArray(matchEvents.matchId, matchIds),
+          eq(matchEvents.eventType, 'goal')
+        ));
+    }
+
+    // Count goals by player (only count events with playerId and eventType 'goal')
+    const goalsByPlayer: Record<string, number> = {};
+    for (const event of goalEvents) {
+      // Double check: only count 'goal' type, exclude 'own_goal', and must have playerId
+      if (event.playerId && event.eventType === 'goal') {
+        goalsByPlayer[event.playerId] = (goalsByPlayer[event.playerId] || 0) + 1;
+      }
+    }
+
+    // Get all players from tournament teams
     const allPlayers = await db
       .select()
       .from(players)
-      .orderBy(desc(players.goals));
+      .where(inArray(players.teamId, teamIds));
 
+    // Create scorer entries with actual goal counts from events
     const scorers: PlayerWithTeam[] = [];
     for (const player of allPlayers) {
-      if (player.teamId && teamIds.includes(player.teamId) && player.goals > 0) {
+      const actualGoals = goalsByPlayer[player.id] || 0;
+      if (actualGoals > 0 && player.teamId) {
         const team = tournamentTeams.find(t => t.id === player.teamId);
         if (team) {
-          scorers.push({ ...player, team });
-          if (scorers.length >= limit) break;
+          scorers.push({ 
+            ...player, 
+            goals: actualGoals, // Use actual count from events
+            team 
+          });
         }
       }
     }
-    return scorers;
+
+    // Sort by goals (descending) and limit
+    scorers.sort((a, b) => b.goals - a.goals);
+    
+    // Debug logging
+    console.log(`[getTopScorers] Tournament: ${tournamentId}, Found ${scorers.length} scorers`);
+    if (scorers.length > 0) {
+      console.log(`[getTopScorers] Top 3:`, scorers.slice(0, 3).map(s => ({ name: s.name, goals: s.goals })));
+    }
+    
+    return scorers.slice(0, limit);
   }
 
   // Referees
@@ -1129,22 +1268,164 @@ export class DatabaseStorage implements IStorage {
     return match;
   }
 
+  /**
+   * Update match with automatic propagation to next matches
+   * Handles winner/loser propagation and penalty logic
+   * Includes time conflict checking with buffer
+   */
   async updateMatch(id: string, updates: Partial<Match>): Promise<Match | undefined> {
-    const [match] = await db
+    const currentMatch = await this.getMatchById(id);
+    if (!currentMatch) return undefined;
+
+    const tournament = await this.getTournamentById(currentMatch.tournamentId);
+    if (!tournament) throw new Error("Tournament not found");
+
+    // 4) Check time conflicts with buffer (if matchDate or venue is being updated)
+    if (updates.matchDate || updates.venue) {
+      const matchDate = updates.matchDate ? new Date(updates.matchDate) : (currentMatch.matchDate ? new Date(currentMatch.matchDate) : null);
+      const venue = updates.venue ?? currentMatch.venue;
+      
+      if (matchDate && venue) {
+        // Parse schedule config for buffer
+        const scheduleConfig = tournament.scheduleConfig 
+          ? JSON.parse(tournament.scheduleConfig) 
+          : { bufferMinutes: 30 };
+        const bufferMinutes = scheduleConfig.bufferMinutes || 30;
+        const matchDurationMinutes = (tournament.halfDuration || 45) * 2 + (tournament.breakBetweenHalves || 15);
+        
+        // Calculate match time range
+        const matchStart = new Date(matchDate);
+        const matchEnd = new Date(matchDate);
+        matchEnd.setMinutes(matchEnd.getMinutes() + matchDurationMinutes + bufferMinutes);
+        
+        // Check for conflicts with other matches at same venue
+        const allMatches = await this.getMatchesByTournament(currentMatch.tournamentId);
+        const conflictingMatch = allMatches.find(m => {
+          if (m.id === id || !m.matchDate || m.venue !== venue) return false;
+          
+          const otherStart = new Date(m.matchDate);
+          const otherEnd = new Date(m.matchDate);
+          otherEnd.setMinutes(otherEnd.getMinutes() + matchDurationMinutes + bufferMinutes);
+          
+          // Check if time ranges overlap
+          return (matchStart < otherEnd && matchEnd > otherStart);
+        });
+        
+        if (conflictingMatch) {
+          throw new Error(`تعارض في المواعيد: يوجد مباراة أخرى في نفس الملعب في نفس الوقت`);
+        }
+      }
+    }
+
+    // 2) Handle Penalty Logic for Knockout Matches
+    if (currentMatch.stage && ['semi_final', 'quarter_final', 'round_of_16', 'final', 'third_place'].includes(currentMatch.stage)) {
+      const homeScore = updates.homeScore ?? currentMatch.homeScore ?? 0;
+      const awayScore = updates.awayScore ?? currentMatch.awayScore ?? 0;
+      const homePenalty = updates.homePenaltyScore ?? currentMatch.homePenaltyScore;
+      const awayPenalty = updates.awayPenaltyScore ?? currentMatch.awayPenaltyScore;
+      
+      // If scores are equal, require penalties
+      if (homeScore === awayScore && homeScore !== null && awayScore !== null) {
+        if (homePenalty === null || awayPenalty === null || homePenalty === awayPenalty) {
+          // Match cannot be completed without penalty winner
+          if (updates.status === 'completed') {
+            throw new Error("لا يمكن إنهاء المباراة بدون تحديد الفائز بالترجيح");
+          }
+        } else {
+          // Determine winner from penalties
+          const winnerId = homePenalty > awayPenalty ? currentMatch.homeTeamId : currentMatch.awayTeamId;
+          const loserId = homePenalty > awayPenalty ? currentMatch.awayTeamId : currentMatch.homeTeamId;
+          
+          updates.winnerTeamId = winnerId;
+          updates.loserTeamId = loserId;
+          updates.wentToPenalties = true;
+        }
+      } else if (homeScore !== null && awayScore !== null) {
+        // Regular winner (no penalties needed)
+        const winnerId = homeScore > awayScore ? currentMatch.homeTeamId : currentMatch.awayTeamId;
+        const loserId = homeScore > awayScore ? currentMatch.awayTeamId : currentMatch.homeTeamId;
+        
+        updates.winnerTeamId = winnerId;
+        updates.loserTeamId = loserId;
+        updates.wentToPenalties = false;
+      }
+      
+      // Prevent status = completed without winner
+      if (updates.status === 'completed' && !updates.winnerTeamId && !currentMatch.winnerTeamId) {
+        throw new Error("لا يمكن إنهاء المباراة بدون تحديد الفائز");
+      }
+    }
+
+    // Update the match
+    const [updatedMatch] = await db
       .update(matches)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(matches.id, id))
       .returning();
     
-    // If score is updated, recalculate standings
+    // 3) Propagation: Update next matches automatically
+    if (updatedMatch && updatedMatch.winnerTeamId) {
+      await this.propagateMatchResult(id, updatedMatch.winnerTeamId, updatedMatch.loserTeamId);
+    }
+    
+    // If score is updated, recalculate standings (for group/league matches)
     if (updates.homeScore !== undefined || updates.awayScore !== undefined) {
       const fullMatch = await this.getMatchById(id);
-      if (fullMatch) {
+      if (fullMatch && (fullMatch.stage === 'group' || fullMatch.stage === 'league')) {
         await this.updateTeamStandings(fullMatch.tournamentId);
       }
     }
     
-    return match;
+    return updatedMatch;
+  }
+
+  /**
+   * Propagate match result to next matches in knockout bracket
+   */
+  private async propagateMatchResult(matchId: string, winnerId: string | null, loserId: string | null): Promise<void> {
+    if (!winnerId) return;
+
+    // Find all matches that reference this match as source
+    const allMatches = await db.select().from(matches);
+    
+    for (const nextMatch of allMatches) {
+      let needsUpdate = false;
+      const updates: Partial<Match> = {};
+      
+      // Check home team source
+      if (nextMatch.homeTeamSource) {
+        const [sourceType, sourceMatchId] = nextMatch.homeTeamSource.split(':');
+        if (sourceMatchId === matchId) {
+          if (sourceType === 'WINNER_OF' && winnerId) {
+            updates.homeTeamId = winnerId;
+            needsUpdate = true;
+          } else if (sourceType === 'LOSER_OF' && loserId) {
+            updates.homeTeamId = loserId;
+            needsUpdate = true;
+          }
+        }
+      }
+      
+      // Check away team source
+      if (nextMatch.awayTeamSource) {
+        const [sourceType, sourceMatchId] = nextMatch.awayTeamSource.split(':');
+        if (sourceMatchId === matchId) {
+          if (sourceType === 'WINNER_OF' && winnerId) {
+            updates.awayTeamId = winnerId;
+            needsUpdate = true;
+          } else if (sourceType === 'LOSER_OF' && loserId) {
+            updates.awayTeamId = loserId;
+            needsUpdate = true;
+          }
+        }
+      }
+      
+      if (needsUpdate) {
+        await db.update(matches)
+          .set(updates)
+          .where(eq(matches.id, nextMatch.id));
+      }
+    }
   }
 
   async deleteMatch(id: string): Promise<boolean> {
@@ -1349,6 +1630,10 @@ export class DatabaseStorage implements IStorage {
     return generatedMatches;
   }
 
+  /**
+   * Advanced Seeding Engine for Knockout Bracket Generation
+   * Supports any number of groups with intelligent seeding and propagation
+   */
   async generateKnockoutMatchesFromGroups(tournamentId: string): Promise<Match[]> {
     const tournament = await this.getTournamentById(tournamentId);
     if (!tournament) throw new Error("Tournament not found");
@@ -1356,7 +1641,7 @@ export class DatabaseStorage implements IStorage {
 
     const tournamentTeams = await this.getTeamsByTournament(tournamentId);
     
-    // Group teams by groupNumber and sort by points
+    // A) Determine Qualified Teams
     const groupedTeams: Record<number, Team[]> = {};
     for (const team of tournamentTeams) {
       const groupNum = team.groupNumber || 0;
@@ -1375,23 +1660,60 @@ export class DatabaseStorage implements IStorage {
       });
     }
 
-    // Get qualified teams (top 2 from each group)
-    const qualifiedTeams: { team: Team; position: number; groupNumber: number }[] = [];
+    const teamsAdvancingPerGroup = tournament.teamsAdvancingPerGroup || 2;
+    const qualifiedTeams: { team: Team; position: number; groupNumber: number; seed: number }[] = [];
     const groups = Object.keys(groupedTeams).map(Number).sort((a, b) => a - b);
+    
+    // Collect all group winners first, then runners-up
+    const groupWinners: { team: Team; position: number; groupNumber: number }[] = [];
+    const groupRunnersUp: { team: Team; position: number; groupNumber: number }[] = [];
     
     for (const groupNum of groups) {
       const groupTeams = groupedTeams[groupNum];
-      if (groupTeams.length >= 2) {
-        qualifiedTeams.push({ team: groupTeams[0], position: 1, groupNumber: groupNum });
-        qualifiedTeams.push({ team: groupTeams[1], position: 2, groupNumber: groupNum });
+      for (let pos = 1; pos <= Math.min(teamsAdvancingPerGroup, groupTeams.length); pos++) {
+        const qualifier = { team: groupTeams[pos - 1], position: pos, groupNumber: groupNum };
+        if (pos === 1) {
+          groupWinners.push(qualifier);
+        } else {
+          groupRunnersUp.push(qualifier);
+        }
       }
     }
 
-    if (qualifiedTeams.length < 2) {
+    // Sort winners and runners-up by overall performance
+    const sortQualifiers = (a: typeof groupWinners[0], b: typeof groupWinners[0]) => {
+      if (b.team.points !== a.team.points) return b.team.points - a.team.points;
+      if (b.team.goalDifference !== a.team.goalDifference) return b.team.goalDifference - a.team.goalDifference;
+      return b.team.goalsFor - a.team.goalsFor;
+    };
+    
+    groupWinners.sort(sortQualifiers);
+    groupRunnersUp.sort(sortQualifiers);
+
+    // Assign seeds: Seeds 1..G = Winners, Seeds G+1..2G = Runners-up
+    let seedNumber = 1;
+    for (const winner of groupWinners) {
+      qualifiedTeams.push({ ...winner, seed: seedNumber++ });
+    }
+    for (const runnerUp of groupRunnersUp) {
+      qualifiedTeams.push({ ...runnerUp, seed: seedNumber++ });
+    }
+
+    const Q = qualifiedTeams.length; // Number of qualified teams
+    if (Q < 2) {
       throw new Error("Not enough qualified teams for knockout stage");
     }
 
-    // Delete existing knockout matches
+    // B) Determine Bracket Size (next power of 2)
+    const getNextPowerOf2 = (n: number): number => {
+      if (n <= 2) return 2;
+      return Math.pow(2, Math.ceil(Math.log2(n)));
+    };
+    
+    const B = getNextPowerOf2(Q); // Bracket size
+    const byes = B - Q; // Number of byes
+
+    // C) Delete existing knockout matches
     await db.delete(matches)
       .where(
         and(
@@ -1400,85 +1722,187 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
-    const generatedMatches: Match[] = [];
-    const numQualified = qualifiedTeams.length;
+    // D) Generate First Round Matchups with Seeding
+    // Standard seeding: Seed 1 vs Seed B, Seed 2 vs Seed B-1, etc.
+    const firstRoundMatches: Array<{
+      homeSeed: number | null;
+      awaySeed: number | null;
+      homeTeamId: string | null;
+      awayTeamId: string | null;
+      homeTeamSource: string | null;
+      awayTeamSource: string | null;
+      bracketPosition: number;
+    }> = [];
 
-    // Determine the stage based on number of teams
-    let stage: string;
-    if (numQualified >= 16) stage = 'round_of_16';
-    else if (numQualified >= 8) stage = 'quarter_final';
-    else if (numQualified >= 4) stage = 'semi_final';
-    else stage = 'final';
-
-    // Generate matchups: 1st of group A vs 2nd of group B, etc.
-    const matchups: { home: Team; away: Team }[] = [];
+    // Top seeds get byes (skip first round)
+    const teamsWithByes = Math.min(byes, qualifiedTeams.length);
+    const teamsInFirstRound = Q - teamsWithByes;
     
-    if (groups.length >= 2) {
-      // Cross-group matching: 1st of group plays 2nd of another group
-      for (let i = 0; i < groups.length; i += 2) {
-        const groupA = groups[i];
-        const groupB = groups[i + 1] || groups[i];
-        
-        const firstA = qualifiedTeams.find(t => t.groupNumber === groupA && t.position === 1);
-        const secondB = qualifiedTeams.find(t => t.groupNumber === groupB && t.position === 2);
-        const firstB = qualifiedTeams.find(t => t.groupNumber === groupB && t.position === 1);
-        const secondA = qualifiedTeams.find(t => t.groupNumber === groupA && t.position === 2);
-        
-        if (firstA && secondB) {
-          matchups.push({ home: firstA.team, away: secondB.team });
-        }
-        if (firstB && secondA && groupA !== groupB) {
-          matchups.push({ home: firstB.team, away: secondA.team });
+    // Create first round matchups
+    for (let i = 0; i < teamsInFirstRound / 2; i++) {
+      const homeSeed = teamsWithByes + i + 1;
+      const awaySeed = B - i;
+      
+      const homeQualifier = qualifiedTeams.find(q => q.seed === homeSeed);
+      const awayQualifier = qualifiedTeams.find(q => q.seed === awaySeed);
+      
+      // Avoid same-group matchups (greedy swap)
+      if (homeQualifier && awayQualifier && homeQualifier.groupNumber === awayQualifier.groupNumber) {
+        // Swap with next available seed
+        const swapCandidate = qualifiedTeams.find(q => 
+          q.seed !== homeSeed && 
+          q.seed !== awaySeed && 
+          q.groupNumber !== homeQualifier.groupNumber &&
+          !firstRoundMatches.some(m => m.homeSeed === q.seed || m.awaySeed === q.seed)
+        );
+        if (swapCandidate) {
+          const temp = awaySeed;
+          // Use swapCandidate instead
+          const newAwayQualifier = swapCandidate;
+          firstRoundMatches.push({
+            homeSeed: homeQualifier.seed,
+            awaySeed: newAwayQualifier.seed,
+            homeTeamId: homeQualifier.team.id,
+            awayTeamId: newAwayQualifier.team.id,
+            homeTeamSource: `SEED:${homeQualifier.seed}`,
+            awayTeamSource: `SEED:${newAwayQualifier.seed}`,
+            bracketPosition: i + 1,
+          });
+          continue;
         }
       }
-    } else {
-      // Single group: just match 1st vs 2nd
-      const first = qualifiedTeams.find(t => t.position === 1);
-      const second = qualifiedTeams.find(t => t.position === 2);
-      if (first && second) {
-        matchups.push({ home: first.team, away: second.team });
-      }
+      
+      firstRoundMatches.push({
+        homeSeed: homeQualifier?.seed || null,
+        awaySeed: awayQualifier?.seed || null,
+        homeTeamId: homeQualifier?.team.id || null,
+        awayTeamId: awayQualifier?.team.id || null,
+        homeTeamSource: homeQualifier ? `SEED:${homeQualifier.seed}` : null,
+        awayTeamSource: awayQualifier ? `SEED:${awayQualifier.seed}` : null,
+        bracketPosition: i + 1,
+      });
     }
 
-    // Create matches
-    const baseDate = new Date();
-    baseDate.setDate(baseDate.getDate() + 7); // Start a week from now
+    // Determine stages based on bracket size
+    const stageDefinitions: Array<{ stage: string; matchCount: number; round: number }> = [];
+    if (B >= 16) {
+      stageDefinitions.push({ stage: 'round_of_16', matchCount: 8, round: 1 });
+      stageDefinitions.push({ stage: 'quarter_final', matchCount: 4, round: 2 });
+      stageDefinitions.push({ stage: 'semi_final', matchCount: 2, round: 3 });
+    } else if (B >= 8) {
+      stageDefinitions.push({ stage: 'quarter_final', matchCount: 4, round: 1 });
+      stageDefinitions.push({ stage: 'semi_final', matchCount: 2, round: 2 });
+    } else if (B >= 4) {
+      stageDefinitions.push({ stage: 'semi_final', matchCount: 2, round: 1 });
+    }
 
-    for (let i = 0; i < matchups.length; i++) {
-      const matchup = matchups[i];
-      const matchDate = new Date(baseDate);
-      matchDate.setDate(matchDate.getDate() + Math.floor(i / 2) * 2);
+    // E) Generate all knockout matches with propagation
+    const generatedMatches: Match[] = [];
+    const matchMap: Map<string, Match> = new Map(); // For propagation references
+    
+    // Parse schedule config for buffer
+    const scheduleConfig = tournament.scheduleConfig 
+      ? JSON.parse(tournament.scheduleConfig) 
+      : { dailyStartTime: "16:00", matchesPerDayPerVenue: 3 };
+    const bufferMinutes = scheduleConfig.bufferMinutes || 30;
+    const matchDurationMinutes = (tournament.halfDuration || 45) * 2 + (tournament.breakBetweenHalves || 15);
+    
+    // Calculate base date (start from group stage end or now + 7 days)
+    const baseDate = tournament.endDate ? new Date(tournament.endDate) : new Date();
+    if (!tournament.endDate) {
+      baseDate.setDate(baseDate.getDate() + 7);
+    }
+    baseDate.setHours(parseInt(scheduleConfig.dailyStartTime?.split(':')[0] || '16'), parseInt(scheduleConfig.dailyStartTime?.split(':')[1] || '0'), 0, 0);
 
+    // Create first round matches
+    let currentDate = new Date(baseDate);
+    let matchIndex = 0;
+    
+    for (const firstRoundMatch of firstRoundMatches) {
       const [match] = await db.insert(matches).values({
         tournamentId,
-        homeTeamId: matchup.home.id,
-        awayTeamId: matchup.away.id,
-        round: i + 1,
+        homeTeamId: firstRoundMatch.homeTeamId,
+        awayTeamId: firstRoundMatch.awayTeamId,
+        homeTeamSource: firstRoundMatch.homeTeamSource,
+        awayTeamSource: firstRoundMatch.awayTeamSource,
+        round: 1,
         leg: 1,
-        stage,
-        matchDate,
+        stage: stageDefinitions[0]?.stage || 'semi_final',
+        bracketPosition: firstRoundMatch.bracketPosition,
+        matchDate: new Date(currentDate),
         venue: tournament.venues && tournament.venues.length > 0 
-          ? tournament.venues[i % tournament.venues.length] 
+          ? tournament.venues[matchIndex % tournament.venues.length] 
           : null,
         status: 'scheduled',
       }).returning();
       
       generatedMatches.push(match);
+      matchMap.set(`round_1_match_${firstRoundMatch.bracketPosition}`, match);
+      
+      // Increment time for next match (considering buffer)
+      currentDate.setMinutes(currentDate.getMinutes() + matchDurationMinutes + bufferMinutes);
+      matchIndex++;
     }
 
-    // If this is semi-final stage, create final and optionally third place match placeholders
-    if (stage === 'semi_final') {
-      const finalDate = new Date(baseDate);
-      finalDate.setDate(finalDate.getDate() + 7); // A week after semi-finals
+    // Create subsequent rounds with propagation
+    for (let roundIndex = 1; roundIndex < stageDefinitions.length; roundIndex++) {
+      const prevRound = stageDefinitions[roundIndex - 1];
+      const currentRound = stageDefinitions[roundIndex];
+      const prevMatchCount = prevRound.matchCount;
       
-      // Create final placeholder
+      for (let matchNum = 1; matchNum <= currentRound.matchCount; matchNum++) {
+        const prevMatch1Pos = (matchNum - 1) * 2 + 1;
+        const prevMatch2Pos = (matchNum - 1) * 2 + 2;
+        
+        const prevMatch1 = matchMap.get(`round_${prevRound.round}_match_${prevMatch1Pos}`);
+        const prevMatch2 = matchMap.get(`round_${prevRound.round}_match_${prevMatch2Pos}`);
+        
+        // Calculate match date (after previous round + buffer)
+        const matchDate = new Date(currentDate);
+        matchDate.setDate(matchDate.getDate() + (roundIndex * 2)); // 2 days between rounds
+        
+        const [match] = await db.insert(matches).values({
+          tournamentId,
+          homeTeamId: null,
+          awayTeamId: null,
+          homeTeamSource: prevMatch1 ? `WINNER_OF:${prevMatch1.id}` : null,
+          awayTeamSource: prevMatch2 ? `WINNER_OF:${prevMatch2.id}` : null,
+          round: currentRound.round,
+          leg: 1,
+          stage: currentRound.stage,
+          bracketPosition: matchNum,
+          matchDate,
+          venue: tournament.venues && tournament.venues.length > 0 
+            ? tournament.venues[0] 
+            : null,
+          status: 'scheduled',
+        }).returning();
+        
+        generatedMatches.push(match);
+        matchMap.set(`round_${currentRound.round}_match_${matchNum}`, match);
+      }
+    }
+
+    // F) Create Final and Third Place matches
+    const lastRound = stageDefinitions[stageDefinitions.length - 1];
+    const semiFinal1 = matchMap.get(`round_${lastRound.round}_match_1`);
+    const semiFinal2 = matchMap.get(`round_${lastRound.round}_match_2`);
+    
+    if (semiFinal1 && semiFinal2) {
+      const finalDate = new Date(baseDate);
+      finalDate.setDate(finalDate.getDate() + (stageDefinitions.length * 2) + 2);
+      
+      // Final match
       const [finalMatch] = await db.insert(matches).values({
         tournamentId,
         homeTeamId: null,
         awayTeamId: null,
+        homeTeamSource: `WINNER_OF:${semiFinal1.id}`,
+        awayTeamSource: `WINNER_OF:${semiFinal2.id}`,
         round: 1,
         leg: 1,
         stage: 'final',
+        bracketPosition: 1,
         matchDate: finalDate,
         venue: tournament.venues && tournament.venues.length > 0 
           ? tournament.venues[0] 
@@ -1488,18 +1912,21 @@ export class DatabaseStorage implements IStorage {
       
       generatedMatches.push(finalMatch);
       
-      // Create third place match placeholder if enabled
+      // Third Place match (if enabled)
       if (tournament.hasThirdPlaceMatch) {
         const thirdPlaceDate = new Date(finalDate);
-        thirdPlaceDate.setHours(thirdPlaceDate.getHours() - 2); // Before the final
+        thirdPlaceDate.setHours(thirdPlaceDate.getHours() - 2);
         
         const [thirdPlaceMatch] = await db.insert(matches).values({
           tournamentId,
           homeTeamId: null,
           awayTeamId: null,
+          homeTeamSource: `LOSER_OF:${semiFinal1.id}`,
+          awayTeamSource: `LOSER_OF:${semiFinal2.id}`,
           round: 1,
           leg: 1,
           stage: 'third_place',
+          bracketPosition: 1,
           matchDate: thirdPlaceDate,
           venue: tournament.venues && tournament.venues.length > 0 
             ? tournament.venues[0] 
@@ -2033,8 +2460,97 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteMatchEvent(id: string): Promise<boolean> {
+    // Get the event before deleting to update player stats
+    const [event] = await db.select().from(matchEvents).where(eq(matchEvents.id, id));
+    
+    if (event && event.playerId) {
+      // Decrement player stats if it's a goal or card
+      if (event.eventType === 'goal') {
+        await db.update(players)
+          .set({ goals: sql`GREATEST(${players.goals} - 1, 0)` })
+          .where(eq(players.id, event.playerId));
+      } else if (event.eventType === 'assist') {
+        await db.update(players)
+          .set({ assists: sql`GREATEST(${players.assists} - 1, 0)` })
+          .where(eq(players.id, event.playerId));
+      } else if (event.eventType === 'yellow_card') {
+        await db.update(players)
+          .set({ yellowCards: sql`GREATEST(${players.yellowCards} - 1, 0)` })
+          .where(eq(players.id, event.playerId));
+      } else if (event.eventType === 'red_card') {
+        await db.update(players)
+          .set({ redCards: sql`GREATEST(${players.redCards} - 1, 0)` })
+          .where(eq(players.id, event.playerId));
+      }
+    }
+    
     await db.delete(matchEvents).where(eq(matchEvents.id, id));
     return true;
+  }
+
+  // Recalculate player stats from match events (to fix any discrepancies)
+  async recalculatePlayerStats(tournamentId?: string): Promise<{ playersUpdated: number }> {
+    // Get all match events for goals, assists, and cards
+    let allEvents = await db.select().from(matchEvents);
+    
+    // Filter by tournament if provided
+    if (tournamentId) {
+      const tournamentMatches = await db
+        .select({ id: matches.id })
+        .from(matches)
+        .where(eq(matches.tournamentId, tournamentId));
+      const matchIds = tournamentMatches.map(m => m.id);
+      allEvents = allEvents.filter(e => matchIds.includes(e.matchId));
+    }
+
+    // Count events by player and type
+    const playerStats: Record<string, { goals: number; assists: number; yellowCards: number; redCards: number }> = {};
+    
+    for (const event of allEvents) {
+      if (!event.playerId) continue;
+      
+      if (!playerStats[event.playerId]) {
+        playerStats[event.playerId] = { goals: 0, assists: 0, yellowCards: 0, redCards: 0 };
+      }
+      
+      if (event.eventType === 'goal') {
+        playerStats[event.playerId].goals++;
+      } else if (event.eventType === 'assist') {
+        playerStats[event.playerId].assists++;
+      } else if (event.eventType === 'yellow_card') {
+        playerStats[event.playerId].yellowCards++;
+      } else if (event.eventType === 'red_card') {
+        playerStats[event.playerId].redCards++;
+      }
+    }
+
+    // Update all players with recalculated stats
+    let playersUpdated = 0;
+    for (const [playerId, stats] of Object.entries(playerStats)) {
+      await db.update(players)
+        .set({
+          goals: stats.goals,
+          assists: stats.assists,
+          yellowCards: stats.yellowCards,
+          redCards: stats.redCards,
+        })
+        .where(eq(players.id, playerId));
+      playersUpdated++;
+    }
+
+    // Reset stats for players not in the events (set to 0)
+    const allPlayerIds = new Set(Object.keys(playerStats));
+    const allPlayers = await db.select({ id: players.id }).from(players);
+    for (const player of allPlayers) {
+      if (!allPlayerIds.has(player.id)) {
+        await db.update(players)
+          .set({ goals: 0, assists: 0, yellowCards: 0, redCards: 0 })
+          .where(eq(players.id, player.id));
+        playersUpdated++;
+      }
+    }
+
+    return { playersUpdated };
   }
 
   // Match Lineups
@@ -2100,6 +2616,382 @@ export class DatabaseStorage implements IStorage {
     if (!comment || comment.userId !== userId) return false;
     await db.delete(matchComments).where(eq(matchComments.id, id));
     return true;
+  }
+
+  // Tournament Comments
+  async getTournamentComments(tournamentId: string): Promise<(TournamentComment & { user: { id: string; fullName: string } })[]> {
+    const comments = await db
+      .select()
+      .from(tournamentComments)
+      .where(eq(tournamentComments.tournamentId, tournamentId))
+      .orderBy(desc(tournamentComments.createdAt));
+
+    const commentsWithUsers: (TournamentComment & { user: { id: string; fullName: string } })[] = [];
+    for (const comment of comments) {
+      const [user] = await db.select({
+        id: users.id,
+        fullName: users.fullName,
+      }).from(users).where(eq(users.id, comment.userId));
+      
+      if (user) {
+        commentsWithUsers.push({ ...comment, user });
+      }
+    }
+    return commentsWithUsers;
+  }
+
+  async createTournamentComment(insertComment: InsertTournamentComment): Promise<TournamentComment> {
+    const [comment] = await db.insert(tournamentComments).values(insertComment).returning();
+    return comment;
+  }
+
+  async deleteTournamentComment(id: string, userId: string): Promise<boolean> {
+    const [comment] = await db.select().from(tournamentComments).where(eq(tournamentComments.id, id));
+    if (!comment || comment.userId !== userId) return false;
+    await db.delete(tournamentComments).where(eq(tournamentComments.id, id));
+    return true;
+  }
+
+  // Team Chats
+  async getTeamChatRoom(teamId: string): Promise<{ id: string; teamId: string; name: string } | null> {
+    let [room] = await db.select().from(teamChatRooms).where(eq(teamChatRooms.teamId, teamId));
+    if (!room) {
+      // Create room if it doesn't exist
+      [room] = await db.insert(teamChatRooms).values({ teamId, name: "Team Chat" }).returning();
+    }
+    return room ? { id: room.id, teamId: room.teamId, name: room.name } : null;
+  }
+
+  async getTeamChatMessages(roomId: string): Promise<(TeamChatMessage & { user: { id: string; fullName: string } })[]> {
+    const messages = await db
+      .select()
+      .from(teamChatMessages)
+      .where(eq(teamChatMessages.roomId, roomId))
+      .orderBy(asc(teamChatMessages.createdAt));
+
+    const messagesWithUsers: (TeamChatMessage & { user: { id: string; fullName: string } })[] = [];
+    for (const message of messages) {
+      const [user] = await db.select({
+        id: users.id,
+        fullName: users.fullName,
+      }).from(users).where(eq(users.id, message.userId));
+      
+      if (user) {
+        messagesWithUsers.push({ ...message, user });
+      }
+    }
+    return messagesWithUsers;
+  }
+
+  async createTeamChatMessage(message: InsertTeamChatMessage): Promise<TeamChatMessage> {
+    const [newMessage] = await db.insert(teamChatMessages).values(message).returning();
+    return newMessage;
+  }
+
+  async checkTeamMemberAccess(teamId: string, userId: string): Promise<boolean> {
+    // Check if user is a player on the team
+    const [player] = await db.select().from(players).where(
+      and(eq(players.teamId, teamId), eq(players.userId, userId))
+    );
+    if (player) return true;
+
+    // Check if user is the team captain
+    const [team] = await db.select().from(teams).where(eq(teams.id, teamId));
+    if (team && team.captainId === userId) return true;
+
+    return false;
+  }
+
+  // Event Hubs
+  async getEventHub(id: string): Promise<(typeof eventHubs.$inferSelect & { polls: any[] }) | null> {
+    const [hub] = await db.select().from(eventHubs).where(eq(eventHubs.id, id));
+    if (!hub) return null;
+
+    const hubPolls = await this.getHubPolls(id);
+    return { ...hub, polls: hubPolls };
+  }
+
+  async getEventHubs(tournamentId?: string, matchId?: string): Promise<typeof eventHubs.$inferSelect[]> {
+    if (matchId) {
+      return await db.select().from(eventHubs).where(
+        and(eq(eventHubs.matchId, matchId), eq(eventHubs.isActive, true))
+      ).orderBy(desc(eventHubs.createdAt));
+    }
+    if (tournamentId) {
+      return await db.select().from(eventHubs).where(
+        and(eq(eventHubs.tournamentId, tournamentId), eq(eventHubs.isActive, true))
+      ).orderBy(desc(eventHubs.createdAt));
+    }
+    return await db.select().from(eventHubs).where(eq(eventHubs.isActive, true))
+      .orderBy(desc(eventHubs.createdAt));
+  }
+
+  async createEventHub(hub: { tournamentId?: string; matchId?: string; title: string; description?: string }): Promise<typeof eventHubs.$inferSelect> {
+    const [newHub] = await db.insert(eventHubs).values({
+      tournamentId: hub.tournamentId || null,
+      matchId: hub.matchId || null,
+      title: hub.title,
+      description: hub.description || null,
+      isActive: true,
+    }).returning();
+    return newHub;
+  }
+
+  async getHubPolls(hubId: string): Promise<(typeof polls.$inferSelect & { votes: typeof pollVotes.$inferSelect[] })[]> {
+    const hubPolls = await db.select().from(polls).where(eq(polls.hubId, hubId))
+      .orderBy(desc(polls.createdAt));
+    
+    const pollsWithVotes = [];
+    for (const poll of hubPolls) {
+      const votes = await db.select().from(pollVotes).where(eq(pollVotes.pollId, poll.id));
+      pollsWithVotes.push({ ...poll, votes });
+    }
+    return pollsWithVotes;
+  }
+
+  async createPoll(poll: { hubId: string; question: string; type: string; options: string; closesAt?: Date }): Promise<typeof polls.$inferSelect> {
+    const [newPoll] = await db.insert(polls).values({
+      hubId: poll.hubId,
+      question: poll.question,
+      type: poll.type,
+      options: poll.options,
+      closesAt: poll.closesAt || null,
+    }).returning();
+    return newPoll;
+  }
+
+  async votePoll(vote: InsertPollVote): Promise<PollVote> {
+    const [newVote] = await db.insert(pollVotes).values(vote).returning();
+    return newVote;
+  }
+
+  async getPollResults(pollId: string): Promise<{ option: string; votes: number; percentage: number }[]> {
+    const [poll] = await db.select().from(polls).where(eq(polls.id, pollId));
+    if (!poll) return [];
+
+    const options = JSON.parse(poll.options) as string[];
+    const votes = await db.select().from(pollVotes).where(eq(pollVotes.pollId, pollId));
+    const totalVotes = votes.length;
+
+    const results = options.map(option => {
+      const optionVotes = votes.filter(v => {
+        const selected = JSON.parse(v.selectedOptions) as string[];
+        return selected.includes(option);
+      }).length;
+      return {
+        option,
+        votes: optionVotes,
+        percentage: totalVotes > 0 ? Math.round((optionVotes / totalVotes) * 100) : 0,
+      };
+    });
+
+    return results;
+  }
+
+  async hasUserVoted(pollId: string, userId: string): Promise<boolean> {
+    const [vote] = await db.select().from(pollVotes).where(
+      and(eq(pollVotes.pollId, pollId), eq(pollVotes.userId, userId))
+    );
+    return !!vote;
+  }
+
+  // Media Comments
+  async getMediaComments(mediaType: string, mediaId: string): Promise<(MediaComment & { user: { id: string; fullName: string } })[]> {
+    const comments = await db
+      .select()
+      .from(mediaComments)
+      .where(and(eq(mediaComments.mediaType, mediaType), eq(mediaComments.mediaId, mediaId)))
+      .orderBy(desc(mediaComments.createdAt));
+
+    const commentsWithUsers: (MediaComment & { user: { id: string; fullName: string } })[] = [];
+    for (const comment of comments) {
+      const [user] = await db.select({
+        id: users.id,
+        fullName: users.fullName,
+      }).from(users).where(eq(users.id, comment.userId));
+      
+      if (user) {
+        commentsWithUsers.push({ ...comment, user });
+      }
+    }
+    return commentsWithUsers;
+  }
+
+  async createMediaComment(comment: InsertMediaComment): Promise<MediaComment> {
+    const [newComment] = await db.insert(mediaComments).values(comment).returning();
+    return newComment;
+  }
+
+  async deleteMediaComment(id: string, userId: string): Promise<boolean> {
+    const [comment] = await db.select().from(mediaComments).where(eq(mediaComments.id, id));
+    if (!comment || comment.userId !== userId) return false;
+    await db.delete(mediaComments).where(eq(mediaComments.id, id));
+    return true;
+  }
+
+  // Reactions
+  async addReaction(reaction: InsertCommentReaction): Promise<CommentReaction> {
+    // Check if user already reacted, remove old reaction first
+    await db.delete(commentReactions).where(
+      and(
+        eq(commentReactions.commentType, reaction.commentType),
+        eq(commentReactions.commentId, reaction.commentId),
+        eq(commentReactions.userId, reaction.userId)
+      )
+    );
+    const [newReaction] = await db.insert(commentReactions).values(reaction).returning();
+    return newReaction;
+  }
+
+  async removeReaction(commentType: string, commentId: string, userId: string): Promise<boolean> {
+    const result = await db.delete(commentReactions).where(
+      and(
+        eq(commentReactions.commentType, commentType),
+        eq(commentReactions.commentId, commentId),
+        eq(commentReactions.userId, userId)
+      )
+    ).returning();
+    return result.length > 0;
+  }
+
+  async getCommentReactions(commentType: string, commentId: string, userId?: string): Promise<{ reactionType: string; count: number; userReaction?: string }[]> {
+    const reactions = await db.select().from(commentReactions).where(
+      and(
+        eq(commentReactions.commentType, commentType),
+        eq(commentReactions.commentId, commentId)
+      )
+    );
+
+    const userReaction = userId ? reactions.find(r => r.userId === userId)?.reactionType : undefined;
+
+    const reactionCounts: Record<string, number> = {};
+    reactions.forEach(r => {
+      if (!reactionCounts[r.reactionType]) {
+        reactionCounts[r.reactionType] = 0;
+      }
+      reactionCounts[r.reactionType]++;
+    });
+
+    return Object.entries(reactionCounts).map(([type, count]) => ({
+      reactionType: type,
+      count,
+      userReaction: userReaction === type ? userReaction : undefined,
+    }));
+  }
+
+  // Private Chats
+  async getUserChatRooms(userId: string): Promise<(typeof chatRooms.$inferSelect & { members: { userId: string; fullName: string }[]; lastMessage?: { content: string; createdAt: Date } })[]> {
+    const memberRooms = await db.select().from(chatRoomMembers).where(eq(chatRoomMembers.userId, userId));
+    const roomIds = memberRooms.map(m => m.roomId);
+
+    if (roomIds.length === 0) return [];
+    const rooms = await db.select().from(chatRooms).where(
+      inArray(chatRooms.id, roomIds)
+    );
+
+    const roomsWithDetails = [];
+    for (const room of rooms) {
+      const members = await db.select({
+        userId: chatRoomMembers.userId,
+      }).from(chatRoomMembers).where(eq(chatRoomMembers.roomId, room.id));
+
+      const membersWithNames = [];
+      for (const member of members) {
+        const [user] = await db.select({ id: users.id, fullName: users.fullName })
+          .from(users).where(eq(users.id, member.userId));
+        if (user) membersWithNames.push({ userId: user.id, fullName: user.fullName });
+      }
+
+      const [lastMsg] = await db.select().from(chatMessages)
+        .where(eq(chatMessages.roomId, room.id))
+        .orderBy(desc(chatMessages.createdAt))
+        .limit(1);
+
+      roomsWithDetails.push({
+        ...room,
+        members: membersWithNames,
+        lastMessage: lastMsg ? { content: lastMsg.content, createdAt: lastMsg.createdAt } : undefined,
+      });
+    }
+
+    return roomsWithDetails;
+  }
+
+  async createChatRoom(room: { type: string; name?: string; createdBy: string; memberIds: string[] }): Promise<typeof chatRooms.$inferSelect> {
+    const [newRoom] = await db.insert(chatRooms).values({
+      type: room.type,
+      name: room.name || null,
+      createdBy: room.createdBy,
+    }).returning();
+
+    // Add all members including creator
+    const allMemberIds = [...new Set([room.createdBy, ...room.memberIds])];
+    for (const memberId of allMemberIds) {
+      await db.insert(chatRoomMembers).values({
+        roomId: newRoom.id,
+        userId: memberId,
+      });
+    }
+
+    return newRoom;
+  }
+
+  async addChatMember(roomId: string, userId: string): Promise<void> {
+    await db.insert(chatRoomMembers).values({
+      roomId,
+      userId,
+    });
+  }
+
+  async getChatMessages(roomId: string): Promise<(ChatMessage & { user: { id: string; fullName: string } })[]> {
+    const messages = await db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.roomId, roomId))
+      .orderBy(asc(chatMessages.createdAt));
+
+    const messagesWithUsers: (ChatMessage & { user: { id: string; fullName: string } })[] = [];
+    for (const message of messages) {
+      const [user] = await db.select({
+        id: users.id,
+        fullName: users.fullName,
+      }).from(users).where(eq(users.id, message.userId));
+      
+      if (user) {
+        messagesWithUsers.push({ ...message, user });
+      }
+    }
+    return messagesWithUsers;
+  }
+
+  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const [newMessage] = await db.insert(chatMessages).values(message).returning();
+    return newMessage;
+  }
+
+  async markChatAsRead(roomId: string, userId: string): Promise<void> {
+    await db.update(chatRoomMembers)
+      .set({ lastReadAt: new Date() })
+      .where(and(eq(chatRoomMembers.roomId, roomId), eq(chatRoomMembers.userId, userId)));
+  }
+
+  async getUnreadCount(roomId: string, userId: string): Promise<number> {
+    const [member] = await db.select().from(chatRoomMembers).where(
+      and(eq(chatRoomMembers.roomId, roomId), eq(chatRoomMembers.userId, userId))
+    );
+    if (!member || !member.lastReadAt) {
+      const totalMessages = await db.select().from(chatMessages)
+        .where(eq(chatMessages.roomId, roomId));
+      return totalMessages.length;
+    }
+
+    const unreadMessages = await db.select().from(chatMessages).where(
+      and(
+        eq(chatMessages.roomId, roomId),
+        sql`${chatMessages.createdAt} > ${member.lastReadAt}`
+      )
+    );
+    return unreadMessages.length;
   }
 
   // Team Evaluations

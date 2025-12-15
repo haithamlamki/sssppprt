@@ -27,8 +27,12 @@ const registerFormSchema = z.object({
   department: z.string().min(1, "القسم مطلوب"),
   position: z.string().min(1, "المنصب مطلوب"),
   phoneNumber: z.string().optional(),
+  instagramAccount: z.string().optional(),
   shiftPattern: z.string().default("2weeks_on_2weeks_off"),
   accountType: z.enum(["standard", "player", "committee"]),
+  unit: z.string().optional(),
+  directManager: z.string().optional(),
+  ds: z.string().optional(),
   committeeTitle: z.string().optional(),
   workStartDate: z.date().optional(),
   workEndDate: z.date().optional(),
@@ -57,9 +61,12 @@ export default function Register() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [accountImage, setAccountImage] = useState<File | null>(null);
+  const [accountImagePreview, setAccountImagePreview] = useState<string | null>(null);
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [employeeCardImage, setEmployeeCardImage] = useState<File | null>(null);
   const [nationalIdImage, setNationalIdImage] = useState<File | null>(null);
+  const [healthInsuranceImage, setHealthInsuranceImage] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<RegisterFormData>({
@@ -74,8 +81,12 @@ export default function Register() {
       department: "",
       position: "",
       phoneNumber: "",
+      instagramAccount: "",
       shiftPattern: "2weeks_on_2weeks_off",
       accountType: "standard",
+      unit: "",
+      directManager: "",
+      ds: "",
       committeeTitle: "",
       playerNumber: "",
       playerPosition: "",
@@ -86,6 +97,7 @@ export default function Register() {
   });
 
   const accountType = form.watch("accountType");
+  const shiftPattern = form.watch("shiftPattern");
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsSubmitting(true);
@@ -100,8 +112,12 @@ export default function Register() {
       formData.append("department", data.department);
       formData.append("position", data.position);
       formData.append("phoneNumber", data.phoneNumber || "");
+      formData.append("instagramAccount", data.instagramAccount || "");
       formData.append("shiftPattern", data.shiftPattern);
       formData.append("accountType", data.accountType);
+      formData.append("unit", data.unit || "");
+      formData.append("directManager", data.directManager || "");
+      formData.append("ds", data.ds || "");
       
       if (data.committeeTitle) {
         formData.append("committeeTitle", data.committeeTitle);
@@ -126,6 +142,9 @@ export default function Register() {
         formData.append("playerInfo", JSON.stringify(playerInfo));
       }
 
+      if (accountImage) {
+        formData.append("accountImage", accountImage);
+      }
       if (profileImage) {
         formData.append("profileImage", profileImage);
       }
@@ -134,6 +153,9 @@ export default function Register() {
       }
       if (nationalIdImage) {
         formData.append("nationalIdImage", nationalIdImage);
+      }
+      if (healthInsuranceImage) {
+        formData.append("healthInsuranceImage", healthInsuranceImage);
       }
 
       const response = await fetch("/api/auth/register", {
@@ -175,16 +197,62 @@ export default function Register() {
     }
   };
 
+  const handleAccountImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAccountImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAccountImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-orange-50 dark:from-gray-900 dark:to-gray-800 p-4">
       <Card className="w-full max-w-3xl">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="bg-primary/10 p-4 rounded-full">
-              <Trophy className="w-12 h-12 text-primary" />
+          <div className="flex flex-col items-center gap-4 mb-4">
+            <div className="relative">
+              {accountImagePreview ? (
+                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-primary">
+                  <img 
+                    src={accountImagePreview} 
+                    alt="صورة الحساب" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="bg-primary/10 p-4 rounded-full">
+                  <Trophy className="w-12 h-12 text-primary" />
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <label className="text-base font-medium cursor-pointer text-primary hover:text-primary/80">
+                {accountImagePreview ? "تغيير صورة الحساب" : "إضافة صورة الحساب"}
+              </label>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleAccountImageChange}
+                className="hidden"
+                id="account-image-input"
+                data-testid="input-account-image"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById("account-image-input")?.click()}
+                className="text-base"
+              >
+                {accountImagePreview ? "تغيير" : "اختر صورة"}
+              </Button>
             </div>
           </div>
-          <CardTitle className="text-2xl">إنشاء حساب جديد</CardTitle>
+          <CardTitle className="text-xl">إنشاء حساب جديد</CardTitle>
           <CardDescription>
             انضم إلى اللجنة الرياضية - شركة أبراج لخدمات الطاقة
           </CardDescription>
@@ -193,7 +261,7 @@ export default function Register() {
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
+                <h3 className="text-xl font-semibold flex items-center gap-2">
                   <User className="w-5 h-5" />
                   المعلومات الأساسية
                 </h3>
@@ -289,7 +357,37 @@ export default function Register() {
                       <FormItem>
                         <FormLabel data-testid="label-phone">رقم الجوال</FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-phone" type="tel" placeholder="05xxxxxxxx" />
+                          <Input 
+                            {...field} 
+                            data-testid="input-phone" 
+                            type="tel" 
+                            placeholder="xxxxxxxx" 
+                            dir="ltr"
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.value)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="instagramAccount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel data-testid="label-instagram">حساب الانستجرام</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            data-testid="input-instagram" 
+                            type="text" 
+                            placeholder="@username" 
+                            dir="ltr"
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.value)}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -299,7 +397,7 @@ export default function Register() {
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
+                <h3 className="text-xl font-semibold flex items-center gap-2">
                   <Users className="w-5 h-5" />
                   نوع الحساب
                 </h3>
@@ -311,19 +409,19 @@ export default function Register() {
                       <FormLabel data-testid="label-account-type">نوع الحساب *</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger data-testid="select-account-type">
+                          <SelectTrigger data-testid="select-account-type" className="text-right" dir="rtl">
                             <SelectValue placeholder="اختر نوع الحساب" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="standard">مستخدم عادي</SelectItem>
-                          <SelectItem value="player">لاعب</SelectItem>
+                          <SelectItem value="standard">موظف ابراج</SelectItem>
+                          <SelectItem value="player">لاعب ابراج</SelectItem>
                           <SelectItem value="committee">عضو اللجنة الإدارية</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>
                         {accountType === "standard" && "يمكنك التسجيل في الفعاليات ومشاهدة المحتوى"}
-                        {accountType === "player" && "ستظهر حقول إضافية لتسجيل بيانات اللاعب"}
+                        {accountType === "player" && "تسجيل بيانات لاعب"}
                         {accountType === "committee" && "ستحصل على صلاحيات إدارية إضافية"}
                       </FormDescription>
                       <FormMessage />
@@ -350,7 +448,7 @@ export default function Register() {
 
               {accountType === "player" && (
                 <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <h3 className="text-xl font-semibold flex items-center gap-2">
                     <Shirt className="w-5 h-5" />
                     معلومات اللاعب
                   </h3>
@@ -457,7 +555,7 @@ export default function Register() {
                                   )}
                                   data-testid="button-player-dob"
                                 >
-                                  <CalendarIcon className="ml-2 h-4 w-4" />
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
                                   {field.value ? format(field.value, "PPP", { locale: ar }) : "اختر التاريخ"}
                                 </Button>
                               </FormControl>
@@ -476,15 +574,170 @@ export default function Register() {
                         </FormItem>
                       )}
                     />
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <h3 className="text-xl font-semibold flex items-center gap-2">
+                  <CalendarIcon className="w-5 h-5" />
+                  نظام الدوام والتوافر
+                </h3>
+                <div className={`grid grid-cols-1 gap-4 items-start ${shiftPattern !== "normal" ? "md:grid-cols-3" : "md:grid-cols-1"}`}>
+                  <FormField
+                    control={form.control}
+                    name="shiftPattern"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel data-testid="label-shift">نظام الدوام</FormLabel>
+                        <Select 
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            if (value === "normal") {
+                              form.setValue("workStartDate", undefined);
+                              form.setValue("workEndDate", undefined);
+                              form.setValue("unit", "");
+                              form.setValue("directManager", "");
+                              form.setValue("ds", "");
+                            }
+                          }} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-shift">
+                              <SelectValue placeholder="اختر نظام الدوام" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="2weeks_on_2weeks_off">صحراء 2 أسبوع عمل / 2 أسبوع إجازة</SelectItem>
+                            <SelectItem value="normal">دوام كامل</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {shiftPattern !== "normal" && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="workStartDate"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>تاريخ بداية العمل</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full justify-start text-right font-normal",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                    data-testid="button-work-start"
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {field.value ? format(field.value, "PPP", { locale: ar }) : "اختر التاريخ"}
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value}
+                                  onSelect={field.onChange}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="workEndDate"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>تاريخ نهاية العمل</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full justify-start text-right font-normal",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                    data-testid="button-work-end"
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {field.value ? format(field.value, "PPP", { locale: ar }) : "اختر التاريخ"}
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value}
+                                  onSelect={field.onChange}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {shiftPattern !== "normal" && (
+                <div className="space-y-4">
+                  <h3 className="text-xl font-semibold flex items-center gap-2">
+                    معلومات العمل
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="unit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel data-testid="label-unit">الوحدة</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-unit" placeholder="الوحدة" className="text-right" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
                     <FormField
                       control={form.control}
-                      name="playerPrimaryJersey"
+                      name="directManager"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>لون القميص الأساسي</FormLabel>
+                          <FormLabel data-testid="label-direct-manager">المسؤول المباشر</FormLabel>
                           <FormControl>
-                            <Input {...field} data-testid="input-player-jersey" placeholder="أحمر، أزرق، أخضر..." className="text-right" />
+                            <Input {...field} data-testid="input-direct-manager" placeholder="المسؤول المباشر" className="text-right" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="ds"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel data-testid="label-ds">الDS</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-ds" placeholder="الDS" className="text-right" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -495,116 +748,13 @@ export default function Register() {
               )}
 
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <CalendarIcon className="w-5 h-5" />
-                  نظام الدوام والتوافر
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="shiftPattern"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel data-testid="label-shift">نظام الدوام</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-shift">
-                              <SelectValue placeholder="اختر نظام الدوام" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="2weeks_on_2weeks_off">2 أسبوع عمل / 2 أسبوع إجازة</SelectItem>
-                            <SelectItem value="normal">دوام عادي (دوام كامل)</SelectItem>
-                            <SelectItem value="flexible">دوام مرن</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="workStartDate"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>تاريخ بداية العمل</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-right font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                                data-testid="button-work-start"
-                              >
-                                <CalendarIcon className="ml-2 h-4 w-4" />
-                                {field.value ? format(field.value, "PPP", { locale: ar }) : "اختر التاريخ"}
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="workEndDate"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>تاريخ نهاية العمل</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-right font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                                data-testid="button-work-end"
-                              >
-                                <CalendarIcon className="ml-2 h-4 w-4" />
-                                {field.value ? format(field.value, "PPP", { locale: ar }) : "اختر التاريخ"}
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
+                <h3 className="text-xl font-semibold flex items-center gap-2">
                   <Upload className="w-5 h-5" />
                   الصور والمستندات
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">صورة شخصية</label>
+                    <label className="text-base font-medium">صورة شخصية</label>
                     <div className="flex items-center gap-2">
                       <Input
                         type="file"
@@ -615,12 +765,12 @@ export default function Register() {
                       />
                     </div>
                     {profileImage && (
-                      <p className="text-xs text-muted-foreground">{profileImage.name}</p>
+                      <p className="text-base text-muted-foreground">{profileImage.name}</p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">صورة بطاقة العمل</label>
+                    <label className="text-base font-medium">صورة بطاقة العمل</label>
                     <div className="flex items-center gap-2">
                       <Input
                         type="file"
@@ -631,12 +781,12 @@ export default function Register() {
                       />
                     </div>
                     {employeeCardImage && (
-                      <p className="text-xs text-muted-foreground">{employeeCardImage.name}</p>
+                      <p className="text-base text-muted-foreground">{employeeCardImage.name}</p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">صورة الهوية</label>
+                    <label className="text-base font-medium">صورة الهوية</label>
                     <div className="flex items-center gap-2">
                       <Input
                         type="file"
@@ -647,14 +797,30 @@ export default function Register() {
                       />
                     </div>
                     {nationalIdImage && (
-                      <p className="text-xs text-muted-foreground">{nationalIdImage.name}</p>
+                      <p className="text-base text-muted-foreground">{nationalIdImage.name}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-base font-medium">صورة التأمين الصحي</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleImageChange(e, setHealthInsuranceImage)}
+                        className="cursor-pointer"
+                        data-testid="input-health-insurance"
+                      />
+                    </div>
+                    {healthInsuranceImage && (
+                      <p className="text-base text-muted-foreground">{healthInsuranceImage.name}</p>
                     )}
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">كلمة المرور</h3>
+                <h3 className="text-xl font-semibold">كلمة المرور</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -695,7 +861,7 @@ export default function Register() {
               >
                 {isSubmitting ? "جاري إنشاء الحساب..." : "إنشاء حساب"}
               </Button>
-              <div className="text-sm text-center text-muted-foreground">
+              <div className="text-base text-center text-muted-foreground">
                 لديك حساب بالفعل؟{" "}
                 <button
                   type="button"
