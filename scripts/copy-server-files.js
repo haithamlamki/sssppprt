@@ -28,11 +28,11 @@ function copyDir(src, dest) {
   }
 }
 
-// Copy server and shared directories to api/
+// Copy server and shared directories to lib/ (not api/ to avoid being treated as functions)
 const serverSrc = path.join(rootDir, 'server');
-const serverDest = path.join(rootDir, 'api', 'server');
+const serverDest = path.join(rootDir, 'lib', 'server');
 const sharedSrc = path.join(rootDir, 'shared');
-const sharedDest = path.join(rootDir, 'api', 'shared');
+const sharedDest = path.join(rootDir, 'lib', 'shared');
 
 if (!fs.existsSync(serverSrc)) {
   console.error('❌ ERROR: server/ directory not found at:', serverSrc);
@@ -44,13 +44,13 @@ if (!fs.existsSync(sharedSrc)) {
   process.exit(1);
 }
 
-console.log('📂 Copying server/ to api/server/...');
+console.log('📂 Copying server/ to lib/server/...');
 copyDir(serverSrc, serverDest);
-console.log('✓ Copied server/ to api/server/');
+console.log('✓ Copied server/ to lib/server/');
 
-console.log('📂 Copying shared/ to api/shared/...');
+console.log('📂 Copying shared/ to lib/shared/...');
 copyDir(sharedSrc, sharedDest);
-console.log('✓ Copied shared/ to api/shared/');
+console.log('✓ Copied shared/ to lib/shared/');
 
 // Update imports in copied server files to use relative paths
 function updateImportsInFile(filePath) {
@@ -81,7 +81,7 @@ function updateImportsInDir(dir) {
 
 if (fs.existsSync(serverDest)) {
   updateImportsInDir(serverDest);
-  console.log('✓ Updated imports in api/server/ to use relative paths');
+  console.log('✓ Updated imports in lib/server/ to use relative paths');
 }
 
 // Verify that critical files were copied successfully
