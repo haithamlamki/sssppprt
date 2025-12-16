@@ -2,8 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { registerRoutes } from '../lib/server/routes';
-import { storage } from '../lib/server/storage';
+import { registerRoutes } from './server/routes';
+import { storage } from './server/storage';
 
 // Cache the Express app instance
 let cachedApp: express.Express | null = null;
@@ -18,9 +18,9 @@ async function createApp(): Promise<express.Express> {
   console.log('🔍 Checking for server files...');
   
   // Verify server files exist
-  const serverRoutesPath = path.join(process.cwd(), 'lib', 'server', 'routes.ts');
-  const serverStoragePath = path.join(process.cwd(), 'lib', 'server', 'storage.ts');
-  const sharedSchemaPath = path.join(process.cwd(), 'lib', 'shared', 'schema.ts');
+  const serverRoutesPath = path.join(process.cwd(), 'api', 'server', 'routes.ts');
+  const serverStoragePath = path.join(process.cwd(), 'api', 'server', 'storage.ts');
+  const sharedSchemaPath = path.join(process.cwd(), 'api', 'shared', 'schema.ts');
   
   console.log('📄 server/routes.ts exists:', fs.existsSync(serverRoutesPath));
   console.log('📄 server/storage.ts exists:', fs.existsSync(serverStoragePath));

@@ -11,5 +11,8 @@ dist
 *.swp
 *.swo
 *~
-# Note: lib/server and lib/shared are NOT in api/, so they won't be treated as functions
+# Ignore api/server and api/shared from being treated as separate serverless functions
+# These are imported by api/index.ts, not standalone functions
 # They are included via includeFiles in vercel.json for api/index.ts function
+api/server/**
+api/shared/**

@@ -28,11 +28,14 @@ function copyDir(src, dest) {
   }
 }
 
-// Copy server and shared directories to lib/ (not api/ to avoid being treated as functions)
+// Copy server and shared directories to both lib/ and api/
+// lib/ is for Git tracking, api/ is for Vercel runtime (but ignored via .vercelignore)
 const serverSrc = path.join(rootDir, 'server');
-const serverDest = path.join(rootDir, 'lib', 'server');
+const serverDestLib = path.join(rootDir, 'lib', 'server');
+const serverDestApi = path.join(rootDir, 'api', 'server');
 const sharedSrc = path.join(rootDir, 'shared');
-const sharedDest = path.join(rootDir, 'lib', 'shared');
+const sharedDestLib = path.join(rootDir, 'lib', 'shared');
+const sharedDestApi = path.join(rootDir, 'api', 'shared');
 
 if (!fs.existsSync(serverSrc)) {
   console.error('❌ ERROR: server/ directory not found at:', serverSrc);
@@ -45,12 +48,20 @@ if (!fs.existsSync(sharedSrc)) {
 }
 
 console.log('📂 Copying server/ to lib/server/...');
-copyDir(serverSrc, serverDest);
+copyDir(serverSrc, serverDestLib);
 console.log('✓ Copied server/ to lib/server/');
 
 console.log('📂 Copying shared/ to lib/shared/...');
-copyDir(sharedSrc, sharedDest);
+copyDir(sharedSrc, sharedDestLib);
 console.log('✓ Copied shared/ to lib/shared/');
+
+console.log('📂 Copying server/ to api/server/...');
+copyDir(serverSrc, serverDestApi);
+console.log('✓ Copied server/ to api/server/');
+
+console.log('📂 Copying shared/ to api/shared/...');
+copyDir(sharedSrc, sharedDestApi);
+console.log('✓ Copied shared/ to api/shared/');
 
 // Update imports in copied server files to use relative paths
 function updateImportsInFile(filePath) {
@@ -79,18 +90,28 @@ function updateImportsInDir(dir) {
   }
 }
 
-if (fs.existsSync(serverDest)) {
-  updateImportsInDir(serverDest);
+if (fs.existsSync(serverDestLib)) {
+  updateImportsInDir(serverDestLib);
   console.log('✓ Updated imports in lib/server/ to use relative paths');
+}
+
+if (fs.existsSync(serverDestApi)) {
+  updateImportsInDir(serverDestApi);
+  console.log('✓ Updated imports in api/server/ to use relative paths');
 }
 
 // Verify that critical files were copied successfully
 const criticalFiles = [
-  path.join(serverDest, 'routes.ts'),
-  path.join(serverDest, 'storage.ts'),
-  path.join(serverDest, 'db.ts'),
-  path.join(serverDest, 'auth.ts'),
-  path.join(sharedDest, 'schema.ts')
+  path.join(serverDestLib, 'routes.ts'),
+  path.join(serverDestLib, 'storage.ts'),
+  path.join(serverDestLib, 'db.ts'),
+  path.join(serverDestLib, 'auth.ts'),
+  path.join(sharedDestLib, 'schema.ts'),
+  path.join(serverDestApi, 'routes.ts'),
+  path.join(serverDestApi, 'storage.ts'),
+  path.join(serverDestApi, 'db.ts'),
+  path.join(serverDestApi, 'auth.ts'),
+  path.join(sharedDestApi, 'schema.ts')
 ];
 
 let allFilesExist = true;
