@@ -67,10 +67,10 @@ server/public
 # lib/ MUST be in Git for includeFiles to work in Vercel
 # lib/ is generated during build but must be tracked in Git
 
-# api/server and api/shared should not be in Git (they cause Vercel to treat them as functions)
-# Files are copied to lib/ during build instead
-api/server/
-api/shared/
+# api/server and api/shared MUST be in Git for runtime
+# .vercelignore prevents Vercel from treating them as separate functions
+# api/server/
+# api/shared/
 
 # Database
 *.db
